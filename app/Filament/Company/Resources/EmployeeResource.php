@@ -31,7 +31,7 @@ class EmployeeResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['currentCompanyAssigned']);
+        return parent::getEloquentQuery()->where('company_id',Filament::auth()->id())->with(['currentCompanyAssigned']);
     }
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
