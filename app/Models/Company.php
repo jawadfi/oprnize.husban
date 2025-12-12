@@ -1,0 +1,56 @@
+<?php
+
+namespace App\Models;
+
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+
+class Company extends Authenticatable implements MustVerifyEmail, FilamentUser
+{
+    use Notifiable;
+
+    protected $fillable = [
+        'name',
+        'commercial_registration_number',
+        'email',
+        'type',
+        'city_id',
+        'password'
+    ];
+
+    protected $hidden = [
+        'email_verified_at',
+        'password'
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed'
+        ];
+    }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return true;
+    }
+
+    public function scopeOfType($query, $type)
+    {
+        return $query->where('type', $type);
+    }
+
+    public function original_employees()
+    {
+        return $this->hasMany(Employee::class);
+    }
+    public function used_employees(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Employee::class, 'employee_assigned')->withPivot(['status','start_date']);
+    }
+
+}

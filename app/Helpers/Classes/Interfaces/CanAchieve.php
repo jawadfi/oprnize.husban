@@ -1,0 +1,19 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Helpers\Classes\Interfaces;
+
+/**
+ * Interface CanAchieve
+ *
+ * @package Assada\Achievements
+ */
+interface CanAchieve
+{
+    // Adds an specified amount of points of progress
+    public function addProgressToAchiever($achiever, $points);
+
+    // Sets the specified amount of points to this achiever
+    public function setProgressToAchiever($achiever, $points);
+}
+

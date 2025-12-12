@@ -1,0 +1,191 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Helpers\Classes\Achievements;
+
+use App\Helpers\Classes\Interfaces\CanAchieve;
+use App\Models\AchievementDetails;
+use App\Models\AchievementProgress;
+use Illuminate\Database\Eloquent\Model;
+
+/**
+ * Class Achievement
+ *
+ * @package Assada\Achievements
+ */
+class Achievement implements CanAchieve
+{
+    /**
+     * The unique identifier for the achievement.
+     *
+     * @var string
+     */
+    public $id;
+
+    /*
+     * The achievement name
+     */
+    public $name = 'Achievement';
+
+    /*
+     * A small description for the achievement
+     */
+    public $description = '';
+
+    /**
+     * The amount of points required to unlock this achievement.
+     */
+    public $points = 1;
+
+    /*
+     * Whether this is a secret achievement or not.
+     */
+    public $secret = false;
+
+    /*
+     * The model class for this achievement.
+     */
+    private $modelAttr = null;
+
+    /**
+     * Achievement constructor.
+     * Should add the achievement to the database.
+     */
+    public function __construct(AchievementDetails $model)
+    {
+        $this->modelAttr=$model;
+        $this->getModel();
+    }
+
+    /**
+     * Wrapper for AchievementDetail::all();
+     * Conveniently fetches all achievements stored in the database.
+     */
+    public static function all()
+    {
+        return AchievementDetails::all();
+    }
+
+    /**
+     * Gets the full class name.
+     *
+     * @return string
+     */
+    public function getClassName(): string
+    {
+        return static::class;
+    }
+
+    /**
+     * Gets the amount of points needed to unlock the achievement.
+     *
+     * @return int
+     */
+    public function getPoints(): int
+    {
+        return $this->points;
+    }
+
+    /**
+     * Gets the details class for this achievement.
+     *
+     * @return AchievementDetails
+     */
+    public function getModel(): AchievementDetails
+    {
+        if (!is_null($this->modelAttr)) {
+            return $this->modelAttr;
+        }
+
+        $model = AchievementDetails::where('class_name', $this->getClassName())->first();
+
+        if (is_null($model)) {
+            $model = new AchievementDetails();
+            $model->class_name = $this->getClassName();
+        }
+
+        if (config('achievements.auto_sync') || is_null($model->name)) {
+            $model->name = $this->name;
+            $model->description = $this->description;
+            $model->points = $this->points;
+            $model->secret = $this->secret;
+
+            // Syncs
+            $model->save();
+        }
+
+        $this->modelAttr = $model;
+        return $model;
+    }
+
+    /**
+     * Adds a specified amount of points to the achievement.
+     *
+     * @param mixed $achiever The entity that will add progress to this achievement
+     * @param int $points The amount of points to be added to this achievement
+     */
+    public function addProgressToAchiever($achiever, $points = 1): void
+    {
+        $progress = $this->getOrCreateProgressForAchiever($achiever);
+        if (!$progress->isUnlocked()) {
+            $progress->points += $points;
+            $progress->save();
+        }
+    }
+
+    /**
+     * Sets a specified amount of points to the achievement.
+     *
+     * @param mixed $achiever The entity that will add progress to this achievement
+     * @param int $points The amount of points to be added to this achievement
+     */
+    public function setProgressToAchiever($achiever, $points): void
+    {
+        $progress = $this->getOrCreateProgressForAchiever($achiever);
+
+        if (!$progress->isUnlocked()) {
+            $progress->points = $points;
+            $progress->full_points = 100;
+            $progress->save();
+        }
+    }
+
+    /**
+     * Gets the achiever's progress data for this achievement, or creates a new one if not existant
+     * @param Model $achiever
+     *
+     * @return AchievementProgress
+     */
+    public function getOrCreateProgressForAchiever($achiever): AchievementProgress
+    {
+        $achievementId = $this->getModel()->id;
+        $progress = AchievementProgress::where('achievement_id', $achievementId)
+            ->where('achiever_id', $achiever->getKey())
+            ->first();
+
+        if (is_null($progress)) {
+            $progress = new AchievementProgress();
+            $progress->details()->associate($this->getModel());
+            $progress->achiever()->associate($achiever);
+
+            $progress->save();
+        }
+
+        return $progress;
+    }
+
+    /**
+     * Gets model morph name
+     *
+     * @param Model $achiever
+     * @return string
+     */
+    protected function getAchieverClassName($achiever): string
+    {
+        if ($achiever instanceof Model) {
+            return $achiever->getMorphClass();
+        }
+
+        return get_class($achiever);
+    }
+}
