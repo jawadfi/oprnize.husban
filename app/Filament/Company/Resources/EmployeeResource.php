@@ -102,7 +102,7 @@ class EmployeeResource extends Resource
                         /** @var Company $company */
                         $company = Company::find($data['company_id']);
                         $company->used_employees()->attach($records,['start_date'=>$data['start_date']]);
-                        Employee::find($records->pluck('id')->toArray())->update(['company_assigned_id'=>$company->id]);
+                        Employee::whereIn('id',$records->pluck('id')->toArray())->update(['company_assigned_id'=>$company->id]);
                         Notification::make()
                             ->title('Employees assigned successfully')
                             ->success()
