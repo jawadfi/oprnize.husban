@@ -6,6 +6,7 @@ use Afsakar\FilamentOtpLogin\FilamentOtpLoginPlugin;
 use App\Filament\Company\Pages\Login;
 use App\Filament\Company\Pages\Register;
 use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
+use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -29,7 +30,9 @@ class CompanyPanelProvider extends PanelProvider
         return $panel
             ->id('company')
             ->path('company')
-            ->colors([
+            ->darkMode(false)
+            ->defaultThemeMode(ThemeMode::Light)
+        ->colors([
                 'primary' => Color::Cyan,
             ])
             ->login(Login::class)
