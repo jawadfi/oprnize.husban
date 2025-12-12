@@ -2,7 +2,6 @@
 
 namespace App\Providers\Filament;
 
-use Afsakar\FilamentOtpLogin\FilamentOtpLoginPlugin;
 use App\Filament\Company\Pages\Login;
 use App\Filament\Company\Pages\Register;
 use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
@@ -32,7 +31,7 @@ class CompanyPanelProvider extends PanelProvider
             ->path('company')
             ->darkMode(false)
             ->defaultThemeMode(ThemeMode::Light)
-        ->colors([
+            ->colors([
                 'primary' => Color::Cyan,
             ])
             ->login(Login::class)
