@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('employee_assigned', function (Blueprint $table) {
-            $table->string('status')->default(EmployeeAssignedStatus::PENDING)->change();
+            $table->string('status')->nullable()->default(EmployeeAssignedStatus::PENDING)->change();
 
         });
     }
