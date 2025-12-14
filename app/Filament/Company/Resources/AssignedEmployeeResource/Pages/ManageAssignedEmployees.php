@@ -2,6 +2,7 @@
 
 namespace App\Filament\Company\Resources\AssignedEmployeeResource\Pages;
 
+use App\Enums\EmployeeAssignedStatus;
 use App\Filament\Company\Resources\AssignedEmployeeResource;
 use App\Models\Company;
 use App\Models\Employee;
@@ -19,7 +20,10 @@ class ManageAssignedEmployees extends ManageRecords
     {
         $tabs = [];
         $used_employee = Employee::whereHas('assigned', function ($query) {
-            return $query->where('employee_assigned.company_id', Filament::auth()->id());
+            return $query->where('employee_assigned.company_id', Filament::auth()->id())
+                ->where('employee_assigned.status',EmployeeAssignedStatus::APPROVED)
+                ->whereDate('employee_assigned.start_date','<=',now())
+                ;
         });
 
         $used_employee_collection = $used_employee->get();
@@ -29,7 +33,8 @@ class ManageAssignedEmployees extends ManageRecords
         foreach ($companies as $company) {
             $tabs[$company->name] = Tab::make()
                 ->badge(fn() => $used_employee_collection->where('company_id', $company->id)->count())
-                ->modifyQueryUsing(fn(Builder $query) => $query->where('company_id', $company->id));
+                ->modifyQueryUsing(fn(Builder $query) => $query->where('company_id', $company->id))
+            ;
         }
         return $tabs;
 

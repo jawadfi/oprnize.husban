@@ -4,7 +4,9 @@ namespace App\Filament\Company\Resources;
 
 use AlperenErsoy\FilamentExport\Actions\FilamentExportHeaderAction;
 use App\Enums\CompanyTypes;
+use App\Enums\EmployeeAssignedStatus;
 use App\Filament\Company\Resources\AssignedEmployeeResource\Pages;
+use App\Filament\Schema\EmployeeSchema;
 use App\Models\Employee;
 use Filament\Facades\Filament;
 use Filament\Forms\Form;
@@ -24,7 +26,10 @@ class AssignedEmployeeResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->whereHas('assigned',function ($query){
-            return $query->where('employee_assigned.company_id',Filament::auth()->id());
+            return $query
+                ->where('employee_assigned.company_id',Filament::auth()->id())
+                ->where('employee_assigned.status',EmployeeAssignedStatus::APPROVED)
+                ->whereDate('employee_assigned.start_date','<=',now());
         });
     }
 
@@ -44,13 +49,7 @@ class AssignedEmployeeResource extends Resource
             ->headerActions([
                 FilamentExportHeaderAction::make('export'),
             ])
-            ->columns([
-                Tables\Columns\TextColumn::make('id')->label('Employee ID')->sortable()->searchable(),
-                Tables\Columns\TextColumn::make('name')->label('Employee Name')->sortable()->searchable(),
-                Tables\Columns\TextColumn::make('job_title')->sortable()->searchable(),
-                Tables\Columns\TextColumn::make('identity_number')->label('ID Number')->sortable()->searchable(),
-                Tables\Columns\TextColumn::make('nationality')->label('Nationality')->sortable()->searchable(),
-            ])
+            ->columns(EmployeeSchema::getTableColumns())
             ->filters([
                 //
             ])

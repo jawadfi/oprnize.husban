@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\EmployeeAssignedStatus;
 use App\Enums\EmployeeStatusStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -19,15 +20,26 @@ class Employee extends Model
         'identity_number',
         'nationality',
         'company_id',
-        'company_assigned_id'
+        'company_assigned_id',
+        'email',
+        'password',
+        'email_verified_at'
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at'=>'datetime',
+            'password'=>'hashed'
+        ];
+    }
 
     public function scopeByStatus(Builder $query, $status)
     {
         return $query->when($status === EmployeeStatusStatus::AVAILABLE, function (Builder $query) {
             return $query->whereDoesntHave('assigned');
         })->when($status === EmployeeStatusStatus::IN_SERVICE, function (Builder $query) {
-            return $query->whereHas('assigned');
+            return $query->whereHas('assigned',fn(Builder $query) => $query->where('employee_assigned.status',EmployeeAssignedStatus::APPROVED));
         })->when($status === EmployeeStatusStatus::ENDED_SERVICE, function (Builder $query) {
             return $query->where('identity_number', false);
         });
@@ -35,7 +47,9 @@ class Employee extends Model
 
     public function assigned()
     {
-        return $this->belongsToMany(Company::class, 'employee_assigned')->withPivot(['status', 'start_date']);
+        return $this->belongsToMany(Company::class, 'employee_assigned')
+            ->withPivot(['status', 'start_date'])
+            ->withTimestamps();
     }
     public function currentCompanyAssigned()
     {
