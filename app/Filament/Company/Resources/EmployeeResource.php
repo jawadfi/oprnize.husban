@@ -7,7 +7,7 @@ use App\Enums\CompanyTypes;
 use App\Enums\EmployeeStatusStatus;
 use App\Filament\Company\Resources\EmployeeResource\Pages;
 use App\Filament\Company\Resources\EmployeeResource\RelationManagers;
-use App\Helpers\Helpers;
+use App\Filament\Schema\EmployeeSchema;
 use App\Models\Company;
 use App\Models\Employee;
 use Filament\Facades\Filament;
@@ -39,20 +39,9 @@ class EmployeeResource extends Resource
     public static function form(Form $form): Form
     {
         return $form
-            ->schema([
-                Forms\Components\Section::make([
-                    Forms\Components\TextInput::make('name')->label('Employee Name')->required(),
-                    Forms\Components\TextInput::make('job_title')->required(),
-                    Forms\Components\TextInput::make('identity_number')
-                        ->unique(ignoreRecord:true)
-                        ->label('ID Number')->required(),
-                    Forms\Components\Select::make('nationality')
-                        ->options(Helpers::same_key_value(config('helpers.nationalities')))
-                        ->preload()
-                        ->searchable()
-                        ->required(),
-                ]) ->columns(2)
-            ]);
+            ->schema(
+                    EmployeeSchema::getFormComponents()
+            );
     }
 
     public static function table(Table $table): Table
@@ -62,19 +51,7 @@ class EmployeeResource extends Resource
                 FilamentExportHeaderAction::make('export'),
 
             ])
-            ->columns([
-                Tables\Columns\TextColumn::make('id')->label('Employee ID')->sortable()->searchable(),
-                Tables\Columns\TextColumn::make('name')->label('Employee Name')->sortable()->searchable(),
-                Tables\Columns\TextColumn::make('job_title')->sortable()->searchable(),
-                Tables\Columns\TextColumn::make('identity_number')->label('ID Number')->sortable()->searchable(),
-                Tables\Columns\TextColumn::make('nationality')->label('Nationality')->sortable()->searchable(),
-                Tables\Columns\TextColumn::make('currentCompanyAssigned.name')
-                    ->label('Company Assigned')
-                    ->badge()
-                    ->visible(fn($livewire) => $livewire->activeTab===EmployeeStatusStatus::IN_SERVICE)
-                    ->sortable()
-                    ->searchable(),
-            ])
+            ->columns(EmployeeSchema::getTableColumns())
             ->filters([
                 //
             ])

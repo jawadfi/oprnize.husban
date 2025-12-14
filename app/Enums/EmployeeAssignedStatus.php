@@ -2,16 +2,30 @@
 
 namespace App\Enums;
 
+use App\Traits\HasMappingEnum;
 use BenSampo\Enum\Enum;
 
-/**
- * @method static static OptionOne()
- * @method static static OptionTwo()
- * @method static static OptionThree()
- */
 final class EmployeeAssignedStatus extends Enum
 {
-    const OptionOne = 0;
-    const OptionTwo = 1;
-    const OptionThree = 2;
+    use HasMappingEnum;
+    const PENDING = 'pending';
+    const APPROVED = 'approved';
+    const DECLINED = 'declined';
+
+    public static function getTranslatedEnum(): array
+    {
+        return [
+          self::PENDING => 'بانتظار الموافقة',
+          self::APPROVED => 'موافق عليه',
+          self::DECLINED => 'مرفوض',
+        ];
+    }
+    public static function getColors(): array
+    {
+        return [
+            self::PENDING => 'primary',
+            self::APPROVED => 'success',
+            self::DECLINED => 'danger',
+        ];
+    }
 }

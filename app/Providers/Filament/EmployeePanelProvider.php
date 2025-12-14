@@ -2,11 +2,6 @@
 
 namespace App\Providers\Filament;
 
-use App\Filament\Company\Pages\Login;
-use App\Filament\Company\Pages\PendingHiring;
-use App\Filament\Company\Pages\Register;
-use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
-use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -15,7 +10,6 @@ use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
-use Filament\Support\Enums\MaxWidth;
 use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -24,39 +18,27 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
-class CompanyPanelProvider extends PanelProvider
+class EmployeePanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
         return $panel
-            ->maxContentWidth(MaxWidth::Full)
-            ->sidebarCollapsibleOnDesktop()
-            ->sidebarFullyCollapsibleOnDesktop()
-            ->id('company')
-            ->path('company')
-            ->darkMode(false)
-            ->defaultThemeMode(ThemeMode::Light)
+            ->id('employee')
+            ->path('employee')
+            ->login(Pages\Auth\Login::class)
+            ->authGuard('employee')
             ->colors([
                 'primary' => Color::Cyan,
             ])
-            ->login(Login::class)
-            ->registration(Register::class)
-            ->emailVerification()
-            ->profile()
-            ->discoverResources(in: app_path('Filament/Company/Resources'), for: 'App\\Filament\\Company\\Resources')
-            ->discoverPages(in: app_path('Filament/Company/Pages'), for: 'App\\Filament\\Company\\Pages')
+            ->discoverResources(in: app_path('Filament/Employee/Resources'), for: 'App\\Filament\\Employee\\Resources')
+            ->discoverPages(in: app_path('Filament/Employee/Pages'), for: 'App\\Filament\\Employee\\Pages')
             ->pages([
                 Pages\Dashboard::class,
-                PendingHiring::class
-            ])->plugins([
-                AuthUIEnhancerPlugin::make()
-                    ->formPanelBackgroundColor(Color::hex('#ffffff'))
-                    ->emptyPanelBackgroundImageUrl(asset('images/auth-wallpaper.jpeg')),
             ])
-            ->theme(asset('css/filament/company/theme.css'))
-            ->discoverWidgets(in: app_path('Filament/Company/Widgets'), for: 'App\\Filament\\Company\\Widgets')
+            ->discoverWidgets(in: app_path('Filament/Employee/Widgets'), for: 'App\\Filament\\Employee\\Widgets')
             ->widgets([
                 Widgets\AccountWidget::class,
+                Widgets\FilamentInfoWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -69,7 +51,6 @@ class CompanyPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
-            ->authGuard('company')
             ->authMiddleware([
                 Authenticate::class,
             ]);
