@@ -30,6 +30,7 @@ class CompanyPanelProvider extends PanelProvider
     {
         return $panel
             ->maxContentWidth(MaxWidth::Full)
+            ->databaseNotifications()
             ->sidebarCollapsibleOnDesktop()
             ->sidebarFullyCollapsibleOnDesktop()
             ->id('company')
