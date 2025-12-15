@@ -5,9 +5,12 @@ namespace App\Filament\Company\Resources;
 use AlperenErsoy\FilamentExport\Actions\FilamentExportHeaderAction;
 use App\Enums\CompanyTypes;
 use App\Enums\EmployeeStatusStatus;
+use App\Filament\Company\Imports\EmployeeImporter;
 use App\Filament\Company\Resources\EmployeeResource\Pages;
 use App\Filament\Company\Resources\EmployeeResource\RelationManagers;
+use App\Filament\Imports\TeacherImporter;
 use App\Filament\Schema\EmployeeSchema;
+use App\Helpers\Helpers;
 use App\Models\Company;
 use App\Models\Employee;
 use Filament\Facades\Filament;
@@ -17,6 +20,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use HayderHatem\FilamentExcelImport\Actions\FullImportAction;
 use Illuminate\Database\Eloquent\Builder;
 
 class EmployeeResource extends Resource
@@ -49,7 +53,6 @@ class EmployeeResource extends Resource
         return $table
             ->headerActions([
                 FilamentExportHeaderAction::make('export'),
-
             ])
             ->columns(EmployeeSchema::getTableColumns())
             ->filters([

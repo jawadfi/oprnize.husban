@@ -1,12 +1,14 @@
 <?php
 
 namespace App\Filament\Company\Resources\EmployeeResource\Pages;
+use App\Filament\Company\Imports\EmployeeImporter;
 use Filament\Facades\Filament;
 use Filament\Resources\Components\Tab;
 
 use App\Filament\Company\Resources\EmployeeResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
+use HayderHatem\FilamentExcelImport\Actions\FullImportAction;
 use Illuminate\Database\Eloquent\Builder;
 
 class ListEmployees extends ListRecords
@@ -35,6 +37,11 @@ class ListEmployees extends ListRecords
     {
         return [
             Actions\CreateAction::make(),
+            FullImportAction::make('import')
+                ->importer(EmployeeImporter::class)
+                ->options([
+                    'company_id' => Filament::auth()->id(),
+                ]),
         ];
     }
 }
