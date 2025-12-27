@@ -43,12 +43,12 @@ class EmployeeSchema
             Tables\Columns\TextColumn::make($path.'id')->weight('bold')->prefix('#')->label('Employee ID')->sortable()->searchable(),
             Tables\Columns\TextColumn::make($path.'name')->label('Employee Name')->sortable()->searchable(),
             Tables\Columns\TextColumn::make($path.'nationality')->sortable()->searchable(),
-            Tables\Columns\TextColumn::make($path.'iqama_no')->toggleable()->toggledHiddenByDefault()->sortable()->searchable(),
-            Tables\Columns\TextColumn::make($path.'location')->toggleable()->toggledHiddenByDefault()->sortable()->searchable(),
+            Tables\Columns\TextColumn::make($path.'iqama_no')->toggleable()->sortable()->searchable(),
+            Tables\Columns\TextColumn::make($path.'location')->toggleable()->sortable()->searchable(),
             Tables\Columns\TextColumn::make($path.'hire_date')->date('Y-m-d')->toggleable()->toggledHiddenByDefault()->sortable()->searchable(),
             Tables\Columns\TextColumn::make($path.'job_title')->sortable()->searchable(),
-            Tables\Columns\TextColumn::make($path.'department')->toggleable()->toggledHiddenByDefault()->sortable()->searchable(),
-            Tables\Columns\TextColumn::make($path.'identity_number')->toggleable()->toggledHiddenByDefault()->label('ID Number')->sortable()->searchable(),
+            Tables\Columns\TextColumn::make($path.'department')->toggleable()->sortable()->searchable(),
+            Tables\Columns\TextColumn::make($path.'identity_number')->toggleable()->label('ID Number')->sortable()->searchable(),
             Tables\Columns\TextColumn::make($path.'currentCompanyAssigned.name')
                 ->label('Company Assigned')
                 ->badge()

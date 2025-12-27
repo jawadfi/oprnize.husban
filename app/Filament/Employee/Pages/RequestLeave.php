@@ -20,6 +20,8 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\HtmlString;
 
 class RequestLeave extends Page implements HasForms
 {
@@ -99,12 +101,12 @@ class RequestLeave extends Page implements HasForms
                                         ->content(function (callable $get) {
                                             $startDate = $get('start_date');
                                             $endDate = $get('end_date');
-                                            
+
                                             if ($startDate && $endDate) {
                                                 $days = $this->calculateDaysCount($startDate, $endDate);
                                                 return $days . ' days';
                                             }
-                                            
+
                                             return '0 days';
                                         })
                                         ->visible(fn (callable $get) => $get('start_date') && $get('end_date')),
@@ -154,12 +156,12 @@ class RequestLeave extends Page implements HasForms
                                         ->content(function (callable $get) {
                                             $startDate = $get('start_date');
                                             $endDate = $get('end_date');
-                                            
+
                                             if ($startDate && $endDate) {
                                                 $days = $this->calculateDaysCount($startDate, $endDate);
                                                 return $days . ' days';
                                             }
-                                            
+
                                             return '-';
                                         }),
                                     Textarea::make('notes')
@@ -168,20 +170,28 @@ class RequestLeave extends Page implements HasForms
                                         ->columnSpanFull(),
                                 ]),
                         ]),
-                ])
+                ])->submitAction(new HtmlString(Blade::render(<<<BLADE
+    <x-filament::button
+        type="submit"
+        size="lg"
+    >
+        Save
+    </x-filament::button>
+BLADE
+                )))
                     ->persistStepInQueryString()
             ])
             ->statePath('data');
     }
 
-    public function submit(): void
+    public function create(): void
     {
         $data = $this->form->getState();
-        
+
         $employee = Filament::auth()->user();
-        
+
         $daysCount = $this->calculateDaysCount($data['start_date'], $data['end_date']);
-        
+
         LeaveRequestModel::create([
             'employee_id' => $employee->id,
             'company_id' => $employee->company_id,
@@ -216,7 +226,7 @@ class RequestLeave extends Page implements HasForms
 
         $start = Carbon::parse($startDate);
         $end = Carbon::parse($endDate);
-        
+
         // Calculate the difference in days (inclusive of both start and end dates)
         return $start->diffInDays($end) + 1;
     }

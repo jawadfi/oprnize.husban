@@ -95,7 +95,7 @@ class ViewPayroll extends ViewRecord
                             ->size('lg'),
                     ])->columns(2)
                     ->icon('heroicon-o-arrow-trending-up')
-                    ->color('success'),
+                    ->iconColor('success'),
 
                 Infolists\Components\Section::make('Deductions')
                     ->schema([
@@ -118,7 +118,7 @@ class ViewPayroll extends ViewRecord
                             ->size('lg'),
                     ])->columns(2)
                     ->icon('heroicon-o-arrow-trending-down')
-                    ->color('danger'),
+                    ->iconColor('danger'),
 
                 Infolists\Components\Section::make('Net Payment')
                     ->schema([
@@ -130,7 +130,7 @@ class ViewPayroll extends ViewRecord
                             ->size('xl'),
                     ])
                     ->icon('heroicon-o-banknotes')
-                    ->color('primary'),
+                    ->iconColor('primary'),
             ]);
     }
 }

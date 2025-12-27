@@ -35,6 +35,7 @@ class EmployeePanelProvider extends PanelProvider
             ->pages([
                 Pages\Dashboard::class,
                 \App\Filament\Employee\Pages\Salary::class,
+//                \App\Filament\Employee\Pages\LeaveRequest::class,
                 \App\Filament\Employee\Pages\RequestLeave::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Employee/Widgets'), for: 'App\\Filament\\Employee\\Widgets')
