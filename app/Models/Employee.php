@@ -4,11 +4,16 @@ namespace App\Models;
 
 use App\Enums\EmployeeAssignedStatus;
 use App\Enums\EmployeeStatusStatus;
+use App\Models\LeaveRequest;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 
-class Employee extends Model
+class Employee extends Authenticatable implements FilamentUser
 {
+    use Notifiable;
     protected $fillable = [
         'name',
         'job_title',
@@ -24,6 +29,11 @@ class Employee extends Model
         'email',
         'password',
         'email_verified_at'
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
     ];
 
     protected function casts(): array
@@ -54,5 +64,25 @@ class Employee extends Model
     public function currentCompanyAssigned()
     {
         return $this->belongsTo(Company::class, 'company_assigned_id');
+    }
+
+    public function payrolls()
+    {
+        return $this->hasMany(Payroll::class);
+    }
+
+    public function currentPayroll()
+    {
+        return $this->hasOne(Payroll::class)->latestOfMany();
+    }
+
+    public function leaveRequests()
+    {
+        return $this->hasMany(LeaveRequest::class);
+    }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $panel->getId() === 'employee';
     }
 }

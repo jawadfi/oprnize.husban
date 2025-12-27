@@ -4,6 +4,8 @@ namespace App\Providers\Filament;
 
 use App\Filament\Company\Pages\Login;
 use App\Filament\Company\Pages\PendingHiring;
+use App\Filament\Company\Pages\ProviderCompaniesListing;
+use App\Filament\Company\Pages\ProviderCompanyEmployees;
 use App\Filament\Company\Pages\Register;
 use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
 use Filament\Enums\ThemeMode;
@@ -48,7 +50,9 @@ class CompanyPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Company/Pages'), for: 'App\\Filament\\Company\\Pages')
             ->pages([
                 Pages\Dashboard::class,
-                PendingHiring::class
+                PendingHiring::class,
+                ProviderCompaniesListing::class,
+                ProviderCompanyEmployees::class,
             ])->plugins([
                 AuthUIEnhancerPlugin::make()
                     ->formPanelBackgroundColor(Color::hex('#ffffff'))

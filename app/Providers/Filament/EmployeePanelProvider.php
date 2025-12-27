@@ -25,7 +25,7 @@ class EmployeePanelProvider extends PanelProvider
         return $panel
             ->id('employee')
             ->path('employee')
-            ->login(Pages\Auth\Login::class)
+            ->login(\App\Filament\Employee\Pages\Login::class)
             ->authGuard('employee')
             ->colors([
                 'primary' => Color::Cyan,
@@ -34,11 +34,12 @@ class EmployeePanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Employee/Pages'), for: 'App\\Filament\\Employee\\Pages')
             ->pages([
                 Pages\Dashboard::class,
+                \App\Filament\Employee\Pages\Salary::class,
+                \App\Filament\Employee\Pages\RequestLeave::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Employee/Widgets'), for: 'App\\Filament\\Employee\\Widgets')
             ->widgets([
                 Widgets\AccountWidget::class,
-                Widgets\FilamentInfoWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

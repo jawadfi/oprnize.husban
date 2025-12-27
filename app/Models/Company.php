@@ -53,4 +53,8 @@ class Company extends Authenticatable implements MustVerifyEmail, FilamentUser
         return $this->belongsToMany(Employee::class, 'employee_assigned')->withPivot(['status','start_date']);
     }
 
+    public function payrolls()
+    {
+        return $this->hasMany(Payroll::class);
+    }
 }
