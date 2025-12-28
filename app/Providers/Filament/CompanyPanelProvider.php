@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Company\Pages\LeaveRequests;
 use App\Filament\Company\Pages\Login;
 use App\Filament\Company\Pages\PendingHiring;
 use App\Filament\Company\Pages\ProviderCompaniesListing;
@@ -53,6 +54,7 @@ class CompanyPanelProvider extends PanelProvider
                 PendingHiring::class,
                 ProviderCompaniesListing::class,
                 ProviderCompanyEmployees::class,
+                LeaveRequests::class,
             ])->plugins([
                 AuthUIEnhancerPlugin::make()
                     ->formPanelBackgroundColor(Color::hex('#ffffff'))
