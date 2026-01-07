@@ -19,8 +19,15 @@ class ManageAssignedEmployees extends ManageRecords
     public function getTabs(): array
     {
         $tabs = [];
-        $used_employee = Employee::whereHas('assigned', function ($query) {
-            return $query->where('employee_assigned.company_id', Filament::auth()->id())
+        $user = Filament::auth()->user();
+        $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+        
+        if (!$companyId) {
+            return [];
+        }
+        
+        $used_employee = Employee::whereHas('assigned', function ($query) use ($companyId) {
+            return $query->where('employee_assigned.company_id', $companyId)
                 ->where('employee_assigned.status',EmployeeAssignedStatus::APPROVED)
                 ->whereDate('employee_assigned.start_date','<=',now())
                 ;

@@ -21,23 +21,59 @@ class PendingHiring extends Page implements HasTable
 
     protected static string $view = 'filament.company.pages.pending-hiring';
 
+    protected static ?string $navigationLabel = 'Pending Hiring';
+
+    public function mount(): void
+    {
+        abort_unless($this->canAccess(), 403);
+    }
+
+    public static function canAccess(): bool
+    {
+        $user = Filament::auth()->user();
+        
+        // Company model has all access
+        if ($user instanceof \App\Models\Company) {
+            return true;
+        }
+        
+        // User model needs permission
+        if ($user instanceof \App\Models\User) {
+            return $user->can('page_PendingHiring');
+        }
+        
+        return false;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canAccess();
+    }
+
     public function table(Table $table): Table
     {
         return $table
-            ->query(
-                fn()=>EmployeeAssigned::query()
+            ->query(function() {
+                $user = Filament::auth()->user();
+                $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+                
+                if (!$companyId) {
+                    return EmployeeAssigned::query()->whereRaw('1 = 0');
+                }
+                
+                return EmployeeAssigned::query()
                     ->with(['employee','company'])
-                    ->where(function ($query) {
-                        $query->where('employee_assigned.company_id',Filament::auth()->id())
-                            ->orWhereHas('employee',function ($query) {
-                               return $query->where('employees.company_id',Filament::auth()->id());
+                    ->where(function ($query) use ($companyId) {
+                        $query->where('employee_assigned.company_id', $companyId)
+                            ->orWhereHas('employee',function ($q) use ($companyId) {
+                               return $q->where('employees.company_id', $companyId);
                             });
                     })
                     ->where(function ($query){
                         $query->where('status',EmployeeAssignedStatus::PENDING)
                             ->orWhereTodayOrAfter('start_date');
-                    })
-            )
+                    });
+            })
             ->columns([
                 ...EmployeeSchema::getTableColumns(
                     false,
@@ -52,7 +88,11 @@ class PendingHiring extends Page implements HasTable
             ->actions([
                 Action::make('approved')
                     ->icon('heroicon-o-check')
-                    ->visible(fn(?EmployeeAssigned $record)=>$record?->company_id === Filament::auth()->id() && $record->status === EmployeeAssignedStatus::PENDING)
+                    ->visible(function(?EmployeeAssigned $record) {
+                        $user = Filament::auth()->user();
+                        $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+                        return $record?->company_id === $companyId && $record->status === EmployeeAssignedStatus::PENDING;
+                    })
                     ->color('success')
                     ->requiresConfirmation()
                     ->action(function (EmployeeAssigned $record){
@@ -64,7 +104,12 @@ class PendingHiring extends Page implements HasTable
                     }),
                 Action::make('declined') ->icon('heroicon-o-x-mark')
                     ->color('danger')
-                    ->visible(fn(?EmployeeAssigned $record)=>$record?->company_id === Filament::auth()->id() && $record->status === EmployeeAssignedStatus::PENDING)                    ->requiresConfirmation()
+                    ->visible(function(?EmployeeAssigned $record) {
+                        $user = Filament::auth()->user();
+                        $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+                        return $record?->company_id === $companyId && $record->status === EmployeeAssignedStatus::PENDING;
+                    })
+                    ->requiresConfirmation()
                     ->action(function (EmployeeAssigned $record){
                         $record->updateStatus(EmployeeAssignedStatus::DECLINED);
                         Notification::make()

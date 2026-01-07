@@ -20,6 +20,8 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\HtmlString;
 
 class RequestLeave extends Page implements HasForms
 {
@@ -31,7 +33,7 @@ class RequestLeave extends Page implements HasForms
 
     protected static ?string $navigationLabel = 'Request Leave';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 3;
 
     public ?array $data = [];
 
@@ -99,12 +101,12 @@ class RequestLeave extends Page implements HasForms
                                         ->content(function (callable $get) {
                                             $startDate = $get('start_date');
                                             $endDate = $get('end_date');
-                                            
+
                                             if ($startDate && $endDate) {
                                                 $days = $this->calculateDaysCount($startDate, $endDate);
                                                 return $days . ' days';
                                             }
-                                            
+
                                             return '0 days';
                                         })
                                         ->visible(fn (callable $get) => $get('start_date') && $get('end_date')),
@@ -154,12 +156,12 @@ class RequestLeave extends Page implements HasForms
                                         ->content(function (callable $get) {
                                             $startDate = $get('start_date');
                                             $endDate = $get('end_date');
-                                            
+
                                             if ($startDate && $endDate) {
                                                 $days = $this->calculateDaysCount($startDate, $endDate);
                                                 return $days . ' days';
                                             }
-                                            
+
                                             return '-';
                                         }),
                                     Textarea::make('notes')
@@ -168,28 +170,49 @@ class RequestLeave extends Page implements HasForms
                                         ->columnSpanFull(),
                                 ]),
                         ]),
-                ])
+                ])->submitAction(new HtmlString(Blade::render(<<<BLADE
+    <x-filament::button
+        type="submit"
+        size="lg"
+    >
+        Save
+    </x-filament::button>
+BLADE
+                )))
                     ->persistStepInQueryString()
             ])
             ->statePath('data');
     }
 
-    public function submit(): void
+    public function create(): void
     {
         $data = $this->form->getState();
-        
+
         $employee = Filament::auth()->user();
+
+        // Get client company (where employee is assigned) or fall back to provider company
+        $clientCompanyId = $employee->company_assigned_id ?? $employee->company_id;
         
+        if (!$clientCompanyId) {
+            Notification::make()
+                ->title('Error')
+                ->body('You are not assigned to any company. Please contact your administrator.')
+                ->danger()
+                ->send();
+            return;
+        }
+
         $daysCount = $this->calculateDaysCount($data['start_date'], $data['end_date']);
-        
+
         LeaveRequestModel::create([
             'employee_id' => $employee->id,
-            'company_id' => $employee->company_id,
+            'company_id' => $clientCompanyId,
+            'current_approver_company_id' => $clientCompanyId,
             'leave_type' => $data['leave_type'],
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'],
             'days_count' => $daysCount,
-            'status' => LeaveRequestStatus::PENDING,
+            'status' => LeaveRequestStatus::PENDING_CLIENT_APPROVAL,
             'notes' => $data['notes'] ?? null,
         ]);
 
@@ -216,7 +239,7 @@ class RequestLeave extends Page implements HasForms
 
         $start = Carbon::parse($startDate);
         $end = Carbon::parse($endDate);
-        
+
         // Calculate the difference in days (inclusive of both start and end dates)
         return $start->diffInDays($end) + 1;
     }

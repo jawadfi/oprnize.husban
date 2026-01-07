@@ -13,7 +13,8 @@ class CreateEmployee extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $data['company_id'] = Filament::auth()->id();
+        $user = Filament::auth()->user();
+        $data['company_id'] = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
         return $data;
     }
 }

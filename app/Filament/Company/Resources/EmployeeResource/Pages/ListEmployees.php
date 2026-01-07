@@ -18,17 +18,24 @@ class ListEmployees extends ListRecords
     protected static ?string $title ='Employee and provider services';
     public function getTabs(): array
     {
+        $user = Filament::auth()->user();
+        $company = $user instanceof \App\Models\Company ? $user : ($user instanceof \App\Models\User ? $user->company : null);
+        
+        if (!$company) {
+            return [];
+        }
+        
         return [
             'available' => Tab::make()
-                ->badge(fn()=> Filament::auth()->user()->original_employees()->byStatus(\App\Enums\EmployeeStatusStatus::AVAILABLE)->count())
+                ->badge(fn()=> $company->original_employees()->byStatus(\App\Enums\EmployeeStatusStatus::AVAILABLE)->count())
                 ->modifyQueryUsing(fn (Builder $query) => $query->byStatus(\App\Enums\EmployeeStatusStatus::AVAILABLE)),
 
             'in_service' => Tab::make()
-                ->badge(fn()=> Filament::auth()->user()->original_employees()->byStatus(\App\Enums\EmployeeStatusStatus::IN_SERVICE)->count())
+                ->badge(fn()=> $company->original_employees()->byStatus(\App\Enums\EmployeeStatusStatus::IN_SERVICE)->count())
                 ->modifyQueryUsing(fn (Builder $query) => $query->byStatus(\App\Enums\EmployeeStatusStatus::IN_SERVICE)),
 
             'ended_service' => Tab::make()
-                ->badge(fn()=> Filament::auth()->user()->original_employees()->byStatus(\App\Enums\EmployeeStatusStatus::ENDED_SERVICE)->count())
+                ->badge(fn()=> $company->original_employees()->byStatus(\App\Enums\EmployeeStatusStatus::ENDED_SERVICE)->count())
                 ->modifyQueryUsing(fn (Builder $query) => $query->byStatus(\App\Enums\EmployeeStatusStatus::ENDED_SERVICE)),
         ];
     }
@@ -39,9 +46,11 @@ class ListEmployees extends ListRecords
             Actions\CreateAction::make(),
             FullImportAction::make('import')
                 ->importer(EmployeeImporter::class)
-                ->options([
-                    'company_id' => Filament::auth()->id(),
-                ]),
+                ->options(function() {
+                    $user = Filament::auth()->user();
+                    $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+                    return ['company_id' => $companyId];
+                }),
         ];
     }
 }

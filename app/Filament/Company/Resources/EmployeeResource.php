@@ -13,6 +13,7 @@ use App\Filament\Schema\EmployeeSchema;
 use App\Helpers\Helpers;
 use App\Models\Company;
 use App\Models\Employee;
+use App\Models\User;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -28,14 +29,32 @@ class EmployeeResource extends Resource
     protected $activeTab;
     protected static ?string $model = Employee::class;
 
+    protected static ?string $label = 'Employees';
+
     public static function canAccess(): bool
     {
-        return Filament::auth()->user()->type === CompanyTypes::PROVIDER;
+        $user = Filament::auth()->user();
+        
+        // Company model - check type
+        if ($user instanceof Company) {
+            return $user->type === CompanyTypes::PROVIDER;
+        }
+        
+        // User model - check permission
+        // Filament Shield generates permissions based on model name, not Resource name
+        if ($user instanceof User) {
+            return $user->can('view_any_employee');
+        }
+        
+        return false;
     }
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->where('company_id',Filament::auth()->id())->with(['currentCompanyAssigned']);
+        $user = Filament::auth()->user();
+        $companyId = $user instanceof Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+        
+        return parent::getEloquentQuery()->where('company_id', $companyId)->with(['currentCompanyAssigned']);
     }
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
@@ -70,10 +89,14 @@ class EmployeeResource extends Resource
                         Forms\Components\Select::make('company_id')
                             ->label('Assign to Company')
                             ->placeholder('Search by (Name, CR number)')
-                            ->options(Company::query()
-                                ->whereKeyNot(Filament::auth()->id())
-                                ->ofType(CompanyTypes::CLIENT)
-                                ->pluck('name', 'id'))
+                            ->options(function () {
+                                $user = Filament::auth()->user();
+                                $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+                                return Company::query()
+                                    ->whereKeyNot($companyId)
+                                    ->ofType(CompanyTypes::CLIENT)
+                                    ->pluck('name', 'id');
+                            })
                             ->searchable(['name','commercial_registration_number'])
                             ->preload()
                             ->required(),
