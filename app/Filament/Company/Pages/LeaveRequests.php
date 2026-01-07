@@ -37,7 +37,19 @@ class LeaveRequests extends Page implements HasTable
 
     public static function canAccess(): bool
     {
-        return Filament::auth()->check();
+        $user = Filament::auth()->user();
+        
+        // Company model has all access
+        if ($user instanceof \App\Models\Company) {
+            return true;
+        }
+        
+        // User model needs permission
+        if ($user instanceof \App\Models\User) {
+            return $user->hasPermissionTo('page_LeaveRequests', 'company');
+        }
+        
+        return false;
     }
 
     public static function shouldRegisterNavigation(): bool
@@ -47,7 +59,21 @@ class LeaveRequests extends Page implements HasTable
 
     public function table(Table $table): Table
     {
-        $company = Filament::auth()->user();
+        $authUser = Filament::auth()->user();
+        
+        // Ensure company relationship is loaded for User model
+        if ($authUser instanceof \App\Models\User) {
+            $authUser->load('company');
+            $company = $authUser->company;
+        } elseif ($authUser instanceof \App\Models\Company) {
+            $company = $authUser;
+        } else {
+            $company = null;
+        }
+        
+        if (!$company) {
+            abort(403, 'Company not found for user: ' . ($authUser ? $authUser->email : 'unknown'));
+        }
         
         return $table
             ->query(function () use ($company) {
@@ -100,6 +126,8 @@ class LeaveRequests extends Page implements HasTable
                     ->options([
                         '' => 'All',
                         LeaveRequestStatus::PENDING => 'Pending',
+                        LeaveRequestStatus::PENDING_CLIENT_APPROVAL => 'Pending Client Approval',
+                        LeaveRequestStatus::PENDING_PROVIDER_APPROVAL => 'Pending Provider Approval',
                         LeaveRequestStatus::APPROVED => 'Approved',
                         LeaveRequestStatus::REJECTED => 'Rejected',
                     ])
@@ -118,17 +146,60 @@ class LeaveRequests extends Page implements HasTable
                     ->label('Accept')
                     ->icon('heroicon-o-check')
                     ->color('success')
-                    ->action(function ($records) {
+                    ->action(function ($records) use ($company) {
                         $count = 0;
+                        $movedToProvider = 0;
+                        $finalized = 0;
+                        
                         foreach ($records as $record) {
+                            // Handle old PENDING status (backward compatibility)
                             if ($record->status->value === LeaveRequestStatus::PENDING) {
-                                $record->update(['status' => LeaveRequestStatus::APPROVED]);
+                                // Migrate old PENDING to new workflow
+                                $isClientCompany = $record->employee->company_assigned_id === $company->id;
+                                
+                                if ($isClientCompany) {
+                                    // Client company - set as current approver and move to provider
+                                    $record->update([
+                                        'current_approver_company_id' => $company->id,
+                                    ]);
+                                    $record->moveToProviderApproval();
+                                    $movedToProvider++;
+                                    $count++;
+                                } else {
+                                    // Provider company - finalize directly (old workflow)
+                                    $record->update([
+                                        'status' => LeaveRequestStatus::APPROVED,
+                                        'current_approver_company_id' => null,
+                                    ]);
+                                    $finalized++;
+                                    $count++;
+                                }
+                            } elseif ($record->isPendingClientApproval()) {
+                                // Client company approving - move to provider
+                                $record->moveToProviderApproval();
+                                $movedToProvider++;
+                                $count++;
+                            } elseif ($record->isPendingProviderApproval()) {
+                                // Provider company approving - finalize
+                                $record->finalizeApproval();
+                                $finalized++;
                                 $count++;
                             }
                         }
                         
+                        $message = '';
+                        if ($movedToProvider > 0 && $finalized > 0) {
+                            $message = "{$movedToProvider} request(s) moved to provider approval, {$finalized} request(s) finalized";
+                        } elseif ($movedToProvider > 0) {
+                            $message = "{$movedToProvider} request(s) moved to provider approval";
+                        } elseif ($finalized > 0) {
+                            $message = "{$finalized} request(s) approved successfully";
+                        } else {
+                            $message = 'No pending requests to approve';
+                        }
+                        
                         Notification::make()
-                            ->title($count > 0 ? "{$count} leave request(s) approved successfully" : 'No pending requests to approve')
+                            ->title($count > 0 ? $message : 'No pending requests to approve')
                             ->success()
                             ->send();
                     })
@@ -140,8 +211,15 @@ class LeaveRequests extends Page implements HasTable
                     ->action(function ($records) {
                         $count = 0;
                         foreach ($records as $record) {
-                            if ($record->status->value === LeaveRequestStatus::PENDING) {
-                                $record->update(['status' => LeaveRequestStatus::REJECTED]);
+                            // Can reject if pending (old status), pending client, or provider approval
+                            $statusValue = $record->status->value;
+                            if ($statusValue === LeaveRequestStatus::PENDING 
+                                || $record->isPendingClientApproval() 
+                                || $record->isPendingProviderApproval()) {
+                                $record->update([
+                                    'status' => LeaveRequestStatus::REJECTED,
+                                    'current_approver_company_id' => null,
+                                ]);
                                 $count++;
                             }
                         }
@@ -160,15 +238,23 @@ class LeaveRequests extends Page implements HasTable
         return LeaveRequest::query()
             ->with(['employee'])
             ->where(function (Builder $query) use ($company) {
+                // New workflow: requests where this company is the current approver
+                $query->where('current_approver_company_id', $company->id)
+                    // OR backward compatibility: old PENDING requests
+                    ->orWhere(function (Builder $q) use ($company) {
+                        $q->where('status', LeaveRequestStatus::PENDING)
+                            ->where(function (Builder $subQuery) use ($company) {
                 if ($company->type === CompanyTypes::PROVIDER) {
-                    // PROVIDER companies see requests for their original employees
-                    $query->where('company_id', $company->id);
+                                    // Provider companies see old pending requests for their employees
+                                    $subQuery->where('company_id', $company->id);
                 } else {
-                    // CLIENT companies see requests for employees assigned to them
-                    $query->whereHas('employee', function (Builder $q) use ($company) {
-                        $q->where('company_assigned_id', $company->id);
+                                    // Client companies see old pending requests for employees assigned to them
+                                    $subQuery->whereHas('employee', function (Builder $empQuery) use ($company) {
+                                        $empQuery->where('company_assigned_id', $company->id);
                     });
                 }
+                            });
+                    });
             });
     }
 }

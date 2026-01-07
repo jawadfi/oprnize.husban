@@ -10,7 +10,7 @@ use App\Filament\Company\Pages\ProviderCompanyEmployees;
 use App\Filament\Company\Pages\Register;
 use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
 use Filament\Enums\ThemeMode;
-use Filament\Http\Middleware\Authenticate;
+use App\Http\Middleware\AuthenticateCompanyPanel;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -46,11 +46,14 @@ class CompanyPanelProvider extends PanelProvider
             ->login(Login::class)
             ->registration(Register::class)
             ->emailVerification()
-            ->profile()
+            ->profile(\App\Filament\Company\Pages\Profile::class)
             ->discoverResources(in: app_path('Filament/Company/Resources'), for: 'App\\Filament\\Company\\Resources')
+            ->resources([
+                \App\Filament\Company\Resources\RoleResource::class,
+            ])
             ->discoverPages(in: app_path('Filament/Company/Pages'), for: 'App\\Filament\\Company\\Pages')
             ->pages([
-                Pages\Dashboard::class,
+                \App\Filament\Company\Pages\Dashboard::class,
                 PendingHiring::class,
                 ProviderCompaniesListing::class,
                 ProviderCompanyEmployees::class,
@@ -59,6 +62,7 @@ class CompanyPanelProvider extends PanelProvider
                 AuthUIEnhancerPlugin::make()
                     ->formPanelBackgroundColor(Color::hex('#ffffff'))
                     ->emptyPanelBackgroundImageUrl(asset('images/auth-wallpaper.jpeg')),
+                \BezhanSalleh\FilamentShield\FilamentShieldPlugin::make(),
             ])
             ->theme(asset('css/filament/company/theme.css'))
             ->discoverWidgets(in: app_path('Filament/Company/Widgets'), for: 'App\\Filament\\Company\\Widgets')
@@ -78,7 +82,7 @@ class CompanyPanelProvider extends PanelProvider
             ])
             ->authGuard('company')
             ->authMiddleware([
-                Authenticate::class,
+                AuthenticateCompanyPanel::class,
             ]);
     }
 }

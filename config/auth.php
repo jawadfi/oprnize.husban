@@ -42,7 +42,7 @@ return [
         ],
         'company' => [
             'driver' => 'session',
-            'provider' => 'companies',
+            'provider' => 'company_users',
         ],
         'employee' => [
             'driver' => 'session',
@@ -76,15 +76,17 @@ return [
             'driver' => 'eloquent',
             'model' => App\Models\Company::class,
         ],
+        'company_users' => [
+            'driver' => 'company',
+        ],
         'employees' => [
             'driver' => 'eloquent',
             'model' => App\Models\Employee::class,
         ],
-
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
+        'users' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\User::class,
+        ],
     ],
 
     /*

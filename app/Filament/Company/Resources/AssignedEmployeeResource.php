@@ -19,15 +19,38 @@ class AssignedEmployeeResource extends Resource
 {
     protected static ?string $model = Employee::class;
 
+    protected static ?string $label = 'Assigned Employees';
+    
+    protected static ?string $navigationLabel = 'Assigned Employees';
+
     public static function canAccess(): bool
     {
-        return Filament::auth()->user()->type === CompanyTypes::CLIENT;
+        $user = Filament::auth()->user();
+        
+        // Company model - check type
+        if ($user instanceof \App\Models\Company) {
+            return $user->type === CompanyTypes::CLIENT;
+        }
+        
+        // User model - check permission
+        if ($user instanceof \App\Models\User) {
+            return $user->can('view_any_AssignedEmployeeResource');
+        }
+        
+        return false;
     }
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->whereHas('assigned',function ($query){
+        $user = Filament::auth()->user();
+        $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+        
+        if (!$companyId) {
+            return parent::getEloquentQuery()->whereRaw('1 = 0'); // Return empty query
+        }
+        
+        return parent::getEloquentQuery()->whereHas('assigned',function ($query) use ($companyId) {
             return $query
-                ->where('employee_assigned.company_id',Filament::auth()->id())
+                ->where('employee_assigned.company_id', $companyId)
                 ->where('employee_assigned.status',EmployeeAssignedStatus::APPROVED)
                 ->whereDate('employee_assigned.start_date','<=',now());
         });

@@ -6,8 +6,10 @@ use AlperenErsoy\FilamentExport\Actions\FilamentExportHeaderAction;
 use App\Enums\CompanyTypes;
 use App\Enums\EmployeeAssignedStatus;
 use App\Filament\Company\Resources\PayrollResource\Pages;
+use App\Models\Company;
 use App\Models\Employee;
 use App\Models\Payroll;
+use App\Models\User;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -27,22 +29,47 @@ class PayrollResource extends Resource
     public static function canAccess(): bool
     {
         $user = Filament::auth()->user();
-        return $user && in_array($user->type, [CompanyTypes::PROVIDER, CompanyTypes::CLIENT]);
+        
+        // Company model - check type
+        if ($user instanceof Company) {
+            return in_array($user->type, [CompanyTypes::PROVIDER, CompanyTypes::CLIENT]);
+        }
+        
+        // User model - check permission
+        // Filament Shield generates permissions based on model name, not Resource name
+        if ($user instanceof User) {
+            return $user->can('view_any_payroll');
+        }
+        
+        return false;
     }
 
     public static function getEloquentQuery(): Builder
     {
         $user = Filament::auth()->user();
         
-        if ($user->type === CompanyTypes::PROVIDER) {
-            // Provider Service: Show payrolls for employees where employee.company_id = auth()->id()
+        if ($user instanceof Company) {
+            $companyId = $user->id;
+            $companyType = $user->type;
+        } elseif ($user instanceof \App\Models\User) {
+            // Ensure company relationship is loaded
+            $user->load('company');
+            $companyId = $user->company_id;
+            $companyType = $user->company ? $user->company->type : null;
+        } else {
+            $companyId = null;
+            $companyType = null;
+        }
+        
+        if ($companyType === CompanyTypes::PROVIDER) {
+            // Provider Service: Show payrolls for employees where employee.company_id = company_id
             return parent::getEloquentQuery()
-                ->whereHas('employee', fn($q) => $q->where('company_id', $user->id));
+                ->whereHas('employee', fn($q) => $q->where('company_id', $companyId));
         } else {
             // Receive Service: Show payrolls for employees assigned to CLIENT company
             return parent::getEloquentQuery()
                 ->whereHas('employee.assigned', fn($q) => 
-                    $q->where('employee_assigned.company_id', $user->id)
+                    $q->where('employee_assigned.company_id', $companyId)
                       ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
                 );
         }
@@ -75,7 +102,11 @@ class PayrollResource extends Resource
                     ->unique(
                         table: 'payrolls',
                         column: 'employee_id',
-                        modifyRuleUsing: fn ($rule, $get) => $rule->where('company_id', Filament::auth()->id()),
+                        modifyRuleUsing: function ($rule, $get) {
+                            $user = Filament::auth()->user();
+                            $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+                            return $rule->where('company_id', $companyId);
+                        },
                         ignoreRecord: true
                     ),
                 Forms\Components\Section::make('Salary Information')

@@ -33,7 +33,7 @@ class RequestLeave extends Page implements HasForms
 
     protected static ?string $navigationLabel = 'Request Leave';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 3;
 
     public ?array $data = [];
 
@@ -190,16 +190,29 @@ BLADE
 
         $employee = Filament::auth()->user();
 
+        // Get client company (where employee is assigned) or fall back to provider company
+        $clientCompanyId = $employee->company_assigned_id ?? $employee->company_id;
+        
+        if (!$clientCompanyId) {
+            Notification::make()
+                ->title('Error')
+                ->body('You are not assigned to any company. Please contact your administrator.')
+                ->danger()
+                ->send();
+            return;
+        }
+
         $daysCount = $this->calculateDaysCount($data['start_date'], $data['end_date']);
 
         LeaveRequestModel::create([
             'employee_id' => $employee->id,
-            'company_id' => $employee->company_id,
+            'company_id' => $clientCompanyId,
+            'current_approver_company_id' => $clientCompanyId,
             'leave_type' => $data['leave_type'],
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'],
             'days_count' => $daysCount,
-            'status' => LeaveRequestStatus::PENDING,
+            'status' => LeaveRequestStatus::PENDING_CLIENT_APPROVAL,
             'notes' => $data['notes'] ?? null,
         ]);
 

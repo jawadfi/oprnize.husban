@@ -62,4 +62,9 @@ class Company extends Authenticatable implements MustVerifyEmail, FilamentUser
     {
         return $this->hasMany(LeaveRequest::class);
     }
+
+    public function users()
+    {
+        return $this->hasMany(User::class);
+    }
 }

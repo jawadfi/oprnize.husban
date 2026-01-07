@@ -108,6 +108,39 @@ if(!function_exists('me')) {
         return auth($guard)->user();
     }
 }
+if(!function_exists('getCompanyId')) {
+    function getCompanyId($guard = 'company'): ?int
+    {
+        $user = auth($guard)->user();
+        
+        if ($user instanceof \App\Models\Company) {
+            return $user->id;
+        }
+        
+        if ($user instanceof \App\Models\User) {
+            return $user->company_id;
+        }
+        
+        return null;
+    }
+}
+if(!function_exists('getCompany')) {
+    function getCompany($guard = 'company'): ?\App\Models\Company
+    {
+        $user = auth($guard)->user();
+        
+        if ($user instanceof \App\Models\Company) {
+            return $user;
+        }
+        
+        if ($user instanceof \App\Models\User) {
+            $user->load('company');
+            return $user->company;
+        }
+        
+        return null;
+    }
+}
 if(!function_exists('getUserIdByScantumToken')) {
     function getUserIdByScantumToken($token):int|null
     {
