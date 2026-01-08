@@ -8,5 +8,13 @@ use BezhanSalleh\FilamentShield\Resources\RoleResource\Pages\ListRoles as Shield
 class ListRoles extends ShieldListRoles
 {
     protected static string $resource = RoleResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            \Filament\Actions\CreateAction::make()
+                ->label('Create Role'),
+        ];
+    }
 }
 

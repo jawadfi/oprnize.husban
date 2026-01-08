@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
 
 class RoleResource extends ShieldRoleResource
 {
-    public static function shouldRegisterNavigation(): bool
+    public static function canAccess(): bool
     {
         $user = Filament::auth()->user();
         
@@ -29,7 +29,92 @@ class RoleResource extends ShieldRoleResource
         if ($user instanceof \App\Models\User) {
             $company = $user->company;
             if ($company && $company->type === CompanyTypes::PROVIDER) {
-            return $user->can('view_any_Role');
+                return $user->can('view_any_Role');
+            }
+        }
+        
+        return false;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canAccess();
+    }
+
+    public static function canCreate(): bool
+    {
+        $user = Filament::auth()->user();
+        
+        // Only provider companies can create roles
+        if ($user instanceof \App\Models\Company) {
+            return $user->type === CompanyTypes::PROVIDER;
+        }
+        
+        // User model needs permission
+        if ($user instanceof \App\Models\User) {
+            $company = $user->company;
+            if ($company && $company->type === CompanyTypes::PROVIDER) {
+                return $user->can('create_Role') || $user->can('create_role');
+            }
+        }
+        
+        return false;
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = Filament::auth()->user();
+        
+        // Only provider companies can edit roles
+        if ($user instanceof \App\Models\Company) {
+            return $user->type === CompanyTypes::PROVIDER;
+        }
+        
+        // User model needs permission
+        if ($user instanceof \App\Models\User) {
+            $company = $user->company;
+            if ($company && $company->type === CompanyTypes::PROVIDER) {
+                return $user->can('update_Role') || $user->can('update_role');
+            }
+        }
+        
+        return false;
+    }
+
+    public static function canDelete($record): bool
+    {
+        $user = Filament::auth()->user();
+        
+        // Only provider companies can delete roles
+        if ($user instanceof \App\Models\Company) {
+            return $user->type === CompanyTypes::PROVIDER;
+        }
+        
+        // User model needs permission
+        if ($user instanceof \App\Models\User) {
+            $company = $user->company;
+            if ($company && $company->type === CompanyTypes::PROVIDER) {
+                return $user->can('delete_Role') || $user->can('delete_role');
+            }
+        }
+        
+        return false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        $user = Filament::auth()->user();
+        
+        // Only provider companies can delete roles
+        if ($user instanceof \App\Models\Company) {
+            return $user->type === CompanyTypes::PROVIDER;
+        }
+        
+        // User model needs permission
+        if ($user instanceof \App\Models\User) {
+            $company = $user->company;
+            if ($company && $company->type === CompanyTypes::PROVIDER) {
+                return $user->can('delete_any_Role') || $user->can('delete_any_role');
             }
         }
         
@@ -64,10 +149,13 @@ class RoleResource extends ShieldRoleResource
             ]);
     }
 
+
     public static function getEloquentQuery(): Builder
     {
-        // Don't eager load relationships that might cause issues
-        return parent::getEloquentQuery()->with('permissions');
+        // Filter by company guard and eager load permissions
+        return parent::getEloquentQuery()
+            ->where('guard_name', 'company')
+            ->with('permissions');
     }
 
     public static function table(Table $table): Table
@@ -96,8 +184,10 @@ class RoleResource extends ShieldRoleResource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->label('Edit'),
                 Tables\Actions\DeleteAction::make()
+                    ->label('Delete')
                     ->using(function ($record) {
                         // Delete the role directly without accessing problematic relationships
                         $record->permissions()->detach();

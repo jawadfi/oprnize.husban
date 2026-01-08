@@ -70,13 +70,17 @@ return [
 
         'pages' => [
             'Dashboard',
+            'ProviderCompaniesListing',
+            'ProviderCompanyEmployees',
         ],
 
         'widgets' => [
             'AccountWidget', 'FilamentInfoWidget',
         ],
 
-        'resources' => [],
+        'resources' => [
+            'AssignedEmployeeResource',
+        ],
     ],
 
     'discovery' => [

@@ -13,6 +13,11 @@ class Company extends Authenticatable implements MustVerifyEmail, FilamentUser
 {
     use Notifiable,HasRoles;
 
+    /**
+     * The guard name for Spatie Permission
+     */
+    protected $guard_name = 'company';
+
     protected $fillable = [
         'name',
         'commercial_registration_number',
@@ -67,5 +72,13 @@ class Company extends Authenticatable implements MustVerifyEmail, FilamentUser
     public function users()
     {
         return $this->hasMany(User::class);
+    }
+
+    /**
+     * Get the default guard name for roles/permissions
+     */
+    public function getDefaultGuardName(): string
+    {
+        return 'company';
     }
 }

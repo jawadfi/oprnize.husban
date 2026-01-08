@@ -28,7 +28,7 @@ class UserResource extends Resource
     {
         $user = Filament::auth()->user();
         
-        // Company model has all access
+        // Both provider and client companies can manage users
         if ($user instanceof \App\Models\Company) {
             return true;
         }
@@ -46,11 +46,81 @@ class UserResource extends Resource
         return static::canAccess();
     }
 
+    public static function canCreate(): bool
+    {
+        $user = Filament::auth()->user();
+        
+        // Both provider and client companies can create users
+        if ($user instanceof \App\Models\Company) {
+            return true;
+        }
+        
+        // User model needs permission
+        if ($user instanceof User) {
+            return $user->can('create_UserResource') || $user->can('create_user');
+        }
+        
+        return false;
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = Filament::auth()->user();
+        
+        // Both provider and client companies can edit their users
+        if ($user instanceof \App\Models\Company) {
+            return $record->company_id === $user->id;
+        }
+        
+        // User model needs permission and must be from same company
+        if ($user instanceof User) {
+            return ($user->can('update_UserResource') || $user->can('update_user')) 
+                && $record->company_id === $user->company_id;
+        }
+        
+        return false;
+    }
+
+    public static function canDelete($record): bool
+    {
+        $user = Filament::auth()->user();
+        
+        // Both provider and client companies can delete their users
+        if ($user instanceof \App\Models\Company) {
+            return $record->company_id === $user->id;
+        }
+        
+        // User model needs permission and must be from same company
+        if ($user instanceof User) {
+            return ($user->can('delete_UserResource') || $user->can('delete_user'))
+                && $record->company_id === $user->company_id;
+        }
+        
+        return false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        $user = Filament::auth()->user();
+        
+        // Both provider and client companies can delete their users
+        if ($user instanceof \App\Models\Company) {
+            return true;
+        }
+        
+        // User model needs permission
+        if ($user instanceof User) {
+            return $user->can('delete_any_UserResource') || $user->can('delete_any_user');
+        }
+        
+        return false;
+    }
+
     public static function getEloquentQuery(): Builder
     {
         $company = Filament::auth()->user();
         
-        // If authenticated user is a Company, show its users
+        // If authenticated user is a Company (provider or client), show its users
         if ($company instanceof \App\Models\Company) {
             return parent::getEloquentQuery()->where('company_id', $company->id);
         }
@@ -85,11 +155,14 @@ class UserResource extends Resource
                     ->dehydrated(fn ($state) => filled($state))
                     ->required(fn (string $context): bool => $context === 'create'),
                 Forms\Components\Select::make('roles')
-                    ->relationship('roles', 'name', fn (Builder $query) => $query->where('guard_name', 'company'))
+                    ->relationship('roles', 'name', fn (Builder $query) => 
+                        $query->where('guard_name', 'company')
+                    )
                     ->multiple()
                     ->preload()
                     ->searchable()
-                    ->required(),
+                    ->required()
+                    ->helperText('Assign roles to the user. Available roles are shared across all companies using the company guard.'),
                 Forms\Components\Hidden::make('company_id')
                     ->default($companyId)
                     ->required(),
@@ -123,8 +196,10 @@ class UserResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->label('Edit'),
+                Tables\Actions\DeleteAction::make()
+                    ->label('Delete'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

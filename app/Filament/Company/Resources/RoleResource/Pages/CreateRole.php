@@ -24,7 +24,28 @@ class CreateRole extends ShieldCreateRole
             })
             ->values()
             ->flatten()
-            ->unique();
+            ->unique()
+            ->filter(function ($permission) {
+                // Exclude AssignedEmployeeResource permissions
+                if (stripos($permission, 'AssignedEmployeeResource') !== false || 
+                    stripos($permission, 'assigned_employee') !== false) {
+                    return false;
+                }
+                
+                // Exclude ProviderCompaniesListing page permissions
+                if (stripos($permission, 'ProviderCompaniesListing') !== false ||
+                    stripos($permission, 'page_Companies') !== false) {
+                    return false;
+                }
+                
+                // Exclude ProviderCompanyEmployees page permissions
+                if (stripos($permission, 'ProviderCompanyEmployees') !== false ||
+                    stripos($permission, 'page_Employees of') !== false) {
+                    return false;
+                }
+                
+                return true;
+            });
 
         if (Arr::has($data, Utils::getTenantModelForeignKey())) {
             return Arr::only($data, ['name', 'guard_name', Utils::getTenantModelForeignKey()]);
