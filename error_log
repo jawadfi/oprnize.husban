@@ -1,0 +1,2 @@
+[27-Dec-2025 07:19:02 UTC] PHP Fatal error:  Cannot declare class App\Filament\Employee\Pages\RequestLeave, because the name is already in use in /home/husbuckh/oprnize.husban.net/app/Filament/Employee/Pages/LeaveRequest.php on line 24
+[27-Dec-2025 07:27:13 UTC] PHP Fatal error:  Cannot declare class App\Filament\Employee\Pages\RequestLeave, because the name is already in use in /home/husbuckh/oprnize.husban.net/app/Filament/Employee/Pages/LeaveRequest.php on line 24

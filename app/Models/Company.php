@@ -7,10 +7,11 @@ use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class Company extends Authenticatable implements MustVerifyEmail, FilamentUser
 {
-    use Notifiable;
+    use Notifiable,HasRoles;
 
     protected $fillable = [
         'name',

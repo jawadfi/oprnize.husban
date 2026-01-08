@@ -28,7 +28,7 @@ return [
     ],
 
     'panel_user' => [
-        'enabled' => false,
+        'enabled' => true,
         'name' => 'panel_user',
     ],
 
@@ -70,17 +70,13 @@ return [
 
         'pages' => [
             'Dashboard',
-            'ProviderCompaniesListing',
-            'ProviderCompanyEmployees',
         ],
 
         'widgets' => [
             'AccountWidget', 'FilamentInfoWidget',
         ],
 
-        'resources' => [
-            'AssignedEmployeeResource',
-        ],
+        'resources' => [],
     ],
 
     'discovery' => [
