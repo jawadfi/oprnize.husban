@@ -4,6 +4,7 @@ namespace App\Filament\Company\Pages;
 
 use App\Enums\CompanyTypes;
 use App\Models\City;
+use App\Models\Company;
 use DiogoGPinto\AuthUIEnhancer\Pages\Auth\Concerns\HasCustomLayout;
 use Filament\Forms\Components\Component;
 use Filament\Forms\Components\Select;
@@ -97,6 +98,11 @@ class Register extends \Filament\Pages\Auth\Register
             ->prefixIcon('heroicon-o-envelope')
             ->required()
             ->maxLength(255)
-            ->unique($this->getUserModel());
+            ->unique(Company::class);
+    }
+
+    protected function getUserModel(): string
+    {
+        return Company::class;
     }
 }
