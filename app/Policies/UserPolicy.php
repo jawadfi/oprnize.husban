@@ -16,7 +16,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function viewAny(User $user): bool
+    public function viewAny($user): bool
     {
         return $user->can('view_any_user');
     }
@@ -27,7 +27,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function view(User $user): bool
+    public function view($user): bool
     {
         return $user->can('view_user');
     }
@@ -38,7 +38,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function create(User $user): bool
+    public function create($user): bool
     {
         return $user->can('create_user');
     }
@@ -49,7 +49,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function update(User $user): bool
+    public function update($user): bool
     {
         return $user->can('update_user');
     }
@@ -60,7 +60,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function delete(User $user): bool
+    public function delete($user): bool
     {
         return $user->can('delete_user');
     }
@@ -71,7 +71,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function deleteAny(User $user): bool
+    public function deleteAny($user): bool
     {
         return $user->can('delete_any_user');
     }
@@ -82,7 +82,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function forceDelete(User $user): bool
+    public function forceDelete($user): bool
     {
         return $user->can('force_delete_user');
     }
@@ -93,7 +93,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function forceDeleteAny(User $user): bool
+    public function forceDeleteAny($user): bool
     {
         return $user->can('force_delete_any_user');
     }
@@ -104,7 +104,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function restore(User $user): bool
+    public function restore($user): bool
     {
         return $user->can('restore_user');
     }
@@ -115,7 +115,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function restoreAny(User $user): bool
+    public function restoreAny($user): bool
     {
         return $user->can('restore_any_user');
     }
@@ -126,7 +126,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function replicate(User $user): bool
+    public function replicate($user): bool
     {
         return $user->can('replicate_user');
     }
@@ -137,7 +137,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function reorder(User $user): bool
+    public function reorder($user): bool
     {
         return $user->can('reorder_user');
     }
