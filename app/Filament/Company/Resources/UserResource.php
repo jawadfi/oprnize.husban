@@ -35,7 +35,19 @@ class UserResource extends Resource
         
         // User model needs permission to view users
         if ($user instanceof User) {
-            return $user->can('view_any_UserResource');
+            // Shield generates permissions as lowercase: 'view_any_user' not 'view_any_UserResource'
+            $permissionNames = ['view_any_user', 'view_any_UserResource', 'view_any_userresource'];
+            
+            foreach ($permissionNames as $permName) {
+                try {
+                    if ($user->can($permName)) {
+                        return true;
+                    }
+                } catch (\Exception $e) {
+                    // Permission doesn't exist, try next
+                    continue;
+                }
+            }
         }
         
         return false;

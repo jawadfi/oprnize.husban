@@ -29,7 +29,19 @@ class RoleResource extends ShieldRoleResource
         if ($user instanceof \App\Models\User) {
             $company = $user->company;
             if ($company && $company->type === CompanyTypes::PROVIDER) {
-                return $user->can('view_any_Role');
+                // Shield generates permissions as lowercase: 'view_any_role' not 'view_any_Role'
+                $permissionNames = ['view_any_role', 'view_any_Role', 'view_any_RoleResource'];
+                
+                foreach ($permissionNames as $permName) {
+                    try {
+                        if ($user->can($permName)) {
+                            return true;
+                        }
+                    } catch (\Exception $e) {
+                        // Permission doesn't exist, try next
+                        continue;
+                    }
+                }
             }
         }
         

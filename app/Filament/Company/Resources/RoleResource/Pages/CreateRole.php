@@ -18,34 +18,40 @@ class CreateRole extends ShieldCreateRole
             $data['guard_name'] = 'company';
         }
 
-        $this->permissions = collect($data)
+        // Collect all permissions from form data
+        $allPermissions = collect($data)
             ->filter(function ($permission, $key) {
                 return ! in_array($key, ['name', 'guard_name', 'select_all', Utils::getTenantModelForeignKey()]);
             })
             ->values()
             ->flatten()
             ->unique()
-            ->filter(function ($permission) {
-                // Exclude AssignedEmployeeResource permissions
-                if (stripos($permission, 'AssignedEmployeeResource') !== false || 
-                    stripos($permission, 'assigned_employee') !== false) {
-                    return false;
-                }
-                
-                // Exclude ProviderCompaniesListing page permissions
-                if (stripos($permission, 'ProviderCompaniesListing') !== false ||
-                    stripos($permission, 'page_Companies') !== false) {
-                    return false;
-                }
-                
-                // Exclude ProviderCompanyEmployees page permissions
-                if (stripos($permission, 'ProviderCompanyEmployees') !== false ||
-                    stripos($permission, 'page_Employees of') !== false) {
-                    return false;
-                }
-                
-                return true;
+            ->map(function ($permission) {
+                return (string) $permission;
             });
+
+        // Filter out only the specific permissions we want to exclude
+        $this->permissions = $allPermissions->filter(function ($permission) {
+            // Exclude AssignedEmployeeResource permissions (exact match patterns)
+            if (preg_match('/AssignedEmployeeResource/i', $permission)) {
+                return false;
+            }
+            
+            // Exclude ProviderCompaniesListing page permissions (exact match)
+            if (preg_match('/page_ProviderCompaniesListing/i', $permission) ||
+                preg_match('/^page_Companies$/i', $permission)) {
+                return false;
+            }
+            
+            // Exclude ProviderCompanyEmployees page permissions (exact match)
+            if (preg_match('/page_ProviderCompanyEmployees/i', $permission) ||
+                preg_match('/page_Employees of/i', $permission)) {
+                return false;
+            }
+            
+            // Allow all other permissions including Role and User
+            return true;
+        });
 
         if (Arr::has($data, Utils::getTenantModelForeignKey())) {
             return Arr::only($data, ['name', 'guard_name', Utils::getTenantModelForeignKey()]);
