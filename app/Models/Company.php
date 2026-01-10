@@ -74,6 +74,11 @@ class Company extends Authenticatable implements MustVerifyEmail, FilamentUser
         return $this->hasMany(User::class);
     }
 
+    public function city()
+    {
+        return $this->belongsTo(City::class);
+    }
+
     /**
      * Get the default guard name for roles/permissions
      */

@@ -39,6 +39,10 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 Widgets\AccountWidget::class,
                 Widgets\FilamentInfoWidget::class,
+                \App\Filament\Admin\Widgets\AdminStatsWidget::class,
+                \App\Filament\Admin\Widgets\CompanyStatsWidget::class,
+                \App\Filament\Admin\Widgets\EmployeeStatsWidget::class,
+                \App\Filament\Admin\Widgets\CityStatsWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

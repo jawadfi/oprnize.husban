@@ -61,6 +61,11 @@ class Employee extends Authenticatable implements FilamentUser
             ->withPivot(['status', 'start_date'])
             ->withTimestamps();
     }
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
+    }
+
     public function currentCompanyAssigned()
     {
         return $this->belongsTo(Company::class, 'company_assigned_id');
