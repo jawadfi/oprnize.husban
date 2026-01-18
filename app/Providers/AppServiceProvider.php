@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\PermissionRegistrar;
+use Filament\Actions\Imports\Models\Import;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,6 +16,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        
         // Register custom user provider for company guard
         Auth::provider('company', function ($app, array $config) {
             return new CompanyUserProvider();
@@ -26,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Import::polymorphicUserRelationship();
         Schema::defaultStringLength(191);
     }
 }

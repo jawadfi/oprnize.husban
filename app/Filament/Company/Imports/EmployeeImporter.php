@@ -17,6 +17,7 @@ class EmployeeImporter extends Importer
 
     public function import(array $row): void
     {
+             dd($row);
         $row['company_id'] = $this->options['company_id'];
         if (isset($row['hire_date'])) {
             try {
@@ -25,7 +26,8 @@ class EmployeeImporter extends Importer
 
             }
         }
-        Employee::query()->updateOrCreate([
+   
+        $employee=Employee::query()->updateOrCreate([
             'identity_number' => $row['identity_number'],
         ], $row);
     }

@@ -8,6 +8,7 @@ use App\Filament\Company\Pages\PendingHiring;
 use App\Filament\Company\Pages\ProviderCompaniesListing;
 use App\Filament\Company\Pages\ProviderCompanyEmployees;
 use App\Filament\Company\Pages\Register;
+use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
 use Filament\Enums\ThemeMode;
 use App\Http\Middleware\AuthenticateCompanyPanel;
@@ -62,7 +63,7 @@ class CompanyPanelProvider extends PanelProvider
                 AuthUIEnhancerPlugin::make()
                     ->formPanelBackgroundColor(Color::hex('#ffffff'))
                     ->emptyPanelBackgroundImageUrl(asset('images/auth-wallpaper.jpeg')),
-                \BezhanSalleh\FilamentShield\FilamentShieldPlugin::make(),
+                FilamentShieldPlugin::make(),
             ])
             ->theme(asset('css/filament/company/theme.css'))
             ->discoverWidgets(in: app_path('Filament/Company/Widgets'), for: 'App\\Filament\\Company\\Widgets')

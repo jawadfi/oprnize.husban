@@ -20,6 +20,7 @@ use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Actions\DeleteBulkAction;
 use Filament\Tables\Table;
 use HayderHatem\FilamentExcelImport\Actions\FullImportAction;
 use Illuminate\Database\Eloquent\Builder;
