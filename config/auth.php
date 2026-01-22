@@ -42,6 +42,10 @@ return [
         ],
         'company' => [
             'driver' => 'session',
+            'provider' => 'companies',
+        ],
+        'company_user' => [
+            'driver' => 'session',
             'provider' => 'company_users',
         ],
         'employee' => [
@@ -77,7 +81,8 @@ return [
             'model' => App\Models\Company::class,
         ],
         'company_users' => [
-            'driver' => 'company',
+            'driver' => 'eloquent',
+            'model' => App\Models\User::class,
         ],
         'employees' => [
             'driver' => 'eloquent',

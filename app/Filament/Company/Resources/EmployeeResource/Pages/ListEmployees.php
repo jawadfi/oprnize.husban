@@ -20,11 +20,11 @@ class ListEmployees extends ListRecords
     {
         $user = Filament::auth()->user();
         $company = $user instanceof \App\Models\Company ? $user : ($user instanceof \App\Models\User ? $user->company : null);
-        
+
         if (!$company) {
             return [];
         }
-        
+
         return [
             'available' => Tab::make()
                 ->badge(fn()=> $company->original_employees()->byStatus(\App\Enums\EmployeeStatusStatus::AVAILABLE)->count())

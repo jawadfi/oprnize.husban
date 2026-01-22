@@ -12,6 +12,7 @@ use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
 use Filament\Enums\ThemeMode;
 use App\Http\Middleware\AuthenticateCompanyPanel;
+use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -83,7 +84,8 @@ class CompanyPanelProvider extends PanelProvider
             ])
             ->authGuard('company')
             ->authMiddleware([
-                AuthenticateCompanyPanel::class,
+                Authenticate::class,
+//                AuthenticateCompanyPanel::class,
             ]);
     }
 }

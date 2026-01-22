@@ -13,10 +13,11 @@ class Company extends Authenticatable implements MustVerifyEmail, FilamentUser
 {
     use Notifiable,HasRoles;
 
+    protected $guarded = 'company';
     /**
      * The guard name for Spatie Permission
      */
-    protected $guard_name = 'company';
+//    protected $guard_name = 'company';
 
     protected $fillable = [
         'name',
@@ -40,6 +41,12 @@ class Company extends Authenticatable implements MustVerifyEmail, FilamentUser
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::created(function (Company $company) {
+            $company->assignRole('super_admin');
+        });
+    }
     public function canAccessPanel(Panel $panel): bool
     {
         return true;
