@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\User;
 use App\Models\Admin;
+use App\Models\Company;
 
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -17,7 +18,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function viewAny($user): bool
+    public function viewAny(Admin|User|Company $user): bool
     {
         return true;
     }
@@ -28,7 +29,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function view($user): bool
+    public function view(Admin|User|Company $user): bool
     {
         return true;
     }
@@ -39,7 +40,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function create($user): bool
+    public function create(Admin|User|Company $user): bool
     {
         return true;
     }
@@ -50,7 +51,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function update($user): bool
+    public function update(Admin|User|Company $user): bool
     {
         return true;
     }
@@ -61,7 +62,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function delete($user): bool
+    public function delete(Admin|User|Company $user): bool
     {
         return true;
     }
@@ -72,7 +73,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function deleteAny($user): bool
+    public function deleteAny(Admin|User|Company $user): bool
     {
         return true;
     }
@@ -83,7 +84,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function forceDelete($user): bool
+    public function forceDelete(Admin|User|Company $user): bool
     {
         return true;
     }
@@ -94,7 +95,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function forceDeleteAny($user): bool
+    public function forceDeleteAny(Admin|User|Company $user): bool
     {
         return true;
     }
@@ -105,7 +106,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function restore($user): bool
+    public function restore(Admin|User|Company $user): bool
     {
         return true;
     }
@@ -116,7 +117,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function restoreAny($user): bool
+    public function restoreAny(Admin|User|Company $user): bool
     {
         return true;
     }
@@ -127,7 +128,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function replicate($user): bool
+    public function replicate(Admin|User|Company $user): bool
     {
         return true;
     }
@@ -138,7 +139,7 @@ class UserPolicy
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function reorder($user): bool
+    public function reorder(Admin|User|Company $user): bool
     {
         return true;
     }
