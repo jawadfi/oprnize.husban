@@ -370,23 +370,27 @@ class PayrollResource extends Resource
                         });
                     })
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->width('80px'),
                 Tables\Columns\TextColumn::make('employee.name')
                     ->label('Emp. Name')
                     ->searchable()
                     ->sortable()
                     ->limit(20)
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->width('150px'),
                 Tables\Columns\TextColumn::make('payroll_month')
                     ->label('Month')
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->width('90px'),
                 Tables\Columns\TextColumn::make('status')
                     ->label('الحالة')
                     ->formatStateUsing(fn($state) => PayrollStatus::getTranslatedEnum()[$state] ?? $state)
                     ->badge()
                     ->color(fn($state) => PayrollStatus::getColors()[$state] ?? 'gray')
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->width('110px'),
                 Tables\Columns\IconColumn::make('is_modified')
                     ->label('معدل')
                     ->boolean()
@@ -394,52 +398,71 @@ class PayrollResource extends Resource
                     ->trueColor('warning')
                     ->falseIcon('heroicon-o-check-circle')
                     ->falseColor('success')
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->width('70px'),
                 Tables\Columns\TextColumn::make('basic_salary')
-                    ->label('Basic salary')
+                    ->label('Basic')
                     ->money('SAR')
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->toggleable()
+                    ->width('100px'),
                 Tables\Columns\TextColumn::make('housing_allowance')
-                    ->label('Housing Allowance')
+                    ->label('Housing')
                     ->money('SAR')
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->width('100px'),
                 Tables\Columns\TextColumn::make('transportation_allowance')
-                    ->label('Transportation Allow')
+                    ->label('Transport')
                     ->money('SAR')
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->width('100px'),
                 Tables\Columns\TextColumn::make('food_allowance')
-                    ->label('Food Allowance')
+                    ->label('Food')
                     ->money('SAR')
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->width('100px'),
                 Tables\Columns\TextColumn::make('other_allowance')
-                    ->label('Other Allowance')
+                    ->label('Other')
                     ->money('SAR')
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->width('100px'),
                 Tables\Columns\TextColumn::make('total_other_allow')
-                    ->label('Total Other Allowance')
+                    ->label('Total Allow')
                     ->money('SAR')
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->toggleable()
+                    ->width('110px'),
                 Tables\Columns\TextColumn::make('total_salary')
                     ->label('Total Salary')
                     ->money('SAR')
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->toggleable()
+                    ->width('120px'),
                 Tables\Columns\TextColumn::make('fees')
                     ->label('Fees')
                     ->money('SAR')
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->toggleable()
+                    ->width('100px'),
                 Tables\Columns\TextColumn::make('monthly_cost')
-                    ->label('Monthly cost')
+                    ->label('Monthly Cost')
                     ->money('SAR')
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->toggleable()
+                    ->width('120px'),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
