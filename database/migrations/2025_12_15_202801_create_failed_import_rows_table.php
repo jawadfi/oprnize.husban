@@ -11,15 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::disableForeignKeyConstraints();
-        Schema::dropIfExists('failed_import_rows');
-        Schema::create('failed_import_rows', function (Blueprint $table) {
-            $table->id();
-            $table->json('data');
-            $table->foreignId('import_id')->constrained()->cascadeOnDelete();
-            $table->text('validation_error')->nullable();
-            $table->timestamps();
-        });
+        // Only create if table doesn't exist
+        if (!Schema::hasTable('failed_import_rows')) {
+            Schema::create('failed_import_rows', function (Blueprint $table) {
+                $table->id();
+                $table->json('data');
+                $table->foreignId('import_id')->constrained()->cascadeOnDelete();
+                $table->text('validation_error')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     /**
