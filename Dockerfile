@@ -1,5 +1,5 @@
-# Use PHP 8.2 FPM Alpine
-FROM php:8.2-fpm-alpine
+# Use PHP 8.3 FPM Alpine
+FROM php:8.3-fpm-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -28,8 +28,8 @@ WORKDIR /var/www/html
 # Copy application files
 COPY . .
 
-# Install dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# Install dependencies (update lock file for PHP 8.3)
+RUN composer update --no-dev --optimize-autoloader --no-interaction
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
