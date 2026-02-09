@@ -1,0 +1,30 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        if (Schema::hasTable('notifications') && Schema::hasColumn('notifications', 'data')) {
+            // Convert text column to jsonb for PostgreSQL JSON operator support
+            DB::statement('ALTER TABLE notifications ALTER COLUMN data TYPE jsonb USING data::jsonb');
+        }
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        if (Schema::hasTable('notifications') && Schema::hasColumn('notifications', 'data')) {
+            DB::statement('ALTER TABLE notifications ALTER COLUMN data TYPE text');
+        }
+    }
+};
