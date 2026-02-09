@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: oprnize-husban
+    env: php
+    buildCommand: |
+      composer install --no-dev --optimize-autoloader
+      php artisan config:clear
+      php artisan route:clear
+      php artisan view:clear
+      php artisan cache:clear
+      php artisan migrate --force
+    startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_KEY
+        generateValue: true
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        fromDatabase:
+          name: oprnize-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: oprnize-db
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: oprnize-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: oprnize-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: oprnize-db
+          property: password
+
+databases:
+  - name: oprnize-db
+    databaseName: oprnize
+    user: oprnize
