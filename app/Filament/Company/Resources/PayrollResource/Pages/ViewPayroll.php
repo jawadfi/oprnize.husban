@@ -24,13 +24,31 @@ class ViewPayroll extends ViewRecord
     {
         return $infolist
             ->schema([
-                Infolists\Components\Section::make('Employee Information')
+                Infolists\Components\Section::make('Employee & Status')
                     ->schema([
                         Infolists\Components\TextEntry::make('employee.emp_id')
                             ->label('Employee ID'),
                         Infolists\Components\TextEntry::make('employee.name')
                             ->label('Employee Name'),
+                        Infolists\Components\TextEntry::make('payroll_month')
+                            ->label('Payroll Month'),
+                        Infolists\Components\TextEntry::make('status')
+                            ->label('الحالة')
+                            ->formatStateUsing(fn($state) => \App\Enums\PayrollStatus::getTranslatedEnum()[$state] ?? $state)
+                            ->badge()
+                            ->color(fn($state) => \App\Enums\PayrollStatus::getColors()[$state] ?? 'gray'),
                     ])->columns(2),
+
+                Infolists\Components\Section::make('سبب الإرجاع - Reback Reason')
+                    ->schema([
+                        Infolists\Components\TextEntry::make('reback_reason')
+                            ->label('السبب')
+                            ->color('danger')
+                            ->weight('bold'),
+                    ])
+                    ->visible(fn($record) => !empty($record->reback_reason))
+                    ->icon('heroicon-o-exclamation-triangle')
+                    ->iconColor('danger'),
 
                 Infolists\Components\Section::make('Salary Information')
                     ->schema([

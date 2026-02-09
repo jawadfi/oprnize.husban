@@ -15,6 +15,10 @@ class CreatePayroll extends CreateRecord
     {
         $user = Filament::auth()->user();
         $data['company_id'] = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+        $data['status'] = \App\Enums\PayrollStatus::DRAFT;
+        if (empty($data['payroll_month'])) {
+            $data['payroll_month'] = now()->format('Y-m');
+        }
         return $data;
     }
 }

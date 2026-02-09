@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use App\Enums\PayrollStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Payroll extends Model
 {
     protected $fillable = [
         'employee_id',
         'company_id',
+        'payroll_month',
+        'status',
         'basic_salary',
         'housing_allowance',
         'transportation_allowance',
@@ -27,6 +31,12 @@ class Payroll extends Model
         'absence_unpaid_leave_deduction',
         'food_subscription_deduction',
         'other_deduction',
+        'notes',
+        'reback_reason',
+        'is_modified',
+        'submitted_at',
+        'calculated_at',
+        'finalized_at',
     ];
 
     protected function casts(): array
@@ -49,6 +59,10 @@ class Payroll extends Model
             'absence_unpaid_leave_deduction' => 'decimal:2',
             'food_subscription_deduction' => 'decimal:2',
             'other_deduction' => 'decimal:2',
+            'is_modified' => 'boolean',
+            'submitted_at' => 'datetime',
+            'calculated_at' => 'datetime',
+            'finalized_at' => 'datetime',
         ];
     }
 
@@ -60,6 +74,35 @@ class Payroll extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function deductions(): HasMany
+    {
+        return $this->hasMany(Deduction::class);
+    }
+
+    /**
+     * Get total from linked deductions records
+     */
+    public function getLinkedDeductionsTotalAttribute(): float
+    {
+        return (float) $this->deductions()->where('status', 'approved')->sum('amount');
+    }
+
+    /**
+     * Get status label in Arabic
+     */
+    public function getStatusLabelAttribute(): string
+    {
+        return PayrollStatus::getTranslatedEnum()[$this->status] ?? $this->status;
+    }
+
+    /**
+     * Get status color for badges
+     */
+    public function getStatusColorAttribute(): string
+    {
+        return PayrollStatus::getColors()[$this->status] ?? 'gray';
     }
 
     // Calculated accessors

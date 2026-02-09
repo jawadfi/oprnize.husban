@@ -86,6 +86,11 @@ class Employee extends Authenticatable implements FilamentUser
         return $this->hasMany(LeaveRequest::class);
     }
 
+    public function deductions()
+    {
+        return $this->hasMany(Deduction::class);
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         return $panel->getId() === 'employee';

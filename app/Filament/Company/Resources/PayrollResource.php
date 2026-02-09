@@ -5,6 +5,7 @@ namespace App\Filament\Company\Resources;
 use AlperenErsoy\FilamentExport\Actions\FilamentExportHeaderAction;
 use App\Enums\CompanyTypes;
 use App\Enums\EmployeeAssignedStatus;
+use App\Enums\PayrollStatus;
 use App\Filament\Company\Resources\PayrollResource\Pages;
 use App\Models\Company;
 use App\Models\Employee;
@@ -105,10 +106,24 @@ class PayrollResource extends Resource
                         modifyRuleUsing: function ($rule, $get) {
                             $user = Filament::auth()->user();
                             $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
-                            return $rule->where('company_id', $companyId);
+                            return $rule->where('company_id', $companyId)->where('payroll_month', $get('payroll_month'));
                         },
                         ignoreRecord: true
                     ),
+                Forms\Components\TextInput::make('payroll_month')
+                    ->label('Payroll Month')
+                    ->type('month')
+                    ->required()
+                    ->default(now()->format('Y-m'))
+                    ->disabled(fn($context) => $context === 'edit')
+                    ->dehydrated(),
+                Forms\Components\Select::make('status')
+                    ->label('Status')
+                    ->options(PayrollStatus::getTranslatedEnum())
+                    ->default(PayrollStatus::DRAFT)
+                    ->disabled()
+                    ->dehydrated()
+                    ->visible(fn($context) => $context === 'edit'),
                 Forms\Components\Section::make('Salary Information')
                     ->schema([
                         Forms\Components\TextInput::make('basic_salary')
@@ -336,6 +351,14 @@ class PayrollResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $user = Filament::auth()->user();
+        $companyType = null;
+        if ($user instanceof Company) {
+            $companyType = $user->type;
+        } elseif ($user instanceof User && $user->company) {
+            $companyType = $user->company->type;
+        }
+
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('employee.emp_id')
@@ -353,6 +376,24 @@ class PayrollResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->limit(20)
+                    ->alignCenter(),
+                Tables\Columns\TextColumn::make('payroll_month')
+                    ->label('Month')
+                    ->sortable()
+                    ->alignCenter(),
+                Tables\Columns\TextColumn::make('status')
+                    ->label('الحالة')
+                    ->formatStateUsing(fn($state) => PayrollStatus::getTranslatedEnum()[$state] ?? $state)
+                    ->badge()
+                    ->color(fn($state) => PayrollStatus::getColors()[$state] ?? 'gray')
+                    ->alignCenter(),
+                Tables\Columns\IconColumn::make('is_modified')
+                    ->label('معدل')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-exclamation-triangle')
+                    ->trueColor('warning')
+                    ->falseIcon('heroicon-o-check-circle')
+                    ->falseColor('success')
                     ->alignCenter(),
                 Tables\Columns\TextColumn::make('basic_salary')
                     ->label('Basic salary')
@@ -401,7 +442,9 @@ class PayrollResource extends Resource
                     ->alignCenter(),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('status')
+                    ->label('الحالة')
+                    ->options(PayrollStatus::getTranslatedEnum()),
             ])
             ->headerActions([
                 FilamentExportHeaderAction::make('export'),
@@ -409,6 +452,134 @@ class PayrollResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+
+                // CLIENT: Submit to Provider (send movements/deductions)
+                Tables\Actions\Action::make('submit_to_provider')
+                    ->label('إرسال للشركة الأم')
+                    ->icon('heroicon-o-paper-airplane')
+                    ->color('info')
+                    ->requiresConfirmation()
+                    ->modalHeading('إرسال الحركات للشركة الأم')
+                    ->modalDescription('سيتم إرسال جميع الحركات والخصومات والإضافات للشركة الأم لاحتساب الراتب')
+                    ->visible(fn(Payroll $record) =>
+                        $companyType === CompanyTypes::CLIENT &&
+                        in_array($record->status, [PayrollStatus::DRAFT, PayrollStatus::REBACK])
+                    )
+                    ->action(function (Payroll $record) {
+                        $record->update([
+                            'status' => PayrollStatus::SUBMITTED_TO_PROVIDER,
+                            'submitted_at' => now(),
+                            'is_modified' => false,
+                        ]);
+                        \Filament\Notifications\Notification::make()
+                            ->title('تم الإرسال')
+                            ->body('تم إرسال الحركات للشركة الأم بنجاح')
+                            ->success()
+                            ->send();
+                    }),
+
+                // PROVIDER: Calculate payroll
+                Tables\Actions\Action::make('calculate')
+                    ->label('احتساب الراتب')
+                    ->icon('heroicon-o-calculator')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('احتساب الراتب')
+                    ->modalDescription('سيتم احتساب راتب هذا الموظف')
+                    ->visible(fn(Payroll $record) =>
+                        $companyType === CompanyTypes::PROVIDER &&
+                        in_array($record->status, [PayrollStatus::SUBMITTED_TO_PROVIDER, PayrollStatus::REBACK])
+                    )
+                    ->action(function (Payroll $record) {
+                        $record->update([
+                            'status' => PayrollStatus::CALCULATED,
+                            'calculated_at' => now(),
+                        ]);
+                        \Filament\Notifications\Notification::make()
+                            ->title('تم الاحتساب')
+                            ->body('تم احتساب الراتب بنجاح')
+                            ->success()
+                            ->send();
+                    }),
+
+                // PROVIDER: Submit to Client (final payroll)
+                Tables\Actions\Action::make('submit_to_client')
+                    ->label('تقديم للعميل')
+                    ->icon('heroicon-o-document-check')
+                    ->color('primary')
+                    ->requiresConfirmation()
+                    ->modalHeading('تقديم الراتب النهائي')
+                    ->modalDescription('سيتم تقديم كشف الراتب النهائي للعميل للمراجعة')
+                    ->visible(fn(Payroll $record) =>
+                        $companyType === CompanyTypes::PROVIDER &&
+                        $record->status === PayrollStatus::CALCULATED
+                    )
+                    ->action(function (Payroll $record) {
+                        $record->update([
+                            'status' => PayrollStatus::SUBMITTED_TO_CLIENT,
+                        ]);
+                        \Filament\Notifications\Notification::make()
+                            ->title('تم التقديم')
+                            ->body('تم تقديم كشف الراتب النهائي للعميل')
+                            ->success()
+                            ->send();
+                    }),
+
+                // CLIENT: Reback (send back for modifications)
+                Tables\Actions\Action::make('reback')
+                    ->label('إرجاع للتعديل')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('إرجاع للتعديل - Reback')
+                    ->form([
+                        Forms\Components\Textarea::make('reback_reason')
+                            ->label('سبب الإرجاع')
+                            ->required()
+                            ->rows(3),
+                    ])
+                    ->visible(fn(Payroll $record) =>
+                        $companyType === CompanyTypes::CLIENT &&
+                        $record->status === PayrollStatus::SUBMITTED_TO_CLIENT
+                    )
+                    ->action(function (Payroll $record, array $data) {
+                        $record->update([
+                            'status' => PayrollStatus::REBACK,
+                            'reback_reason' => $data['reback_reason'],
+                            'is_modified' => true,
+                        ]);
+                        \Filament\Notifications\Notification::make()
+                            ->title('تم الإرجاع')
+                            ->body('تم إرجاع كشف الراتب للشركة الأم للتعديل')
+                            ->warning()
+                            ->send();
+                    }),
+
+                // CLIENT: Finalize (approve final payroll)
+                Tables\Actions\Action::make('finalize')
+                    ->label('اعتماد نهائي')
+                    ->icon('heroicon-o-check-badge')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('اعتماد الراتب')
+                    ->modalDescription('سيتم اعتماد كشف الراتب بشكل نهائي ولا يمكن التعديل عليه بعد ذلك')
+                    ->visible(fn(Payroll $record) =>
+                        $companyType === CompanyTypes::CLIENT &&
+                        $record->status === PayrollStatus::SUBMITTED_TO_CLIENT
+                    )
+                    ->action(function (Payroll $record) {
+                        $record->update([
+                            'status' => PayrollStatus::FINALIZED,
+                            'finalized_at' => now(),
+                            'is_modified' => false,
+                        ]);
+                        \Filament\Notifications\Notification::make()
+                            ->title('تم الاعتماد')
+                            ->body('تم اعتماد كشف الراتب بشكل نهائي')
+                            ->success()
+                            ->send();
+                    }),
+
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([

@@ -117,12 +117,18 @@ class ListPayrolls extends ListRecords
     {
         $query = parent::getTableQuery();
         
-        // Filter by selected month (if payrolls have created_at or a month field)
-        // For now, we'll filter by created_at month
+        // Filter by payroll_month field
         if ($this->selectedMonth) {
-            $date = Carbon::parse($this->selectedMonth . '-01');
-            $query->whereYear('created_at', $date->year)
-                  ->whereMonth('created_at', $date->month);
+            $query->where(function ($q) {
+                $q->where('payroll_month', $this->selectedMonth)
+                  ->orWhere(function ($sq) {
+                      // Fallback for old records without payroll_month
+                      $date = Carbon::parse($this->selectedMonth . '-01');
+                      $sq->whereNull('payroll_month')
+                         ->whereYear('created_at', $date->year)
+                         ->whereMonth('created_at', $date->month);
+                  });
+            });
         }
         
         // Apply custom search
@@ -251,8 +257,14 @@ class ListPayrolls extends ListRecords
             );
         }
         
-        return $query->whereYear('created_at', $previousMonth->year)
-                     ->whereMonth('created_at', $previousMonth->month)
+        return $query->where(function ($q) use ($previousMonth) {
+                $q->where('payroll_month', $previousMonth->format('Y-m'))
+                  ->orWhere(function ($sq) use ($previousMonth) {
+                      $sq->whereNull('payroll_month')
+                         ->whereYear('created_at', $previousMonth->year)
+                         ->whereMonth('created_at', $previousMonth->month);
+                  });
+            })
                      ->count();
     }
 
@@ -273,8 +285,14 @@ class ListPayrolls extends ListRecords
             );
         }
         
-        return (float) $query->whereYear('created_at', $previousMonth->year)
-                             ->whereMonth('created_at', $previousMonth->month)
+        return (float) $query->where(function ($q) use ($previousMonth) {
+                $q->where('payroll_month', $previousMonth->format('Y-m'))
+                  ->orWhere(function ($sq) use ($previousMonth) {
+                      $sq->whereNull('payroll_month')
+                         ->whereYear('created_at', $previousMonth->year)
+                         ->whereMonth('created_at', $previousMonth->month);
+                  });
+            })
                              ->sum('overtime_amount') ?? 0.00;
     }
 
@@ -295,8 +313,14 @@ class ListPayrolls extends ListRecords
             );
         }
         
-        return (float) $query->whereYear('created_at', $previousMonth->year)
-                             ->whereMonth('created_at', $previousMonth->month)
+        return (float) $query->where(function ($q) use ($previousMonth) {
+                $q->where('payroll_month', $previousMonth->format('Y-m'))
+                  ->orWhere(function ($sq) use ($previousMonth) {
+                      $sq->whereNull('payroll_month')
+                         ->whereYear('created_at', $previousMonth->year)
+                         ->whereMonth('created_at', $previousMonth->month);
+                  });
+            })
                              ->selectRaw('SUM(basic_salary + housing_allowance + transportation_allowance + food_allowance + other_allowance) as total')
                              ->value('total') ?? 0.00;
     }
@@ -318,8 +342,14 @@ class ListPayrolls extends ListRecords
             );
         }
         
-        $payrolls = $query->whereYear('created_at', $previousMonth->year)
-                          ->whereMonth('created_at', $previousMonth->month)
+        $payrolls = $query->where(function ($q) use ($previousMonth) {
+                $q->where('payroll_month', $previousMonth->format('Y-m'))
+                  ->orWhere(function ($sq) use ($previousMonth) {
+                      $sq->whereNull('payroll_month')
+                         ->whereYear('created_at', $previousMonth->year)
+                         ->whereMonth('created_at', $previousMonth->month);
+                  });
+            })
                           ->get();
         
         return (float) $payrolls->sum('net_payment') ?? 0.00;
@@ -364,8 +394,7 @@ class ListPayrolls extends ListRecords
             // Check if payroll already exists for this employee and month
             $payrollExists = Payroll::where('employee_id', $employee->id)
                 ->where('company_id', $user->id)
-                ->whereYear('created_at', $date->year)
-                ->whereMonth('created_at', $date->month)
+                ->where('payroll_month', $this->selectedMonth)
                 ->exists();
             
             if ($payrollExists) {
@@ -373,10 +402,20 @@ class ListPayrolls extends ListRecords
                 continue;
             }
             
-            // Create new payroll with default values (can be customized)
-            Payroll::create([
+            // Get approved deductions for this employee and month
+            $deductions = \App\Models\Deduction::where('employee_id', $employee->id)
+                ->where('payroll_month', $this->selectedMonth)
+                ->where('status', \App\Enums\DeductionStatus::APPROVED)
+                ->get();
+            
+            $totalDeductionAmount = $deductions->sum('amount');
+            
+            // Create new payroll with default values
+            $payroll = Payroll::create([
                 'employee_id' => $employee->id,
                 'company_id' => $user->id,
+                'payroll_month' => $this->selectedMonth,
+                'status' => \App\Enums\PayrollStatus::DRAFT,
                 'basic_salary' => 0,
                 'housing_allowance' => 0,
                 'transportation_allowance' => 0,
@@ -390,13 +429,16 @@ class ListPayrolls extends ListRecords
                 'overtime_amount' => 0,
                 'added_days_amount' => 0,
                 'other_additions' => 0,
-                'absence_days' => 0,
-                'absence_unpaid_leave_deduction' => 0,
-                'food_subscription_deduction' => 0,
-                'other_deduction' => 0,
+                'absence_days' => $deductions->where('reason', 'absence')->sum('days') ?? 0,
+                'absence_unpaid_leave_deduction' => $deductions->where('reason', 'absence')->sum('amount') ?? 0,
+                'food_subscription_deduction' => $deductions->where('reason', 'food_subscription')->sum('amount') ?? 0,
+                'other_deduction' => $totalDeductionAmount - ($deductions->where('reason', 'absence')->sum('amount') ?? 0) - ($deductions->where('reason', 'food_subscription')->sum('amount') ?? 0),
                 'created_at' => $date,
                 'updated_at' => now(),
             ]);
+            
+            // Link deductions to this payroll
+            $deductions->each(fn($d) => $d->update(['payroll_id' => $payroll->id]));
             
             $created++;
         }
