@@ -18,7 +18,7 @@ services:
       - key: APP_KEY
         generateValue: true
       - key: DB_CONNECTION
-        value: mysql
+        value: pgsql
       - key: DB_HOST
         fromDatabase:
           name: oprnize-db
@@ -42,5 +42,5 @@ services:
 
 databases:
   - name: oprnize-db
-    databaseName: oprnize
-    user: oprnize
+    databaseName: oprnize_db
+    user: oprnize_db_user
