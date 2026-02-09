@@ -31,14 +31,15 @@ COPY . .
 # Install dependencies (update lock file for PHP 8.3)
 RUN composer update --no-dev --optimize-autoloader --no-interaction
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# Set permissions - make storage fully writable
+RUN chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Expose port
 EXPOSE ${PORT:-10000}
 
 # Start Laravel server
-CMD php artisan config:cache && \
+CMD php artisan storage:link && \
+    php artisan config:cache && \
     php artisan route:cache && \
     php artisan view:cache && \
     php artisan migrate --force && \
