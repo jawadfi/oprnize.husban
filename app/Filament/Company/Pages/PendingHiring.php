@@ -87,6 +87,7 @@ class PendingHiring extends Page implements HasTable
             ])
             ->actions([
                 Action::make('approved')
+                    ->label('Approve')
                     ->icon('heroicon-o-check')
                     ->visible(function(?EmployeeAssigned $record) {
                         $user = Filament::auth()->user();
@@ -102,7 +103,9 @@ class PendingHiring extends Page implements HasTable
                             ->success()
                             ->send();
                     }),
-                Action::make('declined') ->icon('heroicon-o-x-mark')
+                Action::make('declined')
+                    ->label('Decline')
+                    ->icon('heroicon-o-x-mark')
                     ->color('danger')
                     ->visible(function(?EmployeeAssigned $record) {
                         $user = Filament::auth()->user();
@@ -117,6 +120,57 @@ class PendingHiring extends Page implements HasTable
                             ->success()
                             ->send();
                     }),
+            ])
+            ->bulkActions([
+                \Filament\Tables\Actions\BulkActionGroup::make([
+                    \Filament\Tables\Actions\BulkAction::make('approve_selected')
+                        ->label('Approve Selected')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->action(function ($records) {
+                            $user = Filament::auth()->user();
+                            $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+                            
+                            $count = 0;
+                            foreach ($records as $record) {
+                                if ($record->company_id === $companyId && $record->status === EmployeeAssignedStatus::PENDING) {
+                                    $record->updateStatus(EmployeeAssignedStatus::APPROVED);
+                                    $count++;
+                                }
+                            }
+                            
+                            Notification::make()
+                                ->title("Approved {$count} employee(s) successfully")
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+                    
+                    \Filament\Tables\Actions\BulkAction::make('decline_selected')
+                        ->label('Decline Selected')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->action(function ($records) {
+                            $user = Filament::auth()->user();
+                            $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+                            
+                            $count = 0;
+                            foreach ($records as $record) {
+                                if ($record->company_id === $companyId && $record->status === EmployeeAssignedStatus::PENDING) {
+                                    $record->updateStatus(EmployeeAssignedStatus::DECLINED);
+                                    $count++;
+                                }
+                            }
+                            
+                            Notification::make()
+                                ->title("Declined {$count} employee(s)")
+                                ->warning()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+                ]),
             ])
             ->paginated();
     }
