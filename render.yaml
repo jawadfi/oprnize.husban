@@ -42,5 +42,5 @@ services:
 
 databases:
   - name: oprnize-db
-    databaseName: oprnize_db
-    user: oprnize_db_user
+    databaseName: oprnize_db_6rxb
+    user: oprnize_db_6rxb_user
