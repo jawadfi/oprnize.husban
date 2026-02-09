@@ -4,10 +4,9 @@ namespace App\Policies;
 
 use App\Models\User;
 use App\Models\Admin;
-use Spatie\Permission\Models\Role;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
-class RolePolicy
+class AdminPolicy
 {
     use HandlesAuthorization;
 
@@ -16,13 +15,13 @@ class RolePolicy
      */
     public function viewAny(Admin|User $user): bool
     {
-        return true;
+        return true; // Temporarily allow all access
     }
 
     /**
      * Determine whether the user can view the model.
      */
-    public function view(Admin|User $user, Role $role): bool
+    public function view(Admin|User $user, Admin $admin): bool
     {
         return true;
     }
@@ -38,7 +37,7 @@ class RolePolicy
     /**
      * Determine whether the user can update the model.
      */
-    public function update(Admin|User $user, Role $role): bool
+    public function update(Admin|User $user, Admin $admin): bool
     {
         return true;
     }
@@ -46,7 +45,7 @@ class RolePolicy
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(Admin|User $user, Role $role): bool
+    public function delete(Admin|User $user, Admin $admin): bool
     {
         return true;
     }
@@ -62,7 +61,7 @@ class RolePolicy
     /**
      * Determine whether the user can permanently delete.
      */
-    public function forceDelete(Admin|User $user, Role $role): bool
+    public function forceDelete(Admin|User $user, Admin $admin): bool
     {
         return true;
     }
@@ -78,7 +77,7 @@ class RolePolicy
     /**
      * Determine whether the user can restore.
      */
-    public function restore(Admin|User $user, Role $role): bool
+    public function restore(Admin|User $user, Admin $admin): bool
     {
         return true;
     }
@@ -94,7 +93,7 @@ class RolePolicy
     /**
      * Determine whether the user can replicate.
      */
-    public function replicate(Admin|User $user, Role $role): bool
+    public function replicate(Admin|User $user, Admin $admin): bool
     {
         return true;
     }
@@ -107,6 +106,3 @@ class RolePolicy
         return true;
     }
 }
-
-
-

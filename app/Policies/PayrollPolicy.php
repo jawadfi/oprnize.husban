@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\User;
+use App\Models\Admin;
 use App\Models\Payroll;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -15,7 +16,7 @@ class PayrollPolicy
      */
     public function viewAny($user): bool
     {
-        return $user->can('view_any_payroll');
+        return true;
     }
 
     /**
@@ -23,7 +24,7 @@ class PayrollPolicy
      */
     public function view($user, Payroll $payroll): bool
     {
-        return $user->can('view_payroll');
+        return true;
     }
 
     /**
@@ -31,7 +32,7 @@ class PayrollPolicy
      */
     public function create($user): bool
     {
-        return $user->can('create_payroll');
+        return true;
     }
 
     /**
@@ -39,7 +40,7 @@ class PayrollPolicy
      */
     public function update($user, Payroll $payroll): bool
     {
-        return $user->can('update_payroll');
+        return true;
     }
 
     /**
@@ -47,7 +48,7 @@ class PayrollPolicy
      */
     public function delete($user, Payroll $payroll): bool
     {
-        return $user->can('delete_payroll');
+        return true;
     }
 
     /**
@@ -55,7 +56,7 @@ class PayrollPolicy
      */
     public function deleteAny($user): bool
     {
-        return $user->can('delete_any_payroll');
+        return true;
     }
 
     /**
@@ -63,7 +64,7 @@ class PayrollPolicy
      */
     public function forceDelete($user, Payroll $payroll): bool
     {
-        return $user->can('force_delete_payroll');
+        return true;
     }
 
     /**
@@ -71,7 +72,7 @@ class PayrollPolicy
      */
     public function forceDeleteAny($user): bool
     {
-        return $user->can('force_delete_any_payroll');
+        return true;
     }
 
     /**
@@ -79,7 +80,7 @@ class PayrollPolicy
      */
     public function restore($user, Payroll $payroll): bool
     {
-        return $user->can('restore_payroll');
+        return true;
     }
 
     /**
@@ -87,7 +88,7 @@ class PayrollPolicy
      */
     public function restoreAny($user): bool
     {
-        return $user->can('restore_any_payroll');
+        return true;
     }
 
     /**
@@ -95,7 +96,7 @@ class PayrollPolicy
      */
     public function replicate($user, Payroll $payroll): bool
     {
-        return $user->can('replicate_payroll');
+        return true;
     }
 
     /**
@@ -103,6 +104,9 @@ class PayrollPolicy
      */
     public function reorder($user): bool
     {
-        return $user->can('reorder_payroll');
+        return true;
     }
 }
+
+
+

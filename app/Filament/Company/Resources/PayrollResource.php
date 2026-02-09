@@ -346,48 +346,59 @@ class PayrollResource extends Resource
                               ->orWhere('name', 'like', "%{$search}%");
                         });
                     })
-                    ->sortable(),
+                    ->sortable()
+                    ->alignCenter(),
                 Tables\Columns\TextColumn::make('employee.name')
                     ->label('Emp. Name')
                     ->searchable()
                     ->sortable()
-                    ->limit(20),
+                    ->limit(20)
+                    ->alignCenter(),
                 Tables\Columns\TextColumn::make('basic_salary')
                     ->label('Basic salary')
                     ->money('SAR')
-                    ->sortable(),
+                    ->sortable()
+                    ->alignCenter(),
                 Tables\Columns\TextColumn::make('housing_allowance')
                     ->label('Housing Allowance')
                     ->money('SAR')
-                    ->sortable(),
+                    ->sortable()
+                    ->alignCenter(),
                 Tables\Columns\TextColumn::make('transportation_allowance')
                     ->label('Transportation Allow')
                     ->money('SAR')
-                    ->sortable(),
+                    ->sortable()
+                    ->alignCenter(),
                 Tables\Columns\TextColumn::make('food_allowance')
                     ->label('Food Allowance')
                     ->money('SAR')
-                    ->sortable(),
+                    ->sortable()
+                    ->alignCenter(),
                 Tables\Columns\TextColumn::make('other_allowance')
                     ->label('Other Allowance')
                     ->money('SAR')
-                    ->sortable(),
+                    ->sortable()
+                    ->alignCenter(),
                 Tables\Columns\TextColumn::make('total_other_allow')
                     ->label('Total Other Allowance')
                     ->money('SAR')
-                    ->sortable(),
+                    ->sortable()
+                    ->alignCenter(),
                 Tables\Columns\TextColumn::make('total_salary')
                     ->label('Total Salary')
                     ->money('SAR')
-                    ->sortable(),
+                    ->sortable()
+                    ->alignCenter(),
                 Tables\Columns\TextColumn::make('fees')
                     ->label('Fees')
                     ->money('SAR')
-                    ->sortable(),
+                    ->sortable()
+                    ->alignCenter(),
                 Tables\Columns\TextColumn::make('monthly_cost')
                     ->label('Monthly cost')
                     ->money('SAR')
-                    ->sortable(),
+                    ->sortable()
+                    ->alignCenter(),
             ])
             ->filters([
                 //
@@ -405,8 +416,11 @@ class PayrollResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
+            ->checkIfRecordIsSelectableUsing(fn (): bool => true)
             ->defaultSort('id', 'desc')
-            ->searchable(false);
+            ->searchable(false)
+            ->striped(false)
+            ->paginated([10, 25, 50]);
     }
 
     public static function getRelations(): array

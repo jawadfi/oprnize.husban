@@ -4,10 +4,10 @@ namespace App\Policies;
 
 use App\Models\User;
 use App\Models\Admin;
-use Spatie\Permission\Models\Role;
+use App\Models\City;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
-class RolePolicy
+class CityPolicy
 {
     use HandlesAuthorization;
 
@@ -22,7 +22,7 @@ class RolePolicy
     /**
      * Determine whether the user can view the model.
      */
-    public function view(Admin|User $user, Role $role): bool
+    public function view(Admin|User $user, City $city): bool
     {
         return true;
     }
@@ -38,7 +38,7 @@ class RolePolicy
     /**
      * Determine whether the user can update the model.
      */
-    public function update(Admin|User $user, Role $role): bool
+    public function update(Admin|User $user, City $city): bool
     {
         return true;
     }
@@ -46,7 +46,7 @@ class RolePolicy
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(Admin|User $user, Role $role): bool
+    public function delete(Admin|User $user, City $city): bool
     {
         return true;
     }
@@ -62,7 +62,7 @@ class RolePolicy
     /**
      * Determine whether the user can permanently delete.
      */
-    public function forceDelete(Admin|User $user, Role $role): bool
+    public function forceDelete(Admin|User $user, City $city): bool
     {
         return true;
     }
@@ -78,7 +78,7 @@ class RolePolicy
     /**
      * Determine whether the user can restore.
      */
-    public function restore(Admin|User $user, Role $role): bool
+    public function restore(Admin|User $user, City $city): bool
     {
         return true;
     }
@@ -94,7 +94,7 @@ class RolePolicy
     /**
      * Determine whether the user can replicate.
      */
-    public function replicate(Admin|User $user, Role $role): bool
+    public function replicate(Admin|User $user, City $city): bool
     {
         return true;
     }
