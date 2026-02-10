@@ -389,6 +389,7 @@ class ListPayrolls extends ListRecords
         
         $created = 0;
         $existing = 0;
+        $updated = 0;
         $missingData = [];
         
         foreach ($employees as $employee) {
@@ -398,22 +399,56 @@ class ListPayrolls extends ListRecords
                 ->where('payroll_month', $this->selectedMonth)
                 ->first();
             
-            if ($existingPayroll) {
-                // If payroll exists but basic_salary is 0, it means data hasn't been filled
-                if ($existingPayroll->basic_salary <= 0) {
-                    $empName = $employee->name . ($employee->emp_id ? " ({$employee->emp_id})" : '');
-                    $missingData[] = $empName;
-                }
-                $existing++;
-                continue;
-            }
-            
             // Check if employee has a template payroll (any month) with filled data
             $templatePayroll = Payroll::where('employee_id', $employee->id)
                 ->where('company_id', $user->id)
                 ->where('basic_salary', '>', 0)
                 ->latest()
                 ->first();
+            
+            if ($existingPayroll) {
+                // If payroll exists with data, skip
+                if ($existingPayroll->basic_salary > 0) {
+                    $existing++;
+                    continue;
+                }
+                
+                // If payroll exists but empty, check if we have template
+                if (!$templatePayroll) {
+                    // No template found - add to missing data
+                    $empName = $employee->name . ($employee->emp_id ? " ({$employee->emp_id})" : '');
+                    $missingData[] = $empName;
+                    $existing++;
+                    continue;
+                }
+                
+                // Update existing empty payroll with template data
+                $deductions = \App\Models\Deduction::where('employee_id', $employee->id)
+                    ->where('payroll_month', $this->selectedMonth)
+                    ->where('status', \App\Enums\DeductionStatus::APPROVED)
+                    ->get();
+                
+                $totalDeductionAmount = $deductions->sum('amount');
+                
+                $existingPayroll->update([
+                    'basic_salary' => $templatePayroll->basic_salary,
+                    'housing_allowance' => $templatePayroll->housing_allowance,
+                    'transportation_allowance' => $templatePayroll->transportation_allowance,
+                    'food_allowance' => $templatePayroll->food_allowance,
+                    'other_allowance' => $templatePayroll->other_allowance,
+                    'fees' => $templatePayroll->fees,
+                    'total_package' => $templatePayroll->total_package,
+                    'work_days' => $templatePayroll->work_days,
+                    'absence_days' => $deductions->where('reason', 'absence')->sum('days') ?? 0,
+                    'absence_unpaid_leave_deduction' => $deductions->where('reason', 'absence')->sum('amount') ?? 0,
+                    'food_subscription_deduction' => $deductions->where('reason', 'food_subscription')->sum('amount') ?? 0,
+                    'other_deduction' => $totalDeductionAmount - ($deductions->where('reason', 'absence')->sum('amount') ?? 0) - ($deductions->where('reason', 'food_subscription')->sum('amount') ?? 0),
+                ]);
+                
+                $deductions->each(fn($d) => $d->update(['payroll_id' => $existingPayroll->id]));
+                $updated++;
+                continue;
+            }
             
             if (!$templatePayroll) {
                 // No payroll data exists for this employee at all
@@ -476,10 +511,15 @@ class ListPayrolls extends ListRecords
                 ->send();
         }
         
-        if ($created > 0) {
+        if ($created > 0 || $updated > 0) {
+            $message = [];
+            if ($created > 0) $message[] = "تم إنشاء: {$created}";
+            if ($updated > 0) $message[] = "تم تحديث: {$updated}";
+            if ($existing > 0) $message[] = "موجود مسبقاً: {$existing}";
+            
             Notification::make()
                 ->title('تم احتساب الرواتب')
-                ->body("تم إنشاء: {$created} كشف رواتب" . ($existing > 0 ? " | موجود مسبقاً: {$existing}" : ""))
+                ->body(implode(' | ', $message))
                 ->success()
                 ->send();
         } elseif (empty($missingData)) {
