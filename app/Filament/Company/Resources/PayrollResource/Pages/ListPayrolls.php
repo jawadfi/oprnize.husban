@@ -389,16 +389,36 @@ class ListPayrolls extends ListRecords
         
         $created = 0;
         $existing = 0;
+        $missingData = [];
         
         foreach ($employees as $employee) {
             // Check if payroll already exists for this employee and month
-            $payrollExists = Payroll::where('employee_id', $employee->id)
+            $existingPayroll = Payroll::where('employee_id', $employee->id)
                 ->where('company_id', $user->id)
                 ->where('payroll_month', $this->selectedMonth)
-                ->exists();
+                ->first();
             
-            if ($payrollExists) {
+            if ($existingPayroll) {
+                // If payroll exists but basic_salary is 0, it means data hasn't been filled
+                if ($existingPayroll->basic_salary <= 0) {
+                    $empName = $employee->name . ($employee->emp_id ? " ({$employee->emp_id})" : '');
+                    $missingData[] = $empName;
+                }
                 $existing++;
+                continue;
+            }
+            
+            // Check if employee has a template payroll (any month) with filled data
+            $templatePayroll = Payroll::where('employee_id', $employee->id)
+                ->where('company_id', $user->id)
+                ->where('basic_salary', '>', 0)
+                ->latest()
+                ->first();
+            
+            if (!$templatePayroll) {
+                // No payroll data exists for this employee at all
+                $empName = $employee->name . ($employee->emp_id ? " ({$employee->emp_id})" : '');
+                $missingData[] = $empName;
                 continue;
             }
             
@@ -410,20 +430,20 @@ class ListPayrolls extends ListRecords
             
             $totalDeductionAmount = $deductions->sum('amount');
             
-            // Create new payroll with default values
+            // Create new payroll using template data
             $payroll = Payroll::create([
                 'employee_id' => $employee->id,
                 'company_id' => $user->id,
                 'payroll_month' => $this->selectedMonth,
                 'status' => \App\Enums\PayrollStatus::DRAFT,
-                'basic_salary' => 0,
-                'housing_allowance' => 0,
-                'transportation_allowance' => 0,
-                'food_allowance' => 0,
-                'other_allowance' => 0,
-                'fees' => 0,
-                'total_package' => 0,
-                'work_days' => 0,
+                'basic_salary' => $templatePayroll->basic_salary,
+                'housing_allowance' => $templatePayroll->housing_allowance,
+                'transportation_allowance' => $templatePayroll->transportation_allowance,
+                'food_allowance' => $templatePayroll->food_allowance,
+                'other_allowance' => $templatePayroll->other_allowance,
+                'fees' => $templatePayroll->fees,
+                'total_package' => $templatePayroll->total_package,
+                'work_days' => $templatePayroll->work_days,
                 'added_days' => 0,
                 'overtime_hours' => 0,
                 'overtime_amount' => 0,
@@ -445,10 +465,29 @@ class ListPayrolls extends ListRecords
         
         $this->resetTable();
         
-        Notification::make()
-            ->title('Payroll calculation completed')
-            ->body("Created: {$created} records" . ($existing > 0 ? " | Already exists: {$existing}" : ""))
-            ->success()
-            ->send();
+        // Show warning for employees with missing payroll data
+        if (!empty($missingData)) {
+            $names = implode('، ', $missingData);
+            Notification::make()
+                ->title('لا يمكن احتساب الراتب - بيانات ناقصة')
+                ->body("الموظفون التالية أسماؤهم لا تتوفر لديهم بيانات رواتب: {$names}")
+                ->danger()
+                ->persistent()
+                ->send();
+        }
+        
+        if ($created > 0) {
+            Notification::make()
+                ->title('تم احتساب الرواتب')
+                ->body("تم إنشاء: {$created} كشف رواتب" . ($existing > 0 ? " | موجود مسبقاً: {$existing}" : ""))
+                ->success()
+                ->send();
+        } elseif (empty($missingData)) {
+            Notification::make()
+                ->title('جميع الرواتب موجودة مسبقاً')
+                ->body("جميع الموظفين لديهم كشوف رواتب لهذا الشهر")
+                ->info()
+                ->send();
+        }
     }
 }

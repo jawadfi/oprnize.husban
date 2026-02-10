@@ -68,6 +68,7 @@ class ProviderCompanyEmployees extends Page implements HasTable
             ->query(
                 Employee::query()
                     ->where('company_id', $this->company?->id ?? $this->companyId)
+                    ->withPayrollData() // Only show employees with complete payroll data
                     ->with(['currentCompanyAssigned'])
             )
             ->columns([

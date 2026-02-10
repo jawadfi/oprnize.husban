@@ -91,6 +91,33 @@ class Employee extends Authenticatable implements FilamentUser
         return $this->hasMany(Deduction::class);
     }
 
+    /**
+     * Check if employee has complete payroll data (basic_salary > 0)
+     */
+    public function hasPayrollData(): bool
+    {
+        return $this->payrolls()->where('basic_salary', '>', 0)->exists();
+    }
+
+    /**
+     * Scope to only employees with filled payroll data
+     */
+    public function scopeWithPayrollData(Builder $query): Builder
+    {
+        return $query->whereHas('payrolls', fn(Builder $q) => $q->where('basic_salary', '>', 0));
+    }
+
+    /**
+     * Scope to only employees without filled payroll data
+     */
+    public function scopeWithoutPayrollData(Builder $query): Builder
+    {
+        return $query->where(function ($q) {
+            $q->whereDoesntHave('payrolls')
+              ->orWhereDoesntHave('payrolls', fn(Builder $sq) => $sq->where('basic_salary', '>', 0));
+        });
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         return $panel->getId() === 'employee';

@@ -74,7 +74,19 @@ class EmployeeResource extends Resource
             ->headerActions([
                 FilamentExportHeaderAction::make('export'),
             ])
-            ->columns(EmployeeSchema::getTableColumns())
+            ->columns([
+                ...EmployeeSchema::getTableColumns(),
+                Tables\Columns\IconColumn::make('has_payroll')
+                    ->label('Payroll Data')
+                    ->state(fn(Employee $record) => $record->hasPayrollData())
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->trueColor('success')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->falseColor('danger')
+                    ->alignCenter()
+                    ->width('100px'),
+            ])
             ->filters([
                 //
             ])
