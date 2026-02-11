@@ -8,7 +8,6 @@ use App\Enums\EmployeeStatusStatus;
 use App\Filament\Company\Imports\EmployeeImporter;
 use App\Filament\Company\Resources\EmployeeResource\Pages;
 use App\Filament\Company\Resources\EmployeeResource\RelationManagers;
-use App\Filament\Imports\TeacherImporter;
 use App\Filament\Schema\EmployeeSchema;
 use App\Helpers\Helpers;
 use App\Models\Company;
@@ -22,7 +21,6 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\DeleteBulkAction;
 use Filament\Tables\Table;
-use HayderHatem\FilamentExcelImport\Actions\FullImportAction;
 use Illuminate\Database\Eloquent\Builder;
 
 class EmployeeResource extends Resource
