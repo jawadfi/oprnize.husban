@@ -14,6 +14,7 @@ use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Actions\Action as PageAction;
 use Filament\Pages\Page;
+use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\BulkAction;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -76,6 +77,51 @@ class ProviderCompanyEmployees extends Page implements HasTable
                     false,
                     ''
                 ),
+            ])
+            ->actions([
+                Action::make('assign')
+                    ->label('طلب توظيف')
+                    ->icon('heroicon-o-user-plus')
+                    ->color('success')
+                    ->form([
+                        Forms\Components\DatePicker::make('start_date')
+                            ->label('تاريخ البدء')
+                            ->required()
+                            ->default(now()),
+                    ])
+                    ->action(function (Employee $record, array $data) {
+                        /** @var \App\Models\Company $clientCompany */
+                        $clientCompany = Filament::auth()->user();
+                        
+                        // Check if already assigned to this client company
+                        $existingAssignment = \App\Models\EmployeeAssigned::where('employee_id', $record->id)
+                            ->where('company_id', $clientCompany->id)
+                            ->first();
+                        
+                        if ($existingAssignment) {
+                            Notification::make()
+                                ->title('هذا الموظف مُعين مسبقاً')
+                                ->warning()
+                                ->send();
+                            return;
+                        }
+                        
+                        // Attach employee to client company with status PENDING
+                        $clientCompany->used_employees()->attach($record->id, [
+                            'start_date' => $data['start_date'],
+                            'status' => EmployeeAssignedStatus::PENDING,
+                        ]);
+                        
+                        // Update employee's company_assigned_id
+                        $record->update(['company_assigned_id' => $clientCompany->id]);
+                        
+                        Notification::make()
+                            ->title('تم إرسال طلب التوظيف بنجاح')
+                            ->body('في انتظار موافقة الشركة الأم')
+                            ->success()
+                            ->send();
+                    })
+                    ->visible(fn (Employee $record) => !$record->currentCompanyAssigned),
             ])
             ->defaultSort('id', 'asc')
             ->paginated([10, 25, 50])
