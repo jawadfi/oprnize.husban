@@ -2,9 +2,7 @@
 
 namespace App\Filament\Company\Pages;
 
-use App\Filament\Company\Widgets\DeductionStatsWidget;
-use App\Filament\Company\Widgets\EmployeeStatsWidget;
-use App\Filament\Company\Widgets\LeaveRequestStatsWidget;
+
 use Filament\Facades\Filament;
 use Filament\Pages\Dashboard as BaseDashboard;
 
