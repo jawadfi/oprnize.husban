@@ -2,6 +2,9 @@
 
 namespace App\Filament\Company\Pages;
 
+use App\Filament\Company\Widgets\DeductionStatsWidget;
+use App\Filament\Company\Widgets\EmployeeStatsWidget;
+use App\Filament\Company\Widgets\LeaveRequestStatsWidget;
 use Filament\Facades\Filament;
 use Filament\Pages\Dashboard as BaseDashboard;
 
@@ -41,8 +44,11 @@ class Dashboard extends BaseDashboard
 
     public function getWidgets(): array
     {
-        // All stats widgets moved to Payroll page
-        return [];
+        return [
+            EmployeeStatsWidget::class,
+            DeductionStatsWidget::class,
+            LeaveRequestStatsWidget::class,
+        ];
     }
 }
 
