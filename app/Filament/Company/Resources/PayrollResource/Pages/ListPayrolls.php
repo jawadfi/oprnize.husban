@@ -3,6 +3,10 @@
 namespace App\Filament\Company\Resources\PayrollResource\Pages;
 
 use App\Filament\Company\Resources\PayrollResource;
+use App\Filament\Company\Widgets\DeductionStatsWidget;
+use App\Filament\Company\Widgets\EmployeeStatsWidget;
+use App\Filament\Company\Widgets\LeaveRequestStatsWidget;
+use App\Filament\Company\Widgets\PayrollStatsWidget;
 use App\Models\Payroll;
 use Carbon\Carbon;
 use Filament\Actions;
@@ -40,6 +44,16 @@ class ListPayrolls extends ListRecords
     {
         return [
             Actions\CreateAction::make(),
+        ];
+    }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            EmployeeStatsWidget::class,
+            PayrollStatsWidget::class,
+            DeductionStatsWidget::class,
+            LeaveRequestStatsWidget::class,
         ];
     }
 

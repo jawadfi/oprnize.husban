@@ -12,12 +12,9 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 class PayrollStatsWidget extends BaseWidget
 {
     /**
-     * This widget is NOT displayed on the main Dashboard.
-     * It exists for the Payroll pages only.
-     * Returning empty stats prevents errors if Livewire tries to lazy-load it.
+     * This widget is displayed on the Payroll ListPayrolls page only.
+     * Uses PHP computation since monthly_cost is a computed accessor (not a DB column).
      */
-    protected static bool $isDiscovered = false;
-
     protected function getStats(): array
     {
         $user = Filament::auth()->user();

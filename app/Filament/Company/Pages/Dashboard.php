@@ -42,11 +42,8 @@ class Dashboard extends BaseDashboard
     
     public function getWidgets(): array
     {
-        return [
-            EmployeeStatsWidget::class,
-            DeductionStatsWidget::class,
-            LeaveRequestStatsWidget::class,
-        ];
+        // All stats widgets moved to Payroll page
+        return [];
     }
 }
 
