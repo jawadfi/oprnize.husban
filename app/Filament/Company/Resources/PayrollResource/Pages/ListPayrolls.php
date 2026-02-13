@@ -181,11 +181,8 @@ class ListPayrolls extends ListRecords
 
     public function getTotalWithoutOvertime(): float
     {
-        // Calculate total_salary using actual database columns
-        // total_salary = basic_salary + housing_allowance + transportation_allowance + food_allowance + other_allowance
-        return (float) $this->getTableQuery()
-            ->selectRaw('SUM(basic_salary + housing_allowance + transportation_allowance + food_allowance + other_allowance) as total')
-            ->value('total') ?? 0.00;
+        // Total Without OT = Net Payment - Total Overtime
+        return (float) ($this->getNetPayment() - $this->getTotalOvertime());
     }
 
     public function getNetPayment(): float
@@ -313,7 +310,7 @@ class ListPayrolls extends ListRecords
             );
         }
         
-        return (float) $query->where(function ($q) use ($previousMonth) {
+        $payrolls = $query->where(function ($q) use ($previousMonth) {
                 $q->where('payroll_month', $previousMonth->format('Y-m'))
                   ->orWhere(function ($sq) use ($previousMonth) {
                       $sq->whereNull('payroll_month')
@@ -321,8 +318,12 @@ class ListPayrolls extends ListRecords
                          ->whereMonth('created_at', $previousMonth->month);
                   });
             })
-                             ->selectRaw('SUM(basic_salary + housing_allowance + transportation_allowance + food_allowance + other_allowance) as total')
-                             ->value('total') ?? 0.00;
+            ->get();
+        
+        // Total Without OT = Net Payment - Overtime
+        $netPayment = (float) $payrolls->sum('net_payment');
+        $overtime = (float) $payrolls->sum('overtime_amount');
+        return $netPayment - $overtime;
     }
 
     public function getPreviousMonthNetPayment(): float

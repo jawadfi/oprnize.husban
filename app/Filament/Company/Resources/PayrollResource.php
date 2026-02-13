@@ -463,6 +463,41 @@ class PayrollResource extends Resource
                     ->alignCenter()
                     ->toggleable()
                     ->width('120px'),
+                Tables\Columns\TextColumn::make('overtime_hours')
+                    ->label('OT Hours')
+                    ->sortable()
+                    ->alignCenter()
+                    ->toggleable()
+                    ->width('90px'),
+                Tables\Columns\TextColumn::make('overtime_amount')
+                    ->label('Total Overtime')
+                    ->money('SAR')
+                    ->sortable()
+                    ->alignCenter()
+                    ->toggleable()
+                    ->width('120px'),
+                Tables\Columns\TextColumn::make('other_additions')
+                    ->label('Other Additions')
+                    ->money('SAR')
+                    ->sortable()
+                    ->alignCenter()
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->width('120px'),
+                Tables\Columns\TextColumn::make('net_payment')
+                    ->label('Net Payment')
+                    ->money('SAR')
+                    ->sortable()
+                    ->alignCenter()
+                    ->toggleable()
+                    ->weight('bold')
+                    ->width('130px'),
+                Tables\Columns\TextColumn::make('total_without_ot')
+                    ->label('Without OT')
+                    ->money('SAR')
+                    ->sortable()
+                    ->alignCenter()
+                    ->toggleable()
+                    ->width('120px'),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')

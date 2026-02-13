@@ -157,4 +157,13 @@ class Payroll extends Model
     {
         return (float) ($this->total_earning - $this->total_deductions);
     }
+
+    /**
+     * Total Without OT = Net Payment - Overtime Amount
+     * فرق بين العمل الاضافي (overtime) والمبلغ الاضافي (other_additions)
+     */
+    public function getTotalWithoutOtAttribute(): float
+    {
+        return (float) ($this->net_payment - ($this->overtime_amount ?? 0));
+    }
 }
