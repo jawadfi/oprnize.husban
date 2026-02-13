@@ -1,9 +1,10 @@
 <?php
 
 namespace App\Filament\Company\Pages;
+use App\Filament\Company\Widgets\DeductionStatsWidget;
 use App\Filament\Company\Widgets\EmployeeStatsWidget;
-
-
+use App\Filament\Company\Widgets\LeaveRequestStatsWidgetuse App\Filament\Company\Widgets\EmployeeStatsWidget;
+;
 use Filament\Facades\Filament;
 use Filament\Pages\Dashboard as BaseDashboard;
 
@@ -39,12 +40,6 @@ class Dashboard extends BaseDashboard
     public static function shouldRegisterNavigation(): bool
     {
         return static::canAccess();
-    }
-    
-    public function getWidgets(): array
-    {
-        // All stats widgets moved to Payroll page
-        return [];
     }
 }
 
