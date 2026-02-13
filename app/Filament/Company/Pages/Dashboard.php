@@ -5,7 +5,6 @@ namespace App\Filament\Company\Pages;
 use App\Filament\Company\Widgets\DeductionStatsWidget;
 use App\Filament\Company\Widgets\EmployeeStatsWidget;
 use App\Filament\Company\Widgets\LeaveRequestStatsWidget;
-use App\Filament\Company\Widgets\PayrollStatsWidget;
 use Filament\Facades\Filament;
 use Filament\Pages\Dashboard as BaseDashboard;
 
@@ -47,7 +46,6 @@ class Dashboard extends BaseDashboard
     {
         return [
             EmployeeStatsWidget::class,
-            PayrollStatsWidget::class,
             DeductionStatsWidget::class,
             LeaveRequestStatsWidget::class,
         ];
