@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Filament\Company\Pages;
+use App\Filament\Company\Widgets\EmployeeStatsWidget;
 
 
 use Filament\Facades\Filament;
