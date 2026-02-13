@@ -80,6 +80,18 @@ class Employee extends Authenticatable implements FilamentUser
     {
         return $this->hasOne(Payroll::class)->latestOfMany();
     }
+    
+    public function provider_payroll()
+    {
+        return $this->hasOne(Payroll::class)
+            ->whereHas('company', fn($q) => $q->where('type', 'provider'));
+    }
+    
+    public function client_payroll()
+    {
+        return $this->hasOne(Payroll::class)
+            ->whereHas('company', fn($q) => $q->where('type', 'client'));
+    }
 
     public function leaveRequests()
     {

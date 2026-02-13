@@ -8,7 +8,6 @@ use Filament\Resources\Components\Tab;
 use App\Filament\Company\Resources\EmployeeResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
-use HayderHatem\FilamentExcelImport\Actions\FullImportAction;
 use Illuminate\Database\Eloquent\Builder;
 
 class ListEmployees extends ListRecords
@@ -44,7 +43,10 @@ class ListEmployees extends ListRecords
     {
         return [
             Actions\CreateAction::make(),
-            FullImportAction::make('import')
+            Actions\ImportAction::make()
+                ->label('استيراد الموظفين')
+                ->icon('heroicon-o-arrow-up-tray')
+                ->color('info')
                 ->importer(EmployeeImporter::class)
                 ->options(function() {
                     $user = Filament::auth()->user();
@@ -54,3 +56,4 @@ class ListEmployees extends ListRecords
         ];
     }
 }
+
