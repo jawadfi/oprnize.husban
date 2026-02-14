@@ -92,7 +92,9 @@ class PendingHiring extends Page implements HasTable
                     ->visible(function(?EmployeeAssigned $record) {
                         $user = Filament::auth()->user();
                         $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
-                        return $record?->company_id === $companyId && $record->status === EmployeeAssignedStatus::PENDING;
+                        // Show button if current company is the CLIENT receiving the employee OR the PROVIDER owning the employee
+                        return ($record?->company_id === $companyId || $record?->employee->company_id === $companyId) 
+                            && $record->status === EmployeeAssignedStatus::PENDING;
                     })
                     ->color('success')
                     ->requiresConfirmation()
@@ -110,7 +112,9 @@ class PendingHiring extends Page implements HasTable
                     ->visible(function(?EmployeeAssigned $record) {
                         $user = Filament::auth()->user();
                         $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
-                        return $record?->company_id === $companyId && $record->status === EmployeeAssignedStatus::PENDING;
+                        // Show button if current company is the CLIENT receiving the employee OR the PROVIDER owning the employee
+                        return ($record?->company_id === $companyId || $record?->employee->company_id === $companyId) 
+                            && $record->status === EmployeeAssignedStatus::PENDING;
                     })
                     ->requiresConfirmation()
                     ->action(function (EmployeeAssigned $record){
@@ -134,7 +138,9 @@ class PendingHiring extends Page implements HasTable
                             
                             $count = 0;
                             foreach ($records as $record) {
-                                if ($record->company_id === $companyId && $record->status === EmployeeAssignedStatus::PENDING) {
+                                // Allow approval if current company is the CLIENT or the PROVIDER
+                                if (($record->company_id === $companyId || $record->employee->company_id === $companyId) 
+                                    && $record->status === EmployeeAssignedStatus::PENDING) {
                                     $record->updateStatus(EmployeeAssignedStatus::APPROVED);
                                     $count++;
                                 }
@@ -158,7 +164,9 @@ class PendingHiring extends Page implements HasTable
                             
                             $count = 0;
                             foreach ($records as $record) {
-                                if ($record->company_id === $companyId && $record->status === EmployeeAssignedStatus::PENDING) {
+                                // Allow decline if current company is the CLIENT or the PROVIDER
+                                if (($record->company_id === $companyId || $record->employee->company_id === $companyId) 
+                                    && $record->status === EmployeeAssignedStatus::PENDING) {
                                     $record->updateStatus(EmployeeAssignedStatus::DECLINED);
                                     $count++;
                                 }
