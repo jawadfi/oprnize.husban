@@ -89,9 +89,7 @@ class ListPayrolls extends ListRecords
 
         // Count in-house employees (not assigned to any company)
         $inHouseCount = Employee::where('company_id', $user->id)
-            ->whereDoesntHave('assigned', function ($q) {
-                $q->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED);
-            })
+            ->whereNull('company_assigned_id')
             ->count();
 
         // Count all employees
@@ -118,24 +116,26 @@ class ListPayrolls extends ListRecords
             ],
         ];
 
-        // Get client companies with employee counts
+        // Get client companies that have employees assigned from this provider
+        $assignedCompanyIds = Employee::where('company_id', $user->id)
+            ->whereNotNull('company_assigned_id')
+            ->distinct()
+            ->pluck('company_assigned_id');
+
         $clientCompanies = Company::where('type', CompanyTypes::CLIENT)
-            ->whereHas('used_employees', function ($q) use ($user) {
-                $q->where('employees.company_id', $user->id)
-                  ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED);
-            })
-            ->withCount(['used_employees' => function ($q) use ($user) {
-                $q->where('employees.company_id', $user->id)
-                  ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED);
-            }])
+            ->whereIn('id', $assignedCompanyIds)
             ->get();
 
         foreach ($clientCompanies as $company) {
+            $empCount = Employee::where('company_id', $user->id)
+                ->where('company_assigned_id', $company->id)
+                ->count();
+
             $cards[] = [
                 'value' => (string) $company->id,
                 'name' => $company->name,
                 'subtitle' => 'Client Company',
-                'count' => $company->used_employees_count,
+                'count' => $empCount,
                 'count_label' => 'Employees',
                 'color' => 'green',
                 'icon' => '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/></svg>',
@@ -253,18 +253,15 @@ class ListPayrolls extends ListRecords
         // Apply company filter for PROVIDER
         if ($this->isProvider() && $this->selectedCompany && $this->selectedCompany !== 'all') {
             if ($this->selectedCompany === 'in_house') {
-                // In-House: employees NOT assigned to any client company (AVAILABLE)
+                // In-House: employees NOT assigned to any client company
                 $query->whereHas('employee', function ($q) {
-                    $q->whereDoesntHave('assigned', fn($sq) => 
-                        $sq->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
-                    );
+                    $q->whereNull('company_assigned_id');
                 });
             } else {
                 // Specific client company: employees assigned to this company
                 $companyId = (int) $this->selectedCompany;
-                $query->whereHas('employee.assigned', function ($q) use ($companyId) {
-                    $q->where('employee_assigned.company_id', $companyId)
-                      ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED);
+                $query->whereHas('employee', function ($q) use ($companyId) {
+                    $q->where('company_assigned_id', $companyId);
                 });
             }
         }
@@ -530,16 +527,11 @@ class ListPayrolls extends ListRecords
             if ($this->selectedCompany && $this->selectedCompany !== 'all') {
                 if ($this->selectedCompany === 'in_house') {
                     // In-House: employees NOT assigned to any client
-                    $employeeQuery->whereDoesntHave('assigned', fn($q) => 
-                        $q->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
-                    );
+                    $employeeQuery->whereNull('company_assigned_id');
                 } else {
                     // Specific client company
                     $companyId = (int) $this->selectedCompany;
-                    $employeeQuery->whereHas('assigned', fn($q) => 
-                        $q->where('employee_assigned.company_id', $companyId)
-                          ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
-                    );
+                    $employeeQuery->where('company_assigned_id', $companyId);
                 }
             }
             
