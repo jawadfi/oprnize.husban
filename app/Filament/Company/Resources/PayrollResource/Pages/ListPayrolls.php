@@ -2,11 +2,15 @@
 
 namespace App\Filament\Company\Resources\PayrollResource\Pages;
 
+use App\Enums\CompanyTypes;
+use App\Enums\EmployeeAssignedStatus;
 use App\Filament\Company\Resources\PayrollResource;
 use App\Filament\Company\Widgets\DeductionStatsWidget;
 use App\Filament\Company\Widgets\EmployeeStatsWidget;
 use App\Filament\Company\Widgets\LeaveRequestStatsWidget;
 use App\Filament\Company\Widgets\PayrollStatsWidget;
+use App\Models\Company;
+use App\Models\Employee;
 use App\Models\Payroll;
 use Carbon\Carbon;
 use Filament\Actions;
@@ -25,6 +29,9 @@ class ListPayrolls extends ListRecords
     #[Url]
     public ?string $selectedMonth = null;
 
+    #[Url]
+    public ?string $selectedCompany = 'all';
+
     public function mount(): void
     {
         parent::mount();
@@ -32,6 +39,52 @@ class ListPayrolls extends ListRecords
         if (!$this->selectedMonth) {
             $this->selectedMonth = now()->format('Y-m');
         }
+    }
+
+    /**
+     * Check if current user is a PROVIDER company
+     */
+    public function isProvider(): bool
+    {
+        $user = Filament::auth()->user();
+        return $user instanceof Company && $user->type === CompanyTypes::PROVIDER;
+    }
+
+    /**
+     * Get list of client companies that have assigned employees from this provider
+     * Plus "In-House" option for employees not assigned to any company
+     */
+    public function getCompanyOptions(): array
+    {
+        $user = Filament::auth()->user();
+        if (!$this->isProvider()) return [];
+
+        $options = [
+            'all' => 'All Employees - جميع الموظفين',
+            'in_house' => 'In-House - موظفين داخليين',
+        ];
+
+        // Get client companies that have approved assigned employees from this provider
+        $clientCompanies = Company::where('type', CompanyTypes::CLIENT)
+            ->whereHas('used_employees', function ($q) use ($user) {
+                $q->where('employees.company_id', $user->id)
+                  ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED);
+            })
+            ->get();
+
+        foreach ($clientCompanies as $company) {
+            $options[$company->id] = $company->name;
+        }
+
+        return $options;
+    }
+
+    /**
+     * Called when company filter changes
+     */
+    public function updatedSelectedCompany(): void
+    {
+        $this->resetTable();
     }
 
     public function getTitle(): string
@@ -130,6 +183,25 @@ class ListPayrolls extends ListRecords
     protected function getTableQuery(): Builder
     {
         $query = parent::getTableQuery();
+        
+        // Apply company filter for PROVIDER
+        if ($this->isProvider() && $this->selectedCompany && $this->selectedCompany !== 'all') {
+            if ($this->selectedCompany === 'in_house') {
+                // In-House: employees NOT assigned to any client company (AVAILABLE)
+                $query->whereHas('employee', function ($q) {
+                    $q->whereDoesntHave('assigned', fn($sq) => 
+                        $sq->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+                    );
+                });
+            } else {
+                // Specific client company: employees assigned to this company
+                $companyId = (int) $this->selectedCompany;
+                $query->whereHas('employee.assigned', function ($q) use ($companyId) {
+                    $q->where('employee_assigned.company_id', $companyId)
+                      ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED);
+                });
+            }
+        }
         
         // Filter by payroll_month field
         if ($this->selectedMonth) {
@@ -384,13 +456,32 @@ class ListPayrolls extends ListRecords
         $user = Filament::auth()->user();
         $date = Carbon::parse($this->selectedMonth . '-01');
         
-        // Get employees based on company type
-        if ($user->type === \App\Enums\CompanyTypes::PROVIDER) {
-            $employees = \App\Models\Employee::where('company_id', $user->id)->get();
+        // Get employees based on company type AND company filter
+        if ($user->type === CompanyTypes::PROVIDER) {
+            $employeeQuery = Employee::where('company_id', $user->id);
+            
+            // Apply company filter
+            if ($this->selectedCompany && $this->selectedCompany !== 'all') {
+                if ($this->selectedCompany === 'in_house') {
+                    // In-House: employees NOT assigned to any client
+                    $employeeQuery->whereDoesntHave('assigned', fn($q) => 
+                        $q->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+                    );
+                } else {
+                    // Specific client company
+                    $companyId = (int) $this->selectedCompany;
+                    $employeeQuery->whereHas('assigned', fn($q) => 
+                        $q->where('employee_assigned.company_id', $companyId)
+                          ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+                    );
+                }
+            }
+            
+            $employees = $employeeQuery->get();
         } else {
-            $employees = \App\Models\Employee::whereHas('assigned', fn($q) => 
+            $employees = Employee::whereHas('assigned', fn($q) => 
                 $q->where('employee_assigned.company_id', $user->id)
-                  ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
+                  ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
             )->get();
         }
         
