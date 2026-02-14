@@ -126,67 +126,104 @@
             border-radius: 4px !important;
             overflow: hidden;
         }
-        .oprnize-company-select {
-            border: 1px solid var(--oprnize-primary);
-            border-radius: 8px;
-            padding: 10px 16px;
+        .oprnize-company-card {
             background: white;
-            font-size: 14px;
-            color: var(--oprnize-text-1);
-            min-width: 200px;
+            border: 2px solid var(--oprnize-border);
+            border-radius: 12px;
+            padding: 16px;
             cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23076EA7' d='M6 8.5L1.5 4h9L6 8.5z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
-            padding-right: 32px;
+            transition: all 0.2s ease;
+            min-width: 160px;
+            position: relative;
+            overflow: hidden;
         }
-        .oprnize-company-select:focus {
-            outline: 2px solid var(--oprnize-primary);
-            outline-offset: 1px;
+        .oprnize-company-card:hover {
+            border-color: var(--oprnize-primary);
+            box-shadow: 0 4px 12px rgba(7, 110, 167, 0.1);
+            transform: translateY(-2px);
         }
-        .oprnize-company-label {
+        .oprnize-company-card.active {
+            border-color: var(--oprnize-primary);
+            background: linear-gradient(135deg, #F0F7FF 0%, #E8F4FD 100%);
+            box-shadow: 0 4px 12px rgba(7, 110, 167, 0.15);
+        }
+        .oprnize-company-card.active::after {
+            content: '✓';
+            position: absolute;
+            top: 8px;
+            right: 10px;
             color: var(--oprnize-primary);
-            font-size: 12px;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .oprnize-company-card .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        .oprnize-company-card .card-icon.blue { background: #EBF5FF; color: #076EA7; }
+        .oprnize-company-card .card-icon.amber { background: #FFF8E1; color: #F59E0B; }
+        .oprnize-company-card .card-icon.green { background: #ECFDF5; color: #059669; }
+        .oprnize-company-card .card-name {
+            font-size: 14px;
             font-weight: 600;
+            color: var(--oprnize-text-1);
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .oprnize-company-card .card-subtitle {
+            font-size: 11px;
+            color: var(--oprnize-text-2);
+            margin-bottom: 8px;
+        }
+        .oprnize-company-card .card-count {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--oprnize-primary);
+        }
+        .oprnize-company-card .card-count-label {
+            font-size: 10px;
+            color: var(--oprnize-text-4);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
     </style>
 
     <div class="space-y-6">
-        {{-- Company Filter (PROVIDER only) --}}
+        {{-- Company Filter Cards (PROVIDER only) --}}
         @if($this->isProvider())
-        <div class="flex items-center gap-4 p-4 bg-white rounded-xl border border-blue-100 shadow-sm">
-            <div class="flex items-center gap-2">
+        <div class="bg-white rounded-xl border border-blue-100 shadow-sm p-6">
+            <div class="flex items-center gap-2 mb-4">
                 <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
                 </svg>
-                <span class="oprnize-company-label">Company Filter / فلتر الشركة</span>
+                <span class="oprnize-company-label">Select Company / اختر الشركة</span>
             </div>
-            <select 
-                wire:model.live="selectedCompany"
-                class="oprnize-company-select"
-            >
-                @foreach($this->getCompanyOptions() as $value => $label)
-                    <option value="{{ $value }}">{{ $label }}</option>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                @foreach($this->getCompanyCards() as $card)
+                <div 
+                    wire:click="$set('selectedCompany', '{{ $card['value'] }}')"
+                    class="oprnize-company-card {{ $this->selectedCompany === $card['value'] ? 'active' : '' }}"
+                >
+                    <div class="card-icon {{ $card['color'] }}">
+                        {!! $card['icon'] !!}
+                    </div>
+                    <div class="card-name">{{ $card['name'] }}</div>
+                    <div class="card-subtitle">{{ $card['subtitle'] }}</div>
+                    <div class="mt-2">
+                        <div class="card-count">{{ $card['count'] }}</div>
+                        <div class="card-count-label">{{ $card['count_label'] }}</div>
+                    </div>
+                </div>
                 @endforeach
-            </select>
-            @if($this->selectedCompany === 'in_house')
-                <span class="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                    </svg>
-                    موظفين داخليين - أدخل القيم يدوياً
-                </span>
-            @elseif($this->selectedCompany !== 'all')
-                <span class="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    في الخدمة - يتم الاحتساب تلقائياً
-                </span>
-            @endif
+            </div>
         </div>
         @endif
 

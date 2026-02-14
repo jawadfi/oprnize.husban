@@ -80,6 +80,69 @@ class ListPayrolls extends ListRecords
     }
 
     /**
+     * Get company cards data for the PROVIDER company selector
+     */
+    public function getCompanyCards(): array
+    {
+        $user = Filament::auth()->user();
+        if (!$this->isProvider()) return [];
+
+        // Count in-house employees (not assigned to any company)
+        $inHouseCount = Employee::where('company_id', $user->id)
+            ->whereDoesntHave('assigned', function ($q) {
+                $q->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED);
+            })
+            ->count();
+
+        // Count all employees
+        $allCount = Employee::where('company_id', $user->id)->count();
+
+        $cards = [
+            [
+                'key' => 'all',
+                'name' => 'جميع الموظفين',
+                'name_en' => 'All Employees',
+                'count' => $allCount,
+                'icon' => 'users',
+                'color' => 'blue',
+            ],
+            [
+                'key' => 'in_house',
+                'name' => 'موظفين داخليين',
+                'name_en' => 'In-House',
+                'count' => $inHouseCount,
+                'icon' => 'home',
+                'color' => 'amber',
+            ],
+        ];
+
+        // Get client companies with employee counts
+        $clientCompanies = Company::where('type', CompanyTypes::CLIENT)
+            ->whereHas('used_employees', function ($q) use ($user) {
+                $q->where('employees.company_id', $user->id)
+                  ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED);
+            })
+            ->withCount(['used_employees' => function ($q) use ($user) {
+                $q->where('employees.company_id', $user->id)
+                  ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED);
+            }])
+            ->get();
+
+        foreach ($clientCompanies as $company) {
+            $cards[] = [
+                'key' => (string) $company->id,
+                'name' => $company->name,
+                'name_en' => $company->name,
+                'count' => $company->used_employees_count,
+                'icon' => 'building',
+                'color' => 'green',
+            ];
+        }
+
+        return $cards;
+    }
+
+    /**
      * Called when company filter changes
      */
     public function updatedSelectedCompany(): void
