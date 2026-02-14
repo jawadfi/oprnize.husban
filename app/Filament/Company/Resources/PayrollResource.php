@@ -63,12 +63,14 @@ class PayrollResource extends Resource
         }
         
         if ($companyType === CompanyTypes::PROVIDER) {
-            // Provider Service: Show payrolls for employees where employee.company_id = company_id
+            // Provider Service: Show payrolls created by this provider for its employees
             return parent::getEloquentQuery()
+                ->where('company_id', $companyId)
                 ->whereHas('employee', fn($q) => $q->where('company_id', $companyId));
         } else {
-            // Receive Service: Show payrolls for employees assigned to CLIENT company
+            // Receive Service: Show only payrolls created by this CLIENT (company_id = client)
             return parent::getEloquentQuery()
+                ->where('company_id', $companyId)
                 ->whereHas('employee.assigned', fn($q) => 
                     $q->where('employee_assigned.company_id', $companyId)
                       ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
