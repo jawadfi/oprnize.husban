@@ -68,24 +68,64 @@ class SelectCompanyPayroll extends Page
                 'email' => $company->email,
                 'city' => $company->city?->name ?? '',
                 'employee_count' => $employeeCount,
+                'type' => 'client',
             ];
         }
 
-        // Also add "All Companies" option
+        // Count In-House employees (owned by provider but NOT assigned to any client company)
+        $inHouseCount = Employee::where('company_id', $user->id)
+            ->whereDoesntHave('assigned', fn($q) =>
+                $q->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+            )
+            ->count();
+
+        // Count employees without payroll for current month
+        $currentMonth = now()->format('Y-m');
+        $noPayrollCount = Employee::where('company_id', $user->id)
+            ->whereDoesntHave('payrolls', fn($q) =>
+                $q->where('payroll_month', $currentMonth)
+            )
+            ->count();
+
+        // Also add "All Companies" option at the top
         $totalEmployees = Employee::where('company_id', $user->id)->count();
         array_unshift($result, [
             'id' => 'all',
             'name' => 'All Companies',
+            'name_ar' => 'جميع الشركات',
             'email' => '',
             'city' => '',
             'employee_count' => $totalEmployees,
+            'type' => 'all',
         ]);
+
+        // Add In-House card
+        $result[] = [
+            'id' => 'in_house',
+            'name' => 'In-House Employees',
+            'name_ar' => 'موظفين داخليين',
+            'email' => 'Not assigned to any client',
+            'city' => '',
+            'employee_count' => $inHouseCount,
+            'type' => 'in_house',
+        ];
+
+        // Add No-Payroll card
+        $result[] = [
+            'id' => 'no_payroll',
+            'name' => 'No Payroll Data',
+            'name_ar' => 'بدون بيانات رواتب',
+            'email' => 'Employees without payroll this month',
+            'city' => '',
+            'employee_count' => $noPayrollCount,
+            'type' => 'no_payroll',
+        ];
 
         return $result;
     }
 
     public function selectCompany(string $companyId): void
     {
-        $this->redirect(PayrollResource::getUrl('index', ['clientCompany' => $companyId]));
+        $this->redirect(PayrollResource::getUrl('list', ['clientCompany' => $companyId]));
     }
 }

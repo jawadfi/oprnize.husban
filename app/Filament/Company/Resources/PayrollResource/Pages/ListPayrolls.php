@@ -41,8 +41,14 @@ class ListPayrolls extends ListRecords
 
         // Load client company name for display
         if ($this->clientCompany && $this->clientCompany !== 'all') {
-            $company = Company::find($this->clientCompany);
-            $this->clientCompanyName = $company?->name;
+            if ($this->clientCompany === 'in_house') {
+                $this->clientCompanyName = 'موظفين داخليين / In-House';
+            } elseif ($this->clientCompany === 'no_payroll') {
+                $this->clientCompanyName = 'بدون رواتب / No Payroll';
+            } else {
+                $company = Company::find($this->clientCompany);
+                $this->clientCompanyName = $company?->name;
+            }
         }
     }
 
@@ -149,11 +155,24 @@ class ListPayrolls extends ListRecords
         
         // Filter by selected client company (for PROVIDER)
         if ($this->clientCompany && $this->clientCompany !== 'all') {
-            $clientId = (int) $this->clientCompany;
-            $query->whereHas('employee.assigned', fn($q) =>
-                $q->where('employee_assigned.company_id', $clientId)
-                  ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
-            );
+            if ($this->clientCompany === 'in_house') {
+                // In-House: employees NOT assigned to any client company
+                $query->whereHas('employee', fn($q) =>
+                    $q->whereDoesntHave('assigned', fn($sq) =>
+                        $sq->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
+                    )
+                );
+            } elseif ($this->clientCompany === 'no_payroll') {
+                // No Payroll: show employees without payroll for current month
+                // This is handled specially - we show employees, not existing payrolls
+                // So we don't filter here, the user will see empty/missing payroll entries
+            } else {
+                $clientId = (int) $this->clientCompany;
+                $query->whereHas('employee.assigned', fn($q) =>
+                    $q->where('employee_assigned.company_id', $clientId)
+                      ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
+                );
+            }
         }
 
         // Filter by payroll_month field
@@ -415,11 +434,23 @@ class ListPayrolls extends ListRecords
             
             // If a specific client company is selected, only get employees assigned to that company
             if ($this->clientCompany && $this->clientCompany !== 'all') {
-                $clientId = (int) $this->clientCompany;
-                $employeesQuery->whereHas('assigned', fn($q) =>
-                    $q->where('employee_assigned.company_id', $clientId)
-                      ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
-                );
+                if ($this->clientCompany === 'in_house') {
+                    // In-House: employees NOT assigned to any client
+                    $employeesQuery->whereDoesntHave('assigned', fn($q) =>
+                        $q->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
+                    );
+                } elseif ($this->clientCompany === 'no_payroll') {
+                    // No Payroll: employees without payroll for this month
+                    $employeesQuery->whereDoesntHave('payrolls', fn($q) =>
+                        $q->where('payroll_month', $date->format('Y-m'))
+                    );
+                } else {
+                    $clientId = (int) $this->clientCompany;
+                    $employeesQuery->whereHas('assigned', fn($q) =>
+                        $q->where('employee_assigned.company_id', $clientId)
+                          ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
+                    );
+                }
             }
             
             $employees = $employeesQuery->get();
