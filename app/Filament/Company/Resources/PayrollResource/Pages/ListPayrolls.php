@@ -99,20 +99,22 @@ class ListPayrolls extends ListRecords
 
         $cards = [
             [
-                'key' => 'all',
+                'value' => 'all',
                 'name' => 'جميع الموظفين',
-                'name_en' => 'All Employees',
+                'subtitle' => 'All Employees',
                 'count' => $allCount,
-                'icon' => 'users',
+                'count_label' => 'Employees',
                 'color' => 'blue',
+                'icon' => '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>',
             ],
             [
-                'key' => 'in_house',
+                'value' => 'in_house',
                 'name' => 'موظفين داخليين',
-                'name_en' => 'In-House',
+                'subtitle' => 'In-House',
                 'count' => $inHouseCount,
-                'icon' => 'home',
+                'count_label' => 'Employees',
                 'color' => 'amber',
+                'icon' => '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>',
             ],
         ];
 
@@ -130,12 +132,13 @@ class ListPayrolls extends ListRecords
 
         foreach ($clientCompanies as $company) {
             $cards[] = [
-                'key' => (string) $company->id,
+                'value' => (string) $company->id,
                 'name' => $company->name,
-                'name_en' => $company->name,
+                'subtitle' => 'Client Company',
                 'count' => $company->used_employees_count,
-                'icon' => 'building',
+                'count_label' => 'Employees',
                 'color' => 'green',
+                'icon' => '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/></svg>',
             ];
         }
 
