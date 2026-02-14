@@ -662,7 +662,8 @@ class PayrollResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListPayrolls::route('/'),
+            'index' => Pages\SelectCompanyPayroll::route('/'),
+            'list' => Pages\ListPayrolls::route('/list'),
             'create' => Pages\CreatePayroll::route('/create'),
             'view' => Pages\ViewPayroll::route('/{record}'),
             'edit' => Pages\EditPayroll::route('/{record}/edit'),

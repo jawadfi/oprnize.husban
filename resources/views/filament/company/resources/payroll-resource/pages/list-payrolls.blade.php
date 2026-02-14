@@ -126,105 +126,25 @@
             border-radius: 4px !important;
             overflow: hidden;
         }
-        .oprnize-company-card {
-            background: white;
-            border: 2px solid var(--oprnize-border);
-            border-radius: 12px;
-            padding: 16px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            min-width: 160px;
-            position: relative;
-            overflow: hidden;
-        }
-        .oprnize-company-card:hover {
-            border-color: var(--oprnize-primary);
-            box-shadow: 0 4px 12px rgba(7, 110, 167, 0.1);
-            transform: translateY(-2px);
-        }
-        .oprnize-company-card.active {
-            border-color: var(--oprnize-primary);
-            background: linear-gradient(135deg, #F0F7FF 0%, #E8F4FD 100%);
-            box-shadow: 0 4px 12px rgba(7, 110, 167, 0.15);
-        }
-        .oprnize-company-card.active::after {
-            content: '✓';
-            position: absolute;
-            top: 8px;
-            right: 10px;
-            color: var(--oprnize-primary);
-            font-size: 14px;
-            font-weight: 700;
-        }
-        .oprnize-company-card .card-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 10px;
-        }
-        .oprnize-company-card .card-icon.blue { background: #EBF5FF; color: #076EA7; }
-        .oprnize-company-card .card-icon.amber { background: #FFF8E1; color: #F59E0B; }
-        .oprnize-company-card .card-icon.green { background: #ECFDF5; color: #059669; }
-        .oprnize-company-card .card-name {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--oprnize-text-1);
-            margin-bottom: 2px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .oprnize-company-card .card-subtitle {
-            font-size: 11px;
-            color: var(--oprnize-text-2);
-            margin-bottom: 8px;
-        }
-        .oprnize-company-card .card-count {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--oprnize-primary);
-        }
-        .oprnize-company-card .card-count-label {
-            font-size: 10px;
-            color: var(--oprnize-text-4);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
     </style>
 
     <div class="space-y-6">
-        {{-- Company Filter Cards (PROVIDER only) --}}
-        @if($this->isProvider())
-        <div class="bg-white rounded-xl border border-blue-100 shadow-sm p-6">
-            <div class="flex items-center gap-2 mb-4">
-                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
-                </svg>
-                <span class="oprnize-company-label">Select Company / اختر الشركة</span>
+        {{-- Back to Companies button (for Provider with selected company) --}}
+        @if ($this->clientCompany)
+            <div class="flex items-center gap-3">
+                <a href="{{ \App\Filament\Company\Resources\PayrollResource::getUrl('index') }}"
+                   class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                    </svg>
+                    العودة لاختيار الشركة
+                </a>
+                @if ($this->clientCompanyName)
+                    <span class="text-lg font-semibold text-blue-600">{{ $this->clientCompanyName }}</span>
+                @elseif ($this->clientCompany === 'all')
+                    <span class="text-lg font-semibold text-blue-600">All Companies</span>
+                @endif
             </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                @foreach($this->getCompanyCards() as $card)
-                <div 
-                    wire:click="$set('selectedCompany', '{{ $card['value'] }}')"
-                    class="oprnize-company-card {{ $this->selectedCompany === $card['value'] ? 'active' : '' }}"
-                >
-                    <div class="card-icon {{ $card['color'] }}">
-                        {!! $card['icon'] !!}
-                    </div>
-                    <div class="card-name">{{ $card['name'] }}</div>
-                    <div class="card-subtitle">{{ $card['subtitle'] }}</div>
-                    <div class="mt-2">
-                        <div class="card-count">{{ $card['count'] }}</div>
-                        <div class="card-count-label">{{ $card['count_label'] }}</div>
-                    </div>
-                </div>
-                @endforeach
-            </div>
-        </div>
         @endif
 
         {{-- Summary Cards (Figma design) --}}
