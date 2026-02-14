@@ -598,18 +598,28 @@ class ListPayrolls extends ListRecords
         $missingData = [];
         
         foreach ($employees as $employee) {
-            // Check if payroll already exists for this employee and month
+            // Check if payroll already exists for this employee and month (own records only)
             $existingPayroll = Payroll::where('employee_id', $employee->id)
                 ->where('company_id', $user->id)
                 ->where('payroll_month', $this->selectedMonth)
                 ->first();
             
             // Check if employee has a template payroll (any month) with filled data
+            // First check own records, then fallback to provider's records (for CLIENT)
             $templatePayroll = Payroll::where('employee_id', $employee->id)
                 ->where('company_id', $user->id)
                 ->where('basic_salary', '>', 0)
                 ->latest()
                 ->first();
+            
+            // CLIENT fallback: if no own template, use PROVIDER's payroll as template
+            if (!$templatePayroll && $user->type === \App\Enums\CompanyTypes::CLIENT) {
+                $templatePayroll = Payroll::where('employee_id', $employee->id)
+                    ->where('company_id', $employee->company_id) // PROVIDER owns the employee
+                    ->where('basic_salary', '>', 0)
+                    ->latest()
+                    ->first();
+            }
             
             if ($existingPayroll) {
                 // If payroll exists with data, skip
