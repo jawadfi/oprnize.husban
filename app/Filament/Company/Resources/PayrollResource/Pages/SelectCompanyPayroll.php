@@ -126,6 +126,52 @@ class SelectCompanyPayroll extends Page
 
     public function selectCompany(string $companyId): void
     {
+        // For 'no_payroll', auto-create empty DRAFT payrolls for employees missing payroll
+        if ($companyId === 'no_payroll') {
+            $this->createEmptyPayrollsForMissing();
+        }
+
         $this->redirect(PayrollResource::getUrl('list', ['clientCompany' => $companyId]));
+    }
+
+    /**
+     * Create empty DRAFT payroll records for employees that don't have payroll this month.
+     */
+    protected function createEmptyPayrollsForMissing(): void
+    {
+        $user = Filament::auth()->user();
+        $currentMonth = now()->format('Y-m');
+
+        $employees = Employee::where('company_id', $user->id)
+            ->whereDoesntHave('payrolls', fn($q) =>
+                $q->where('payroll_month', $currentMonth)
+            )
+            ->get();
+
+        foreach ($employees as $employee) {
+            \App\Models\Payroll::create([
+                'employee_id' => $employee->id,
+                'company_id' => $user->id,
+                'payroll_month' => $currentMonth,
+                'status' => \App\Enums\PayrollStatus::DRAFT,
+                'basic_salary' => 0,
+                'housing_allowance' => 0,
+                'transportation_allowance' => 0,
+                'food_allowance' => 0,
+                'other_allowance' => 0,
+                'fees' => 0,
+                'total_package' => 0,
+                'work_days' => 0,
+                'added_days' => 0,
+                'overtime_hours' => 0,
+                'overtime_amount' => 0,
+                'added_days_amount' => 0,
+                'other_additions' => 0,
+                'absence_days' => 0,
+                'absence_unpaid_leave_deduction' => 0,
+                'food_subscription_deduction' => 0,
+                'other_deduction' => 0,
+            ]);
+        }
     }
 }

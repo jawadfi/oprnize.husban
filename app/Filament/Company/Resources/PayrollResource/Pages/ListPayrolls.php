@@ -163,9 +163,9 @@ class ListPayrolls extends ListRecords
                     )
                 );
             } elseif ($this->clientCompany === 'no_payroll') {
-                // No Payroll: show employees without payroll for current month
-                // This is handled specially - we show employees, not existing payrolls
-                // So we don't filter here, the user will see empty/missing payroll entries
+                // No Payroll: show only payrolls with basic_salary = 0 (empty records)
+                // These are auto-created when user clicks the No Payroll card
+                $query->where('basic_salary', 0);
             } else {
                 $clientId = (int) $this->clientCompany;
                 $query->whereHas('employee.assigned', fn($q) =>
@@ -497,9 +497,7 @@ class ListPayrolls extends ListRecords
                 
                 // If payroll exists but empty, check if we have template
                 if (!$templatePayroll) {
-                    // No template found - add to missing data
-                    $empName = $employee->name . ($employee->emp_id ? " ({$employee->emp_id})" : '');
-                    $missingData[] = $empName;
+                    // No template found - leave the empty record for manual entry
                     $existing++;
                     continue;
                 }
@@ -533,9 +531,33 @@ class ListPayrolls extends ListRecords
             }
             
             if (!$templatePayroll) {
-                // No payroll data exists for this employee at all
-                $empName = $employee->name . ($employee->emp_id ? " ({$employee->emp_id})" : '');
-                $missingData[] = $empName;
+                // No template found - create empty DRAFT payroll so provider can fill manually
+                $payroll = Payroll::create([
+                    'employee_id' => $employee->id,
+                    'company_id' => $user->id,
+                    'payroll_month' => $this->selectedMonth,
+                    'status' => \App\Enums\PayrollStatus::DRAFT,
+                    'basic_salary' => 0,
+                    'housing_allowance' => 0,
+                    'transportation_allowance' => 0,
+                    'food_allowance' => 0,
+                    'other_allowance' => 0,
+                    'fees' => 0,
+                    'total_package' => 0,
+                    'work_days' => 0,
+                    'added_days' => 0,
+                    'overtime_hours' => 0,
+                    'overtime_amount' => 0,
+                    'added_days_amount' => 0,
+                    'other_additions' => 0,
+                    'absence_days' => 0,
+                    'absence_unpaid_leave_deduction' => 0,
+                    'food_subscription_deduction' => 0,
+                    'other_deduction' => 0,
+                    'created_at' => $date,
+                    'updated_at' => now(),
+                ]);
+                $created++;
                 continue;
             }
             
