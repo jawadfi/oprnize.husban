@@ -96,17 +96,22 @@
     </style>
 
     <div>
-        <p class="section-title">اختر الشركة / Select Company</p>
-        <p class="section-desc">اختر شركة العميل لعرض وحساب رواتب الموظفين المعينين لها</p>
+        @if ($this->companyType === 'client')
+            <p class="section-title">اختر شركة المزود / Select Provider</p>
+            <p class="section-desc">اختر شركة المزود لعرض وحساب رواتب الموظفين المستعارين منها</p>
+        @else
+            <p class="section-title">اختر الشركة / Select Company</p>
+            <p class="section-desc">اختر شركة العميل لعرض وحساب رواتب الموظفين المعينين لها</p>
+        @endif
 
         @php
             $companies = $this->getClientCompanies();
             $specialCards = collect($companies)->whereIn('type', ['all', 'in_house', 'no_payroll']);
-            $clientCards = collect($companies)->where('type', 'client');
+            $regularCards = collect($companies)->whereNotIn('type', ['all', 'in_house', 'no_payroll']);
         @endphp
 
         {{-- Special Cards Row --}}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-{{ $specialCards->count() > 0 ? min($specialCards->count(), 3) : 1 }} gap-6 mb-6">
             @foreach ($specialCards as $company)
                 <div
                     wire:click="selectCompany('{{ $company['id'] }}')"
@@ -149,11 +154,15 @@
             @endforeach
         </div>
 
-        {{-- Client Companies Section --}}
-        @if ($clientCards->count() > 0)
-            <p class="section-subtitle">🏢 شركات العملاء / Client Companies</p>
+        {{-- Company Cards Section --}}
+        @if ($regularCards->count() > 0)
+            @if ($this->companyType === 'client')
+                <p class="section-subtitle">🏭 شركات المزودين / Provider Companies</p>
+            @else
+                <p class="section-subtitle">🏢 شركات العملاء / Client Companies</p>
+            @endif
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                @foreach ($clientCards as $company)
+                @foreach ($regularCards as $company)
                     <div
                         wire:click="selectCompany('{{ $company['id'] }}')"
                         class="company-card"
@@ -186,13 +195,18 @@
             </div>
         @endif
 
-        @if ($clientCards->count() === 0)
+        @if ($regularCards->count() === 0)
             <div class="text-center py-12 text-gray-400">
                 <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                 </svg>
-                <p class="text-lg">لا توجد شركات عملاء بعد</p>
-                <p class="text-sm mt-2">قم بتعيين موظفين لشركات عملاء أولاً</p>
+                @if ($this->companyType === 'client')
+                    <p class="text-lg">لا توجد شركات مزودة بعد</p>
+                    <p class="text-sm mt-2">لم يتم تعيين موظفين من أي شركة مزودة حتى الآن</p>
+                @else
+                    <p class="text-lg">لا توجد شركات عملاء بعد</p>
+                    <p class="text-sm mt-2">قم بتعيين موظفين لشركات عملاء أولاً</p>
+                @endif
             </div>
         @endif
     </div>

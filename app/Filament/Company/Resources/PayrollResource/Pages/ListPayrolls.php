@@ -29,7 +29,11 @@ class ListPayrolls extends ListRecords
     #[Url]
     public ?string $clientCompany = null;
 
+    #[Url]
+    public ?string $providerCompany = null;
+
     public ?string $clientCompanyName = null;
+    public ?string $providerCompanyName = null;
 
     public function mount(): void
     {
@@ -39,7 +43,7 @@ class ListPayrolls extends ListRecords
             $this->selectedMonth = now()->format('Y-m');
         }
 
-        // Load client company name for display
+        // Load client company name for display (PROVIDER view)
         if ($this->clientCompany && $this->clientCompany !== 'all') {
             if ($this->clientCompany === 'in_house') {
                 $this->clientCompanyName = 'موظفين داخليين / In-House';
@@ -50,6 +54,12 @@ class ListPayrolls extends ListRecords
                 $this->clientCompanyName = $company?->name;
             }
         }
+
+        // Load provider company name for display (CLIENT view)
+        if ($this->providerCompany && $this->providerCompany !== 'all') {
+            $company = Company::find($this->providerCompany);
+            $this->providerCompanyName = $company?->name;
+        }
     }
 
     public function getTitle(): string
@@ -58,6 +68,9 @@ class ListPayrolls extends ListRecords
         $title = 'Payroll - ' . $date->format('F Y');
         if ($this->clientCompanyName) {
             $title .= ' - ' . $this->clientCompanyName;
+        }
+        if ($this->providerCompanyName) {
+            $title .= ' - ' . $this->providerCompanyName;
         }
         return $title;
     }
@@ -173,6 +186,14 @@ class ListPayrolls extends ListRecords
                       ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
                 );
             }
+        }
+
+        // Filter by selected provider company (for CLIENT)
+        if ($this->providerCompany && $this->providerCompany !== 'all') {
+            $providerId = (int) $this->providerCompany;
+            $query->whereHas('employee', fn($q) =>
+                $q->where('company_id', $providerId)
+            );
         }
 
         // Filter by payroll_month field
@@ -305,11 +326,36 @@ class ListPayrolls extends ListRecords
         
         if ($user->type === \App\Enums\CompanyTypes::PROVIDER) {
             $query->whereHas('employee', fn($q) => $q->where('company_id', $user->id));
+            
+            // Apply client company filter
+            if ($this->clientCompany && $this->clientCompany !== 'all') {
+                if ($this->clientCompany === 'in_house') {
+                    $query->whereHas('employee', fn($q) =>
+                        $q->whereDoesntHave('assigned', fn($sq) =>
+                            $sq->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
+                        )
+                    );
+                } elseif ($this->clientCompany === 'no_payroll') {
+                    $query->where('basic_salary', 0);
+                } else {
+                    $clientId = (int) $this->clientCompany;
+                    $query->whereHas('employee.assigned', fn($q) =>
+                        $q->where('employee_assigned.company_id', $clientId)
+                          ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
+                    );
+                }
+            }
         } else {
             $query->whereHas('employee.assigned', fn($q) => 
                 $q->where('employee_assigned.company_id', $user->id)
                   ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
             );
+            
+            // Apply provider company filter
+            if ($this->providerCompany && $this->providerCompany !== 'all') {
+                $providerId = (int) $this->providerCompany;
+                $query->whereHas('employee', fn($q) => $q->where('company_id', $providerId));
+            }
         }
         
         return $query->where(function ($q) use ($previousMonth) {
@@ -333,11 +379,34 @@ class ListPayrolls extends ListRecords
         
         if ($user->type === \App\Enums\CompanyTypes::PROVIDER) {
             $query->whereHas('employee', fn($q) => $q->where('company_id', $user->id));
+            
+            if ($this->clientCompany && $this->clientCompany !== 'all') {
+                if ($this->clientCompany === 'in_house') {
+                    $query->whereHas('employee', fn($q) =>
+                        $q->whereDoesntHave('assigned', fn($sq) =>
+                            $sq->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
+                        )
+                    );
+                } elseif ($this->clientCompany === 'no_payroll') {
+                    $query->where('basic_salary', 0);
+                } else {
+                    $clientId = (int) $this->clientCompany;
+                    $query->whereHas('employee.assigned', fn($q) =>
+                        $q->where('employee_assigned.company_id', $clientId)
+                          ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
+                    );
+                }
+            }
         } else {
             $query->whereHas('employee.assigned', fn($q) => 
                 $q->where('employee_assigned.company_id', $user->id)
                   ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
             );
+            
+            if ($this->providerCompany && $this->providerCompany !== 'all') {
+                $providerId = (int) $this->providerCompany;
+                $query->whereHas('employee', fn($q) => $q->where('company_id', $providerId));
+            }
         }
         
         return (float) $query->where(function ($q) use ($previousMonth) {
@@ -361,11 +430,34 @@ class ListPayrolls extends ListRecords
         
         if ($user->type === \App\Enums\CompanyTypes::PROVIDER) {
             $query->whereHas('employee', fn($q) => $q->where('company_id', $user->id));
+            
+            if ($this->clientCompany && $this->clientCompany !== 'all') {
+                if ($this->clientCompany === 'in_house') {
+                    $query->whereHas('employee', fn($q) =>
+                        $q->whereDoesntHave('assigned', fn($sq) =>
+                            $sq->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
+                        )
+                    );
+                } elseif ($this->clientCompany === 'no_payroll') {
+                    $query->where('basic_salary', 0);
+                } else {
+                    $clientId = (int) $this->clientCompany;
+                    $query->whereHas('employee.assigned', fn($q) =>
+                        $q->where('employee_assigned.company_id', $clientId)
+                          ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
+                    );
+                }
+            }
         } else {
             $query->whereHas('employee.assigned', fn($q) => 
                 $q->where('employee_assigned.company_id', $user->id)
                   ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
             );
+            
+            if ($this->providerCompany && $this->providerCompany !== 'all') {
+                $providerId = (int) $this->providerCompany;
+                $query->whereHas('employee', fn($q) => $q->where('company_id', $providerId));
+            }
         }
         
         $payrolls = $query->where(function ($q) use ($previousMonth) {
@@ -394,11 +486,34 @@ class ListPayrolls extends ListRecords
         
         if ($user->type === \App\Enums\CompanyTypes::PROVIDER) {
             $query->whereHas('employee', fn($q) => $q->where('company_id', $user->id));
+            
+            if ($this->clientCompany && $this->clientCompany !== 'all') {
+                if ($this->clientCompany === 'in_house') {
+                    $query->whereHas('employee', fn($q) =>
+                        $q->whereDoesntHave('assigned', fn($sq) =>
+                            $sq->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
+                        )
+                    );
+                } elseif ($this->clientCompany === 'no_payroll') {
+                    $query->where('basic_salary', 0);
+                } else {
+                    $clientId = (int) $this->clientCompany;
+                    $query->whereHas('employee.assigned', fn($q) =>
+                        $q->where('employee_assigned.company_id', $clientId)
+                          ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
+                    );
+                }
+            }
         } else {
             $query->whereHas('employee.assigned', fn($q) => 
                 $q->where('employee_assigned.company_id', $user->id)
                   ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
             );
+            
+            if ($this->providerCompany && $this->providerCompany !== 'all') {
+                $providerId = (int) $this->providerCompany;
+                $query->whereHas('employee', fn($q) => $q->where('company_id', $providerId));
+            }
         }
         
         $payrolls = $query->where(function ($q) use ($previousMonth) {
@@ -455,10 +570,18 @@ class ListPayrolls extends ListRecords
             
             $employees = $employeesQuery->get();
         } else {
-            $employees = \App\Models\Employee::whereHas('assigned', fn($q) => 
+            $employeesQuery = \App\Models\Employee::whereHas('assigned', fn($q) => 
                 $q->where('employee_assigned.company_id', $user->id)
                   ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
-            )->get();
+            );
+            
+            // If a specific provider company is selected, only get employees from that provider
+            if ($this->providerCompany && $this->providerCompany !== 'all') {
+                $providerId = (int) $this->providerCompany;
+                $employeesQuery->where('company_id', $providerId);
+            }
+            
+            $employees = $employeesQuery->get();
         }
         
         if ($employees->isEmpty()) {

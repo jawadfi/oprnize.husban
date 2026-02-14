@@ -17,32 +17,47 @@ class SelectCompanyPayroll extends Page
 
     protected static string $view = 'filament.company.resources.payroll-resource.pages.select-company-payroll';
 
+    public ?string $companyType = null;
+
     public function mount(): void
     {
         $user = Filament::auth()->user();
-
-        // CLIENT companies skip company selection, go directly to payroll list
-        if ($user->type !== CompanyTypes::PROVIDER) {
-            $this->redirect(PayrollResource::getUrl('list'));
-        }
+        $this->companyType = $user->type;
     }
 
     public function getTitle(): string
     {
+        if ($this->companyType === CompanyTypes::CLIENT) {
+            return 'Payroll - Select Provider / اختر شركة المزود';
+        }
         return 'Payroll - Select Company';
     }
 
     /**
-     * Get the client companies that the provider has employees assigned to.
+     * Get companies to display as cards.
+     * For PROVIDER: shows client companies they lent employees to.
+     * For CLIENT: shows provider companies they borrowed employees from.
      */
     public function getClientCompanies(): array
     {
         $user = Filament::auth()->user();
 
-        if (!$user || $user->type !== CompanyTypes::PROVIDER) {
+        if (!$user) {
             return [];
         }
 
+        if ($user->type === CompanyTypes::PROVIDER) {
+            return $this->getProviderCards($user);
+        }
+
+        return $this->getClientCards($user);
+    }
+
+    /**
+     * Cards for PROVIDER view: shows client companies they assigned employees to.
+     */
+    protected function getProviderCards($user): array
+    {
         // Get all client company IDs that have approved employee assignments from this provider
         $clientCompanyIds = DB::table('employee_assigned')
             ->join('employees', 'employees.id', '=', 'employee_assigned.employee_id')
@@ -124,14 +139,74 @@ class SelectCompanyPayroll extends Page
         return $result;
     }
 
+    /**
+     * Cards for CLIENT view: shows provider companies they borrowed employees from.
+     */
+    protected function getClientCards($user): array
+    {
+        // Get all provider company IDs that have approved employees assigned to this client
+        $providerCompanyIds = DB::table('employee_assigned')
+            ->join('employees', 'employees.id', '=', 'employee_assigned.employee_id')
+            ->where('employee_assigned.company_id', $user->id)
+            ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+            ->distinct()
+            ->pluck('employees.company_id');
+
+        $companies = Company::whereIn('id', $providerCompanyIds)->get();
+
+        $result = [];
+        foreach ($companies as $company) {
+            $employeeCount = Employee::where('company_id', $company->id)
+                ->whereHas('assigned', fn($q) =>
+                    $q->where('employee_assigned.company_id', $user->id)
+                      ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+                )
+                ->count();
+
+            $result[] = [
+                'id' => $company->id,
+                'name' => $company->name,
+                'email' => $company->email,
+                'city' => $company->city?->name ?? '',
+                'employee_count' => $employeeCount,
+                'type' => 'provider',
+            ];
+        }
+
+        // "All Providers" option at the top
+        $totalEmployees = Employee::whereHas('assigned', fn($q) =>
+            $q->where('employee_assigned.company_id', $user->id)
+              ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+        )->count();
+
+        array_unshift($result, [
+            'id' => 'all',
+            'name' => 'All Providers',
+            'name_ar' => 'جميع المزودين',
+            'email' => '',
+            'city' => '',
+            'employee_count' => $totalEmployees,
+            'type' => 'all',
+        ]);
+
+        return $result;
+    }
+
     public function selectCompany(string $companyId): void
     {
-        // For 'no_payroll', auto-create empty DRAFT payrolls for employees missing payroll
-        if ($companyId === 'no_payroll') {
+        $user = Filament::auth()->user();
+
+        // For 'no_payroll', auto-create empty DRAFT payrolls for employees missing payroll (PROVIDER only)
+        if ($companyId === 'no_payroll' && $user->type === CompanyTypes::PROVIDER) {
             $this->createEmptyPayrollsForMissing();
         }
 
-        $this->redirect(PayrollResource::getUrl('list', ['clientCompany' => $companyId]));
+        // Use different URL param depending on company type
+        if ($user->type === CompanyTypes::CLIENT) {
+            $this->redirect(PayrollResource::getUrl('list', ['providerCompany' => $companyId]));
+        } else {
+            $this->redirect(PayrollResource::getUrl('list', ['clientCompany' => $companyId]));
+        }
     }
 
     /**
