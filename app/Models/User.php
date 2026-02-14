@@ -59,6 +59,24 @@ class User extends Authenticatable implements FilamentUser
         return $this->belongsTo(Company::class);
     }
 
+    public function managedBranch()
+    {
+        return $this->hasOne(Branch::class, 'manager_id');
+    }
+
+    public function managedBranches()
+    {
+        return $this->hasMany(Branch::class, 'manager_id');
+    }
+
+    /**
+     * Check if user is a branch manager
+     */
+    public function isBranchManager(): bool
+    {
+        return $this->managedBranches()->exists();
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         return $panel->getId() === 'company' && $this->company_id !== null;

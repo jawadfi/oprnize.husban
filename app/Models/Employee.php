@@ -103,6 +103,23 @@ class Employee extends Authenticatable implements FilamentUser
         return $this->hasMany(Deduction::class);
     }
 
+    public function branches()
+    {
+        return $this->belongsToMany(Branch::class, 'branch_employee')
+            ->withPivot(['start_date', 'end_date', 'is_active'])
+            ->withTimestamps();
+    }
+
+    public function activeBranch()
+    {
+        return $this->branches()->wherePivot('is_active', true)->first();
+    }
+
+    public function branchEntries()
+    {
+        return $this->hasMany(BranchEntry::class);
+    }
+
     /**
      * Check if employee has complete payroll data (basic_salary > 0)
      */
