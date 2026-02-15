@@ -100,6 +100,6 @@ class EmployeeTimesheet extends Model
      */
     public function getDaysInMonthAttribute(): int
     {
-        return cal_days_in_month(CAL_GREGORIAN, $this->month, $this->year);
+        return \Carbon\Carbon::create($this->year, $this->month, 1)->daysInMonth;
     }
 }

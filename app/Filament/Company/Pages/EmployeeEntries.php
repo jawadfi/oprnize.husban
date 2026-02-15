@@ -201,7 +201,7 @@ class EmployeeEntries extends Page implements HasForms
             $this->attendanceData = $timesheet->attendance_data ?? [];
         } else {
             // Initialize with defaults  
-            $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
+            $daysInMonth = Carbon::create($year, $month, 1)->daysInMonth;
             $this->attendanceData = [];
             for ($d = 1; $d <= $daysInMonth; $d++) {
                 $date = Carbon::create($year, $month, $d);
@@ -229,7 +229,7 @@ class EmployeeEntries extends Page implements HasForms
     public function getDaysInMonth(): int
     {
         $parts = explode('-', $this->selectedMonth ?? now()->format('Y-m'));
-        return cal_days_in_month(CAL_GREGORIAN, (int) $parts[1], (int) $parts[0]);
+        return Carbon::create((int) $parts[0], (int) $parts[1], 1)->daysInMonth;
     }
 
     public function getMonthLabel(): string
