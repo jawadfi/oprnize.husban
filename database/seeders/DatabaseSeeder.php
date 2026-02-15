@@ -32,19 +32,50 @@ class DatabaseSeeder extends Seeder
             ['name' => 'الرياض']
         );
 
-        $company = Company::firstOrCreate(
-            ['email' => 'company@test.com'],
+        // PROVIDER company
+        $provider = Company::firstOrCreate(
+            ['email' => 'provider@test.com'],
             [
-                'name' => 'Test Company',
+                'name' => 'شركة المزود / Provider Co',
                 'commercial_registration_number' => '1234567890',
+                'password' => '123',
+                'type' => 'provider',
+                'city_id' => $city->id,
+                'email_verified_at' => now(),
+            ]
+        );
+        if (!$provider->email_verified_at) {
+            $provider->update(['email_verified_at' => now()]);
+        }
+
+        // CLIENT company
+        $client = Company::firstOrCreate(
+            ['email' => 'client@test.com'],
+            [
+                'name' => 'شركة العميل / Client Co',
+                'commercial_registration_number' => '0987654321',
                 'password' => '123',
                 'type' => 'client',
                 'city_id' => $city->id,
                 'email_verified_at' => now(),
             ]
         );
-        
-        // Mark as verified if not already
+        if (!$client->email_verified_at) {
+            $client->update(['email_verified_at' => now()]);
+        }
+
+        // Keep old company@test.com if exists
+        $company = Company::firstOrCreate(
+            ['email' => 'company@test.com'],
+            [
+                'name' => 'Test Company',
+                'commercial_registration_number' => '1234567891',
+                'password' => '123',
+                'type' => 'client',
+                'city_id' => $city->id,
+                'email_verified_at' => now(),
+            ]
+        );
         if (!$company->email_verified_at) {
             $company->update(['email_verified_at' => now()]);
         }
