@@ -94,12 +94,19 @@ class SelectCompanyPayroll extends Page
             )
             ->count();
 
-        // Count employees without payroll for current month
+        // Count employees without payroll data for current month
+        // (either no payroll record at all, or payroll with basic_salary = 0)
         $currentMonth = now()->format('Y-m');
         $noPayrollCount = Employee::where('company_id', $user->id)
-            ->whereDoesntHave('payrolls', fn($q) =>
-                $q->where('payroll_month', $currentMonth)
-            )
+            ->where(function ($q) use ($currentMonth) {
+                $q->whereDoesntHave('payrolls', fn($pq) =>
+                    $pq->where('payroll_month', $currentMonth)
+                )
+                ->orWhereHas('payrolls', fn($pq) =>
+                    $pq->where('payroll_month', $currentMonth)
+                       ->where('basic_salary', 0)
+                );
+            })
             ->count();
 
         // Also add "All Companies" option at the top
