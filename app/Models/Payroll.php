@@ -178,4 +178,82 @@ class Payroll extends Model
     {
         return (float) ($this->net_payment - ($this->overtime_amount ?? 0));
     }
+
+    /**
+     * Sync payroll fields from EmployeeEntries data (overtime, additions, timesheet, deductions).
+     * Finds or creates the Payroll record, then aggregates entry data into it.
+     */
+    public static function syncFromEntries(int $employeeId, int $companyId, string $payrollMonth): void
+    {
+        // Find or create payroll for this employee + company + month
+        $payroll = static::firstOrCreate(
+            [
+                'employee_id' => $employeeId,
+                'company_id' => $companyId,
+                'payroll_month' => $payrollMonth,
+            ],
+            [
+                'basic_salary' => 0,
+                'status' => 'draft',
+            ]
+        );
+
+        // 1. Overtime → overtime_hours & overtime_amount
+        $overtimes = EmployeeOvertime::where('employee_id', $employeeId)
+            ->where('company_id', $companyId)
+            ->where('payroll_month', $payrollMonth)
+            ->get();
+
+        $payroll->overtime_hours = $overtimes->sum('hours');
+        $payroll->overtime_amount = $overtimes->sum('amount');
+
+        // 2. Additions → other_additions
+        $additions = EmployeeAddition::where('employee_id', $employeeId)
+            ->where('company_id', $companyId)
+            ->where('payroll_month', $payrollMonth)
+            ->get();
+
+        $payroll->other_additions = $additions->sum('amount');
+
+        // 3. Timesheet → work_days, absence_days, absence_unpaid_leave_deduction
+        $parts = explode('-', $payrollMonth);
+        $year = (int) $parts[0];
+        $month = (int) $parts[1];
+
+        $timesheet = EmployeeTimesheet::where('employee_id', $employeeId)
+            ->where('company_id', $companyId)
+            ->where('year', $year)
+            ->where('month', $month)
+            ->first();
+
+        if ($timesheet) {
+            $payroll->work_days = $timesheet->work_days;
+            $payroll->absence_days = $timesheet->absent_days;
+
+            // Calculate absence deduction: (total salary / days in month) * absent days
+            $totalSalary = (float) $payroll->basic_salary
+                + (float) $payroll->housing_allowance
+                + (float) $payroll->transportation_allowance
+                + (float) $payroll->food_allowance
+                + (float) $payroll->other_allowance;
+
+            if ($totalSalary > 0 && $timesheet->absent_days > 0) {
+                $daysInMonth = \Carbon\Carbon::create($year, $month, 1)->daysInMonth;
+                $dailyRate = $totalSalary / $daysInMonth;
+                $payroll->absence_unpaid_leave_deduction = round($timesheet->absent_days * $dailyRate, 2);
+            } else {
+                $payroll->absence_unpaid_leave_deduction = 0;
+            }
+        }
+
+        // 4. Deductions → other_deduction
+        $deductions = Deduction::where('employee_id', $employeeId)
+            ->where('company_id', $companyId)
+            ->where('payroll_month', $payrollMonth)
+            ->get();
+
+        $payroll->other_deduction = $deductions->sum('amount');
+
+        $payroll->save();
+    }
 }

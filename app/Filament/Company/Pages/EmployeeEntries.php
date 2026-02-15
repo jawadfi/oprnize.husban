@@ -13,6 +13,7 @@ use App\Models\Employee;
 use App\Models\EmployeeAddition;
 use App\Models\EmployeeOvertime;
 use App\Models\EmployeeTimesheet;
+use App\Models\Payroll;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -269,6 +270,7 @@ class EmployeeEntries extends Page implements HasForms
 
         $this->resetOvertimeForm();
         $this->loadExistingEntries();
+        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $this->selectedMonth);
         Notification::make()->title('تم إضافة ساعات العمل الإضافي بنجاح')->success()->send();
     }
 
@@ -276,6 +278,8 @@ class EmployeeEntries extends Page implements HasForms
     {
         EmployeeOvertime::where('id', $id)->where('status', 'pending')->delete();
         $this->loadExistingEntries();
+        $company = $this->getCompanyUser();
+        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $this->selectedMonth);
         Notification::make()->title('تم الحذف')->success()->send();
     }
 
@@ -320,6 +324,7 @@ class EmployeeEntries extends Page implements HasForms
 
         $this->resetAdditionForm();
         $this->loadExistingEntries();
+        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $this->selectedMonth);
         Notification::make()->title('تم إضافة المبلغ الإضافي بنجاح')->success()->send();
     }
 
@@ -327,6 +332,8 @@ class EmployeeEntries extends Page implements HasForms
     {
         EmployeeAddition::where('id', $id)->where('status', 'pending')->delete();
         $this->loadExistingEntries();
+        $company = $this->getCompanyUser();
+        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $this->selectedMonth);
         Notification::make()->title('تم الحذف')->success()->send();
     }
 
@@ -378,6 +385,7 @@ class EmployeeEntries extends Page implements HasForms
 
         $this->resetDeductionForm();
         $this->loadExistingEntries();
+        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $this->selectedMonth);
         Notification::make()->title('تم إضافة الخصم بنجاح')->success()->send();
     }
 
@@ -385,6 +393,8 @@ class EmployeeEntries extends Page implements HasForms
     {
         Deduction::where('id', $id)->where('status', 'pending')->delete();
         $this->loadExistingEntries();
+        $company = $this->getCompanyUser();
+        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $this->selectedMonth);
         Notification::make()->title('تم الحذف')->success()->send();
     }
 
@@ -430,6 +440,9 @@ class EmployeeEntries extends Page implements HasForms
         // Recalculate totals
         $timesheet->recalculateTotals();
         $timesheet->save();
+
+        // Sync to payroll
+        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $this->selectedMonth);
 
         Notification::make()->title('تم حفظ التايم شيت بنجاح')->success()->send();
     }
