@@ -20,15 +20,15 @@ class RoleResource extends ShieldRoleResource
     {
         $user = Filament::auth()->user();
         
-        // Only show roles for provider companies, not client companies
+        // Both PROVIDER and CLIENT companies can manage roles
         if ($user instanceof \App\Models\Company) {
-            return $user->type === CompanyTypes::PROVIDER;
+            return in_array($user->type, [CompanyTypes::PROVIDER, CompanyTypes::CLIENT]);
         }
         
-        // User model - check if their company is a provider and has permission
+        // User model - check if their company is provider or client
         if ($user instanceof \App\Models\User) {
             $company = $user->company;
-            if ($company && $company->type === CompanyTypes::PROVIDER) {
+            if ($company && in_array($company->type, [CompanyTypes::PROVIDER, CompanyTypes::CLIENT])) {
                 // Shield generates permissions as lowercase: 'view_any_role' not 'view_any_Role'
                 $permissionNames = ['view_any_role', 'view_any_Role', 'view_any_RoleResource'];
                 
@@ -57,15 +57,15 @@ class RoleResource extends ShieldRoleResource
     {
         $user = Filament::auth()->user();
         
-        // Only provider companies can create roles
+        // Both provider and client companies can create roles
         if ($user instanceof \App\Models\Company) {
-            return $user->type === CompanyTypes::PROVIDER;
+            return in_array($user->type, [CompanyTypes::PROVIDER, CompanyTypes::CLIENT]);
         }
         
         // User model needs permission
         if ($user instanceof \App\Models\User) {
             $company = $user->company;
-            if ($company && $company->type === CompanyTypes::PROVIDER) {
+            if ($company && in_array($company->type, [CompanyTypes::PROVIDER, CompanyTypes::CLIENT])) {
                 return $user->can('create_Role') || $user->can('create_role');
             }
         }
@@ -77,15 +77,15 @@ class RoleResource extends ShieldRoleResource
     {
         $user = Filament::auth()->user();
         
-        // Only provider companies can edit roles
+        // Both provider and client companies can edit roles
         if ($user instanceof \App\Models\Company) {
-            return $user->type === CompanyTypes::PROVIDER;
+            return in_array($user->type, [CompanyTypes::PROVIDER, CompanyTypes::CLIENT]);
         }
         
         // User model needs permission
         if ($user instanceof \App\Models\User) {
             $company = $user->company;
-            if ($company && $company->type === CompanyTypes::PROVIDER) {
+            if ($company && in_array($company->type, [CompanyTypes::PROVIDER, CompanyTypes::CLIENT])) {
                 return $user->can('update_Role') || $user->can('update_role');
             }
         }
@@ -97,15 +97,15 @@ class RoleResource extends ShieldRoleResource
     {
         $user = Filament::auth()->user();
         
-        // Only provider companies can delete roles
+        // Both provider and client companies can delete roles
         if ($user instanceof \App\Models\Company) {
-            return $user->type === CompanyTypes::PROVIDER;
+            return in_array($user->type, [CompanyTypes::PROVIDER, CompanyTypes::CLIENT]);
         }
         
         // User model needs permission
         if ($user instanceof \App\Models\User) {
             $company = $user->company;
-            if ($company && $company->type === CompanyTypes::PROVIDER) {
+            if ($company && in_array($company->type, [CompanyTypes::PROVIDER, CompanyTypes::CLIENT])) {
                 return $user->can('delete_Role') || $user->can('delete_role');
             }
         }
@@ -117,15 +117,15 @@ class RoleResource extends ShieldRoleResource
     {
         $user = Filament::auth()->user();
         
-        // Only provider companies can delete roles
+        // Both provider and client companies can delete roles
         if ($user instanceof \App\Models\Company) {
-            return $user->type === CompanyTypes::PROVIDER;
+            return in_array($user->type, [CompanyTypes::PROVIDER, CompanyTypes::CLIENT]);
         }
         
         // User model needs permission
         if ($user instanceof \App\Models\User) {
             $company = $user->company;
-            if ($company && $company->type === CompanyTypes::PROVIDER) {
+            if ($company && in_array($company->type, [CompanyTypes::PROVIDER, CompanyTypes::CLIENT])) {
                 return $user->can('delete_any_Role') || $user->can('delete_any_role');
             }
         }

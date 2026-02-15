@@ -10,7 +10,7 @@ return [
         'sub_navigation_position' => null,
         'is_globally_searchable' => false,
         'show_model_path' => true,
-        'is_scoped_to_tenant' => true,
+        'is_scoped_to_tenant' => false,
         'cluster' => null,
     ],
 
