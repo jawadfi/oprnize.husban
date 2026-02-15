@@ -32,12 +32,12 @@ class DatabaseSeeder extends Seeder
             ['name' => 'الرياض']
         );
 
-        // PROVIDER company
+        // NEW PROVIDER company for testing
         $provider = Company::firstOrCreate(
-            ['email' => 'provider@test.com'],
+            ['email' => 'husban-provider@test.com'],
             [
-                'name' => 'شركة المزود / Provider Co',
-                'commercial_registration_number' => '1234567890',
+                'name' => 'حسبان للتوظيف / Husban Provider',
+                'commercial_registration_number' => '2024001234',
                 'password' => '123',
                 'type' => 'provider',
                 'city_id' => $city->id,
@@ -48,12 +48,12 @@ class DatabaseSeeder extends Seeder
             $provider->update(['email_verified_at' => now()]);
         }
 
-        // CLIENT company
+        // NEW CLIENT company for testing
         $client = Company::firstOrCreate(
-            ['email' => 'client@test.com'],
+            ['email' => 'husban-client@test.com'],
             [
-                'name' => 'شركة العميل / Client Co',
-                'commercial_registration_number' => '0987654321',
+                'name' => 'شركة حسبان العميلة / Husban Client',
+                'commercial_registration_number' => '2024005678',
                 'password' => '123',
                 'type' => 'client',
                 'city_id' => $city->id,
@@ -62,22 +62,6 @@ class DatabaseSeeder extends Seeder
         );
         if (!$client->email_verified_at) {
             $client->update(['email_verified_at' => now()]);
-        }
-
-        // Keep old company@test.com if exists
-        $company = Company::firstOrCreate(
-            ['email' => 'company@test.com'],
-            [
-                'name' => 'Test Company',
-                'commercial_registration_number' => '1234567891',
-                'password' => '123',
-                'type' => 'client',
-                'city_id' => $city->id,
-                'email_verified_at' => now(),
-            ]
-        );
-        if (!$company->email_verified_at) {
-            $company->update(['email_verified_at' => now()]);
         }
     }
 }
