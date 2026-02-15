@@ -15,49 +15,47 @@ class DeductionImporter extends Importer
 {
     protected static ?string $model = Deduction::class;
 
-    public function import(array $row): void
+    protected ?Employee $employee = null;
+
+    public function resolveRecord(): ?Deduction
     {
         $companyId = $this->options['company_id'];
 
         // Clean empty strings to null
-        foreach ($row as $key => $value) {
+        foreach ($this->data as $key => $value) {
             if ($value === '') {
-                $row[$key] = null;
+                $this->data[$key] = null;
             }
         }
 
         // Find employee by emp_id or identity_number
-        $employee = null;
-        if (!empty($row['emp_id'])) {
-            $employee = Employee::where('company_id', $companyId)
-                ->where('emp_id', $row['emp_id'])
+        if (!empty($this->data['emp_id'])) {
+            $this->employee = Employee::where('company_id', $companyId)
+                ->where('emp_id', $this->data['emp_id'])
                 ->first();
         }
 
-        if (!$employee && !empty($row['identity_number'])) {
-            $employee = Employee::where('company_id', $companyId)
-                ->where('identity_number', $row['identity_number'])
+        if (!$this->employee && !empty($this->data['identity_number'])) {
+            $this->employee = Employee::where('company_id', $companyId)
+                ->where('identity_number', $this->data['identity_number'])
                 ->first();
         }
 
-        if (!$employee) {
-            // Skip if employee not found
-            return;
+        if (!$this->employee) {
+            return null; // Skip row if employee not found
         }
 
-        // Determine deduction type and calculate amount
+        // Calculate amounts
         $type = DeductionType::FIXED;
         $days = null;
         $dailyRate = null;
         $amount = 0;
 
-        // If absence_days is provided, it's a DAYS deduction
-        if (!empty($row['absence_days']) && $row['absence_days'] > 0) {
+        if (!empty($this->data['absence_days']) && $this->data['absence_days'] > 0) {
             $type = DeductionType::DAYS;
-            $days = (int) $row['absence_days'];
+            $days = (int) $this->data['absence_days'];
 
-            // Get daily rate from payroll if exists
-            $payroll = $employee->payrolls()
+            $payroll = $this->employee->payrolls()
                 ->where('basic_salary', '>', 0)
                 ->latest()
                 ->first();
@@ -68,37 +66,41 @@ class DeductionImporter extends Importer
             }
         }
 
-        // If deduction_amount is provided, add to total
-        if (!empty($row['deduction_amount']) && $row['deduction_amount'] > 0) {
-            $amount += (float) $row['deduction_amount'];
+        if (!empty($this->data['deduction_amount']) && $this->data['deduction_amount'] > 0) {
+            $amount += (float) $this->data['deduction_amount'];
         }
 
-        // Skip if no amount
         if ($amount <= 0) {
-            return;
+            return null; // Skip if no amount
         }
 
-        // Create deduction
-        Deduction::create([
-            'employee_id' => $employee->id,
-            'company_id' => $companyId,
-            'created_by_company_id' => $companyId,
-            'payroll_month' => $row['payroll_month'] ?? now()->format('Y-m'),
-            'type' => $type,
-            'reason' => !empty($row['absence_days']) ? DeductionReason::ABSENCE : DeductionReason::OTHER,
-            'days' => $days,
-            'daily_rate' => $dailyRate,
-            'amount' => $amount,
-            'description' => $row['description'] ?? null,
-            'status' => DeductionStatus::APPROVED,
-        ]);
+        // Create a new Deduction with computed values
+        $deduction = new Deduction();
+        $deduction->employee_id = $this->employee->id;
+        $deduction->company_id = $companyId;
+        $deduction->created_by_company_id = $companyId;
+        $deduction->payroll_month = $this->data['payroll_month'] ?? now()->format('Y-m');
+        $deduction->type = $type;
+        $deduction->reason = !empty($this->data['absence_days']) ? DeductionReason::ABSENCE : DeductionReason::OTHER;
+        $deduction->days = $days;
+        $deduction->daily_rate = $dailyRate;
+        $deduction->amount = $amount;
+        $deduction->description = $this->data['description'] ?? null;
+        $deduction->status = DeductionStatus::APPROVED;
 
+        return $deduction;
+    }
+
+    public function afterCreate(): void
+    {
         // Handle overtime and additions - update payroll directly
-        if ((!empty($row['overtime_hours']) && $row['overtime_hours'] > 0)
-            || (!empty($row['addition_amount']) && $row['addition_amount'] > 0)) {
+        if ((!empty($this->data['overtime_hours']) && $this->data['overtime_hours'] > 0)
+            || (!empty($this->data['addition_amount']) && $this->data['addition_amount'] > 0)) {
 
-            $payrollMonth = $row['payroll_month'] ?? now()->format('Y-m');
-            $payroll = $employee->payrolls()
+            $companyId = $this->options['company_id'];
+            $payrollMonth = $this->data['payroll_month'] ?? now()->format('Y-m');
+
+            $payroll = $this->employee->payrolls()
                 ->where('company_id', $companyId)
                 ->where('payroll_month', $payrollMonth)
                 ->first();
@@ -106,9 +108,8 @@ class DeductionImporter extends Importer
             if ($payroll) {
                 $updates = [];
 
-                if (!empty($row['overtime_hours'])) {
-                    $overtimeHours = (float) $row['overtime_hours'];
-                    // Calculate overtime amount: (basic_salary / 240) * 1.5 * overtime_hours
+                if (!empty($this->data['overtime_hours'])) {
+                    $overtimeHours = (float) $this->data['overtime_hours'];
                     $hourlyRate = $payroll->basic_salary / 240;
                     $overtimeAmount = $hourlyRate * 1.5 * $overtimeHours;
 
@@ -116,8 +117,8 @@ class DeductionImporter extends Importer
                     $updates['overtime_amount'] = ($payroll->overtime_amount ?? 0) + $overtimeAmount;
                 }
 
-                if (!empty($row['addition_amount'])) {
-                    $updates['other_additions'] = ($payroll->other_additions ?? 0) + (float) $row['addition_amount'];
+                if (!empty($this->data['addition_amount'])) {
+                    $updates['other_additions'] = ($payroll->other_additions ?? 0) + (float) $this->data['addition_amount'];
                 }
 
                 $payroll->update($updates);
@@ -160,11 +161,6 @@ class DeductionImporter extends Importer
                 ->label('ملاحظات')
                 ->example('خصم غياب'),
         ];
-    }
-
-    public function resolveRecord(): ?Deduction
-    {
-        return null;
     }
 
     public static function getCompletedNotificationBody(Import $import): string
