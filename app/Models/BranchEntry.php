@@ -6,9 +6,21 @@ use App\Enums\BranchEntryStatus;
 use App\Enums\BranchEntryType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class BranchEntry extends Model
 {
+    use LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logOnlyDirty()
+            ->setDescriptionForEvent(fn(string $eventName) => "إدخال فرع تم {$eventName}")
+            ->useLogName('branch_entry');
+    }
     protected $fillable = [
         'branch_id',
         'employee_id',

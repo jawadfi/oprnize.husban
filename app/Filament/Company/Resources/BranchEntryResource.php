@@ -325,7 +325,7 @@ class BranchEntryResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
-                    ->visible(fn (BranchEntry $record) => $record->status === BranchEntryStatus::DRAFT),
+                    ->visible(fn (BranchEntry $record) => in_array($record->status, [BranchEntryStatus::DRAFT, BranchEntryStatus::REJECTED])),
 
                 Tables\Actions\Action::make('submit')
                     ->label('إرسال / Submit')
@@ -334,13 +334,16 @@ class BranchEntryResource extends Resource
                     ->requiresConfirmation()
                     ->modalHeading('إرسال الإدخال للمراجعة')
                     ->modalDescription('هل أنت متأكد من إرسال هذا الإدخال للمراجعة؟ لن تستطيع تعديله بعد الإرسال.')
-                    ->visible(fn (BranchEntry $record) => $record->status === BranchEntryStatus::DRAFT)
+                    ->visible(fn (BranchEntry $record) => in_array($record->status, [BranchEntryStatus::DRAFT, BranchEntryStatus::REJECTED]))
                     ->action(function (BranchEntry $record) {
                         $user = Filament::auth()->user();
                         $record->update([
                             'status' => BranchEntryStatus::SUBMITTED,
                             'submitted_by' => $user instanceof User ? $user->id : null,
                             'submitted_at' => now(),
+                            'review_notes' => null,
+                            'reviewed_by' => null,
+                            'reviewed_at' => null,
                         ]);
 
                         \Filament\Notifications\Notification::make()
@@ -403,8 +406,34 @@ class BranchEntryResource extends Resource
                             ->send();
                     }),
 
+                // Revert rejected entry back to draft for correction (flowchart: Rejected → Branch Employee)
+                Tables\Actions\Action::make('revert_to_draft')
+                    ->label('إعادة للتعديل / Revert to Draft')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('إعادة الإدخال المرفوض للتعديل')
+                    ->modalDescription('سيتم إعادة هذا الإدخال لحالة المسودة حتى تتمكن من تعديله وإعادة إرساله.')
+                    ->visible(fn (BranchEntry $record) => $record->status === BranchEntryStatus::REJECTED)
+                    ->action(function (BranchEntry $record) {
+                        $record->update([
+                            'status' => BranchEntryStatus::DRAFT,
+                            'reviewed_by' => null,
+                            'reviewed_at' => null,
+                            'review_notes' => null,
+                            'submitted_by' => null,
+                            'submitted_at' => null,
+                        ]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('تم إعادة الإدخال للمسودة')
+                            ->body('يمكنك الآن تعديل الإدخال وإعادة إرساله')
+                            ->success()
+                            ->send();
+                    }),
+
                 Tables\Actions\DeleteAction::make()
-                    ->visible(fn (BranchEntry $record) => $record->status === BranchEntryStatus::DRAFT),
+                    ->visible(fn (BranchEntry $record) => in_array($record->status, [BranchEntryStatus::DRAFT, BranchEntryStatus::REJECTED])),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -461,6 +490,42 @@ class BranchEntryResource extends Resource
                             \Filament\Notifications\Notification::make()
                                 ->title("تم اعتماد {$count} إدخال")
                                 ->success()
+                                ->send();
+                        }),
+
+                    Tables\Actions\BulkAction::make('rejectAll')
+                        ->label('رفض الكل / Reject All')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->deselectRecordsAfterCompletion()
+                        ->visible(function () {
+                            $user = Filament::auth()->user();
+                            return $user instanceof Company || ($user instanceof User && !$user->isBranchManager());
+                        })
+                        ->form([
+                            Forms\Components\Textarea::make('review_notes')
+                                ->label('سبب الرفض / Rejection Reason')
+                                ->required(),
+                        ])
+                        ->action(function ($records, array $data) {
+                            $user = Filament::auth()->user();
+                            $count = 0;
+                            foreach ($records as $record) {
+                                if ($record->status === BranchEntryStatus::SUBMITTED) {
+                                    $record->update([
+                                        'status' => BranchEntryStatus::REJECTED,
+                                        'reviewed_by' => $user instanceof User ? $user->id : null,
+                                        'reviewed_at' => now(),
+                                        'review_notes' => $data['review_notes'],
+                                    ]);
+                                    $count++;
+                                }
+                            }
+
+                            \Filament\Notifications\Notification::make()
+                                ->title("تم رفض {$count} إدخال")
+                                ->danger()
                                 ->send();
                         }),
 

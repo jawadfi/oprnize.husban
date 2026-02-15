@@ -7,9 +7,21 @@ use App\Enums\DeductionStatus;
 use App\Enums\DeductionType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Deduction extends Model
 {
+    use LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logOnlyDirty()
+            ->setDescriptionForEvent(fn(string $eventName) => "خصم تم {$eventName}")
+            ->useLogName('deduction');
+    }
     protected $fillable = [
         'employee_id',
         'company_id',

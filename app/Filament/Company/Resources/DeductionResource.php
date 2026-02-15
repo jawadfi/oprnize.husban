@@ -198,6 +198,8 @@ class DeductionResource extends Resource
                             ->label('حالة الخصم')
                             ->options(DeductionStatus::getTranslatedEnum())
                             ->default(DeductionStatus::PENDING)
+                            ->disabled()
+                            ->dehydrated()
                             ->required(),
                     ]),
             ]);
@@ -289,11 +291,138 @@ class DeductionResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn (Deduction $record) => $record->status === DeductionStatus::PENDING),
+
+                // HR Approve action (flowchart: HR Review → Approved → Payroll Officer)
+                Tables\Actions\Action::make('approve')
+                    ->label('اعتماد / Approve')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('اعتماد الخصم')
+                    ->modalDescription('هل أنت متأكد من اعتماد هذا الخصم؟')
+                    ->visible(function (Deduction $record) {
+                        if ($record->status !== DeductionStatus::PENDING) return false;
+                        $user = Filament::auth()->user();
+                        // Only non-branch-managers and Company admins can approve
+                        return $user instanceof Company || ($user instanceof User && !$user->isBranchManager());
+                    })
+                    ->action(function (Deduction $record) {
+                        $record->update(['status' => DeductionStatus::APPROVED]);
+                        \Filament\Notifications\Notification::make()
+                            ->title('تم اعتماد الخصم')
+                            ->success()
+                            ->send();
+                    }),
+
+                // HR Reject action (flowchart: HR Review → Rejected → Back for Correction)
+                Tables\Actions\Action::make('reject')
+                    ->label('رفض / Reject')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->form([
+                        Forms\Components\Textarea::make('rejection_reason')
+                            ->label('سبب الرفض / Rejection Reason')
+                            ->required()
+                            ->rows(3),
+                    ])
+                    ->visible(function (Deduction $record) {
+                        if ($record->status !== DeductionStatus::PENDING) return false;
+                        $user = Filament::auth()->user();
+                        return $user instanceof Company || ($user instanceof User && !$user->isBranchManager());
+                    })
+                    ->action(function (Deduction $record, array $data) {
+                        $record->update([
+                            'status' => DeductionStatus::REJECTED,
+                            'description' => ($record->description ? $record->description . "\n" : '') . 'سبب الرفض: ' . $data['rejection_reason'],
+                        ]);
+                        \Filament\Notifications\Notification::make()
+                            ->title('تم رفض الخصم')
+                            ->danger()
+                            ->send();
+                    }),
+
+                // Revert rejected deduction back to pending for correction
+                Tables\Actions\Action::make('revert_to_pending')
+                    ->label('إعادة للمراجعة / Revert')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('إعادة الخصم للمراجعة')
+                    ->modalDescription('سيتم إعادة هذا الخصم لحالة بانتظار الموافقة حتى تتمكن من تعديله.')
+                    ->visible(fn (Deduction $record) => $record->status === DeductionStatus::REJECTED)
+                    ->action(function (Deduction $record) {
+                        $record->update(['status' => DeductionStatus::PENDING]);
+                        \Filament\Notifications\Notification::make()
+                            ->title('تم إعادة الخصم للمراجعة')
+                            ->success()
+                            ->send();
+                    }),
+
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn (Deduction $record) => in_array($record->status, [DeductionStatus::PENDING, DeductionStatus::REJECTED])),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    // Bulk approve
+                    Tables\Actions\BulkAction::make('approveAll')
+                        ->label('اعتماد الكل / Approve All')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->deselectRecordsAfterCompletion()
+                        ->visible(function () {
+                            $user = Filament::auth()->user();
+                            return $user instanceof Company || ($user instanceof User && !$user->isBranchManager());
+                        })
+                        ->action(function ($records) {
+                            $count = 0;
+                            foreach ($records as $record) {
+                                if ($record->status === DeductionStatus::PENDING) {
+                                    $record->update(['status' => DeductionStatus::APPROVED]);
+                                    $count++;
+                                }
+                            }
+                            \Filament\Notifications\Notification::make()
+                                ->title("تم اعتماد {$count} خصم")
+                                ->success()
+                                ->send();
+                        }),
+
+                    // Bulk reject
+                    Tables\Actions\BulkAction::make('rejectAll')
+                        ->label('رفض الكل / Reject All')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->deselectRecordsAfterCompletion()
+                        ->visible(function () {
+                            $user = Filament::auth()->user();
+                            return $user instanceof Company || ($user instanceof User && !$user->isBranchManager());
+                        })
+                        ->form([
+                            Forms\Components\Textarea::make('rejection_reason')
+                                ->label('سبب الرفض / Rejection Reason')
+                                ->required(),
+                        ])
+                        ->action(function ($records, array $data) {
+                            $count = 0;
+                            foreach ($records as $record) {
+                                if ($record->status === DeductionStatus::PENDING) {
+                                    $record->update([
+                                        'status' => DeductionStatus::REJECTED,
+                                        'description' => ($record->description ? $record->description . "\n" : '') . 'سبب الرفض: ' . $data['rejection_reason'],
+                                    ]);
+                                    $count++;
+                                }
+                            }
+                            \Filament\Notifications\Notification::make()
+                                ->title("تم رفض {$count} خصم")
+                                ->danger()
+                                ->send();
+                        }),
+
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
