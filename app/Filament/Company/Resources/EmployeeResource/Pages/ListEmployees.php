@@ -173,28 +173,63 @@ class ListEmployees extends ListRecords
         }
     }
 
+    /**
+     * Get a value from normalized row data trying multiple possible column names.
+     */
+    protected function getField(array $normalized, array $keys, $default = null)
+    {
+        foreach ($keys as $key) {
+            if (isset($normalized[$key]) && $normalized[$key] !== '' && $normalized[$key] !== null) {
+                return $normalized[$key];
+            }
+        }
+        return $default;
+    }
+
     protected function processRow(array $row, int $companyId): string
     {
-        // Normalize column names (trim whitespace, lowercase for matching)
+        // Normalize column names: trim, lowercase, and also create underscore variant
         $normalized = [];
         foreach ($row as $key => $value) {
-            $normalized[strtolower(trim($key))] = is_string($value) ? trim($value) : $value;
+            $clean = strtolower(trim($key));
+            $normalized[$clean] = is_string($value) ? trim($value) : $value;
+            // Also store with spaces replaced by underscores for flexible matching
+            $underscored = str_replace(' ', '_', $clean);
+            if ($underscored !== $clean) {
+                $normalized[$underscored] = is_string($value) ? trim($value) : $value;
+            }
+            // Also store without underscores/spaces for flexible matching
+            $nospace = str_replace(['_', ' '], '', $clean);
+            if ($nospace !== $clean && $nospace !== $underscored) {
+                $normalized[$nospace] = is_string($value) ? trim($value) : $value;
+            }
         }
 
         // Get identity_number (required)
-        $identityNumber = $normalized['identity_number'] ?? $normalized['identitynumber'] ?? $normalized['identity'] ?? $normalized['رقم الهوية'] ?? null;
+        $identityNumber = $this->getField($normalized, [
+            'identity_number', 'identitynumber', 'identity', 'id_number', 'idnumber',
+            'رقم الهوية', 'رقم_الهوية', 'الهوية',
+        ]);
 
         if (empty($identityNumber)) {
-            throw new \Exception('Missing identity_number');
+            throw new \Exception('Missing identity_number / رقم الهوية');
         }
 
         // Get required fields
-        $name = $normalized['name'] ?? $normalized['الاسم'] ?? $normalized['employee_name'] ?? $normalized['اسم الموظف'] ?? null;
-        $jobTitle = $normalized['job_title'] ?? $normalized['jobtitle'] ?? $normalized['المسمى الوظيفي'] ?? $normalized['الوظيفة'] ?? 'N/A';
-        $nationality = $normalized['nationality'] ?? $normalized['الجنسية'] ?? 'N/A';
+        $name = $this->getField($normalized, [
+            'name', 'employee_name', 'employeename', 'full_name', 'fullname',
+            'الاسم', 'اسم الموظف', 'اسم_الموظف',
+        ]);
+        $jobTitle = $this->getField($normalized, [
+            'job_title', 'jobtitle', 'job', 'title', 'position',
+            'المسمى الوظيفي', 'المسمى_الوظيفي', 'الوظيفة', 'المسمي الوظيفي',
+        ], 'N/A');
+        $nationality = $this->getField($normalized, [
+            'nationality', 'الجنسية',
+        ], 'N/A');
 
         if (empty($name)) {
-            throw new \Exception('Missing employee name');
+            throw new \Exception('Missing employee name / الاسم');
         }
 
         // Find or create employee
@@ -211,29 +246,55 @@ class ListEmployees extends ListRecords
         $employee->nationality = $nationality;
         $employee->company_id = $companyId;
 
-        // Optional fields
-        if (!empty($normalized['emp_id'] ?? $normalized['employee_id'] ?? $normalized['رقم الموظف'] ?? null)) {
-            $employee->emp_id = $normalized['emp_id'] ?? $normalized['employee_id'] ?? $normalized['رقم الموظف'];
+        // emp_id (Employee Number / الرقم الوظيفي)
+        $empId = $this->getField($normalized, [
+            'emp_id', 'empid', 'employee_id', 'employeeid', 'employee_number', 'employeenumber',
+            'emp_no', 'empno', 'emp_number', 'empnumber',
+            'الرقم الوظيفي', 'الرقم_الوظيفي', 'رقم الموظف', 'رقم_الموظف',
+        ]);
+        if ($empId !== null) {
+            $employee->emp_id = $empId;
         }
 
-        if (!empty($normalized['department'] ?? $normalized['القسم'] ?? null)) {
-            $employee->department = $normalized['department'] ?? $normalized['القسم'];
+        // department
+        $department = $this->getField($normalized, [
+            'department', 'dept', 'القسم', 'الإدارة', 'الادارة',
+        ]);
+        if ($department !== null) {
+            $employee->department = $department;
         }
 
-        if (!empty($normalized['location'] ?? $normalized['الموقع'] ?? null)) {
-            $employee->location = $normalized['location'] ?? $normalized['الموقع'];
+        // location
+        $location = $this->getField($normalized, [
+            'location', 'الموقع', 'المدينة', 'city',
+        ]);
+        if ($location !== null) {
+            $employee->location = $location;
         }
 
-        if (!empty($normalized['iqama_no'] ?? $normalized['رقم الإقامة'] ?? null)) {
-            $employee->iqama_no = $normalized['iqama_no'] ?? $normalized['رقم الإقامة'];
+        // iqama_no (Residence Number / رقم الإقامة) - separate from identity_number
+        $iqamaNo = $this->getField($normalized, [
+            'iqama_no', 'iqamano', 'iqama', 'iqama_number', 'iqamanumber',
+            'residence_no', 'residenceno', 'residence_number', 'residencenumber',
+            'رقم الإقامة', 'رقم_الإقامة', 'رقم الاقامة', 'رقم_الاقامة', 'الاقامة', 'الإقامة',
+        ]);
+        if ($iqamaNo !== null) {
+            $employee->iqama_no = $iqamaNo;
         }
 
-        if (!empty($normalized['email'] ?? $normalized['البريد'] ?? null)) {
-            $employee->email = $normalized['email'] ?? $normalized['البريد'];
+        // email
+        $email = $this->getField($normalized, [
+            'email', 'البريد', 'البريد الإلكتروني', 'بريد',
+        ]);
+        if ($email !== null) {
+            $employee->email = $email;
         }
 
         // Handle hire_date
-        $hireDate = $normalized['hire_date'] ?? $normalized['hiredate'] ?? $normalized['تاريخ التعيين'] ?? null;
+        $hireDate = $this->getField($normalized, [
+            'hire_date', 'hiredate', 'start_date', 'startdate', 'join_date', 'joindate',
+            'تاريخ التعيين', 'تاريخ_التعيين', 'تاريخ الالتحاق', 'تاريخ_الالتحاق',
+        ]);
         if (!empty($hireDate)) {
             try {
                 $employee->hire_date = Carbon::make($hireDate)?->format('Y-m-d');

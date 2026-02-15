@@ -8,6 +8,7 @@ use App\Filament\Company\Widgets\EmployeeStatsWidget;
 use App\Filament\Company\Widgets\LeaveRequestStatsWidget;
 use App\Filament\Company\Widgets\PayrollStatsWidget;
 use App\Models\Company;
+use App\Models\Employee;
 use App\Models\Payroll;
 use Carbon\Carbon;
 use Filament\Actions;
@@ -16,9 +17,11 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Url;
+use Livewire\WithFileUploads;
 
 class ListPayrolls extends ListRecords
 {
+    use WithFileUploads;
     protected static string $resource = PayrollResource::class;
 
     protected static string $view = 'filament.company.resources.payroll-resource.pages.list-payrolls';
@@ -34,6 +37,9 @@ class ListPayrolls extends ListRecords
 
     public ?string $clientCompanyName = null;
     public ?string $providerCompanyName = null;
+
+    public $salaryFile = null;
+    public bool $showSalaryImport = false;
 
     public function mount(): void
     {
@@ -764,6 +770,247 @@ class ListPayrolls extends ListRecords
                 ->title('جميع الرواتب موجودة مسبقاً')
                 ->body("جميع الموظفين لديهم كشوف رواتب لهذا الشهر")
                 ->info()
+                ->send();
+        }
+    }
+
+    public function toggleSalaryImport(): void
+    {
+        $this->showSalaryImport = !$this->showSalaryImport;
+        $this->salaryFile = null;
+    }
+
+    /**
+     * Get a salary field from normalized row data trying multiple possible column names.
+     */
+    protected function getSalaryField(array $normalized, array $keys, $default = null)
+    {
+        foreach ($keys as $key) {
+            if (isset($normalized[$key]) && $normalized[$key] !== '' && $normalized[$key] !== null) {
+                return $normalized[$key];
+            }
+        }
+        return $default;
+    }
+
+    public function importSalaries(): void
+    {
+        if (!$this->salaryFile) {
+            Notification::make()
+                ->title('يرجى رفع ملف CSV')
+                ->warning()
+                ->send();
+            return;
+        }
+
+        $user = Filament::auth()->user();
+
+        if ($user->type !== \App\Enums\CompanyTypes::PROVIDER) {
+            Notification::make()
+                ->title('فقط شركة المزود يمكنها رفع الرواتب')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        try {
+            // Get file path from Livewire temporary upload
+            $filePath = $this->salaryFile->getRealPath();
+
+            $csv = \League\Csv\Reader::createFromPath($filePath, 'r');
+            $csv->setHeaderOffset(0);
+            $records = $csv->getRecords();
+
+            $updated = 0;
+            $created = 0;
+            $skipped = 0;
+            $errors = [];
+            $rowNum = 1;
+
+            foreach ($records as $row) {
+                $rowNum++;
+
+                try {
+                    // Normalize column names
+                    $normalized = [];
+                    foreach ($row as $key => $value) {
+                        $clean = strtolower(trim($key));
+                        $normalized[$clean] = is_string($value) ? trim($value) : $value;
+                        $underscored = str_replace(' ', '_', $clean);
+                        if ($underscored !== $clean) {
+                            $normalized[$underscored] = is_string($value) ? trim($value) : $value;
+                        }
+                        $nospace = str_replace(['_', ' '], '', $clean);
+                        if ($nospace !== $clean && $nospace !== $underscored) {
+                            $normalized[$nospace] = is_string($value) ? trim($value) : $value;
+                        }
+                    }
+
+                    // Find employee by emp_id or identity_number
+                    $empId = $this->getSalaryField($normalized, [
+                        'emp_id', 'empid', 'employee_id', 'employeeid', 'emp_no', 'empno',
+                        'employee_number', 'employeenumber', 'emp_number', 'empnumber',
+                        'الرقم الوظيفي', 'الرقم_الوظيفي', 'رقم الموظف', 'رقم_الموظف',
+                    ]);
+
+                    $identityNumber = $this->getSalaryField($normalized, [
+                        'identity_number', 'identitynumber', 'identity', 'id_number', 'idnumber',
+                        'رقم الهوية', 'رقم_الهوية', 'الهوية',
+                    ]);
+
+                    $iqamaNo = $this->getSalaryField($normalized, [
+                        'iqama_no', 'iqamano', 'iqama', 'iqama_number', 'iqamanumber',
+                        'رقم الإقامة', 'رقم_الإقامة', 'رقم الاقامة', 'رقم_الاقامة', 'الاقامة', 'الإقامة',
+                    ]);
+
+                    $employee = null;
+
+                    if ($empId) {
+                        $employee = Employee::where('company_id', $user->id)
+                            ->where('emp_id', $empId)
+                            ->first();
+                    }
+
+                    if (!$employee && $identityNumber) {
+                        $employee = Employee::where('company_id', $user->id)
+                            ->where('identity_number', $identityNumber)
+                            ->first();
+                    }
+
+                    if (!$employee && $iqamaNo) {
+                        $employee = Employee::where('company_id', $user->id)
+                            ->where('iqama_no', $iqamaNo)
+                            ->first();
+                    }
+
+                    if (!$employee) {
+                        $identifier = $empId ?: ($identityNumber ?: ($iqamaNo ?: "Row {$rowNum}"));
+                        $errors[] = "Row {$rowNum}: Employee not found ({$identifier})";
+                        $skipped++;
+                        continue;
+                    }
+
+                    // Get salary fields
+                    $basicSalary = $this->getSalaryField($normalized, [
+                        'basic_salary', 'basicsalary', 'basic', 'salary', 'base_salary', 'basesalary',
+                        'الراتب الأساسي', 'الراتب_الأساسي', 'الراتب الاساسي', 'الراتب_الاساسي', 'الراتب',
+                    ]);
+
+                    $housingAllowance = $this->getSalaryField($normalized, [
+                        'housing_allowance', 'housingallowance', 'housing', 'بدل السكن', 'بدل_السكن', 'السكن',
+                    ]);
+
+                    $transportationAllowance = $this->getSalaryField($normalized, [
+                        'transportation_allowance', 'transportationallowance', 'transportation',
+                        'transport_allowance', 'transportallowance', 'transport',
+                        'بدل النقل', 'بدل_النقل', 'النقل', 'بدل المواصلات', 'بدل_المواصلات',
+                    ]);
+
+                    $foodAllowance = $this->getSalaryField($normalized, [
+                        'food_allowance', 'foodallowance', 'food', 'بدل الطعام', 'بدل_الطعام', 'الطعام',
+                    ]);
+
+                    $otherAllowance = $this->getSalaryField($normalized, [
+                        'other_allowance', 'otherallowance', 'other', 'بدلات أخرى', 'بدلات_أخرى', 'بدلات اخرى',
+                    ]);
+
+                    $fees = $this->getSalaryField($normalized, [
+                        'fees', 'fee', 'الرسوم', 'رسوم',
+                    ]);
+
+                    $workDays = $this->getSalaryField($normalized, [
+                        'work_days', 'workdays', 'days', 'أيام العمل', 'أيام_العمل', 'ايام العمل',
+                    ]);
+
+                    if (!$basicSalary || (float) $basicSalary <= 0) {
+                        $errors[] = "Row {$rowNum}: Missing or zero basic_salary for {$employee->name}";
+                        $skipped++;
+                        continue;
+                    }
+
+                    // Build salary data
+                    $salaryData = [
+                        'basic_salary' => (float) $basicSalary,
+                        'housing_allowance' => (float) ($housingAllowance ?? 0),
+                        'transportation_allowance' => (float) ($transportationAllowance ?? 0),
+                        'food_allowance' => (float) ($foodAllowance ?? 0),
+                        'other_allowance' => (float) ($otherAllowance ?? 0),
+                        'fees' => (float) ($fees ?? 0),
+                        'work_days' => (int) ($workDays ?? 30),
+                    ];
+
+                    // Calculate total_package
+                    $salaryData['total_package'] = $salaryData['basic_salary']
+                        + $salaryData['housing_allowance']
+                        + $salaryData['transportation_allowance']
+                        + $salaryData['food_allowance']
+                        + $salaryData['other_allowance']
+                        + $salaryData['fees'];
+
+                    // Find or create payroll for this employee + month
+                    $payroll = Payroll::where('employee_id', $employee->id)
+                        ->where('company_id', $user->id)
+                        ->where('payroll_month', $this->selectedMonth)
+                        ->first();
+
+                    if ($payroll) {
+                        $payroll->update($salaryData);
+                        $updated++;
+                    } else {
+                        Payroll::create(array_merge($salaryData, [
+                            'employee_id' => $employee->id,
+                            'company_id' => $user->id,
+                            'payroll_month' => $this->selectedMonth,
+                            'status' => \App\Enums\PayrollStatus::DRAFT,
+                            'added_days' => 0,
+                            'overtime_hours' => 0,
+                            'overtime_amount' => 0,
+                            'added_days_amount' => 0,
+                            'other_additions' => 0,
+                            'absence_days' => 0,
+                            'absence_unpaid_leave_deduction' => 0,
+                            'food_subscription_deduction' => 0,
+                            'other_deduction' => 0,
+                        ]));
+                        $created++;
+                    }
+                } catch (\Exception $e) {
+                    $errors[] = "Row {$rowNum}: " . $e->getMessage();
+                    $skipped++;
+                }
+            }
+
+            // Clean up
+            $this->salaryFile = null;
+            $this->showSalaryImport = false;
+            $this->resetTable();
+
+            // Show results
+            $message = [];
+            if ($created > 0) $message[] = "تم إنشاء: {$created}";
+            if ($updated > 0) $message[] = "تم تحديث: {$updated}";
+            if ($skipped > 0) $message[] = "تم تخطي: {$skipped}";
+
+            Notification::make()
+                ->title('تم رفع الرواتب بنجاح')
+                ->body(implode(' | ', $message))
+                ->success()
+                ->send();
+
+            if (!empty($errors)) {
+                Notification::make()
+                    ->title('بعض الصفوف فيها أخطاء')
+                    ->body(implode("\n", array_slice($errors, 0, 10)))
+                    ->warning()
+                    ->persistent()
+                    ->send();
+            }
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('خطأ في رفع الملف')
+                ->body($e->getMessage())
+                ->danger()
                 ->send();
         }
     }

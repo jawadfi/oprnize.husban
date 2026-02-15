@@ -260,6 +260,12 @@
 
             {{-- Action Buttons --}}
             <div class="flex items-center gap-4">
+                <button type="button" wire:click="toggleSalaryImport" class="oprnize-btn-export" style="border-color: #076EA7; color: #076EA7;">
+                    <svg class="w-5 h-5" fill="none" stroke="#076EA7" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                    </svg>
+                    رفع الرواتب / Import Salaries
+                </button>
                 <button type="button" wire:click="exportPayroll" class="oprnize-btn-export">
                     <svg class="w-5 h-5" fill="none" stroke="#B1B1B1" stroke-width="1.5" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -274,6 +280,35 @@
                 </button>
             </div>
         </div>
+
+        {{-- Salary Import Panel --}}
+        @if ($this->showSalaryImport)
+        <div class="oprnize-card" style="border: 2px solid #076EA7;">
+            <div class="flex flex-col gap-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold" style="color: #076EA7;">رفع الرواتب من ملف CSV / Import Salaries from CSV</h3>
+                    <button type="button" wire:click="toggleSalaryImport" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <p class="text-sm text-gray-500">
+                    يجب أن يحتوي الملف على الأعمدة التالية: <strong>emp_id</strong> أو <strong>identity_number</strong> + <strong>basic_salary</strong>
+                    <br>
+                    أعمدة اختيارية: housing_allowance, transportation_allowance, food_allowance, other_allowance, fees, work_days
+                </p>
+                <div class="flex items-center gap-4">
+                    <input type="file" wire:model="salaryFile" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                    <button type="button" wire:click="importSalaries" wire:loading.attr="disabled" class="oprnize-btn-calculate whitespace-nowrap" style="min-width: 120px;">
+                        <span wire:loading.remove wire:target="importSalaries">رفع / Upload</span>
+                        <span wire:loading wire:target="importSalaries">جاري الرفع...</span>
+                    </button>
+                </div>
+                @error('salaryFile') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+            </div>
+        </div>
+        @endif
 
         {{-- Payroll Table --}}
         {{ $this->table }}

@@ -15,6 +15,7 @@ class EmployeeSchema
                 Forms\Components\Tabs\Tab::make('Personal Information')
                     ->icon('heroicon-o-user')->columns(3)->schema([
                     Forms\Components\TextInput::make('name')->label('Employee Name')->required(),
+                    Forms\Components\TextInput::make('emp_id')->label('رقم الموظف / Emp ID'),
                     Forms\Components\TextInput::make('job_title')->required(),
                     Forms\Components\TextInput::make('department')->required(),
                     Forms\Components\DatePicker::make('hire_date')->required(),
@@ -40,7 +41,8 @@ class EmployeeSchema
     public static function getTableColumns($withCompanyAssigned=true,$path=''): array
     {
         return [
-            Tables\Columns\TextColumn::make($path.'id')->weight('bold')->prefix('#')->label('Employee ID')->sortable()->searchable(),
+            Tables\Columns\TextColumn::make($path.'id')->weight('bold')->prefix('#')->label('ID')->sortable()->searchable(),
+            Tables\Columns\TextColumn::make($path.'emp_id')->label('رقم الموظف / Emp ID')->sortable()->searchable()->placeholder('-'),
             Tables\Columns\TextColumn::make($path.'name')->label('Employee Name')->sortable()->searchable(),
             Tables\Columns\TextColumn::make($path.'nationality')->sortable()->searchable(),
             Tables\Columns\TextColumn::make($path.'iqama_no')->toggleable()->sortable()->searchable(),
