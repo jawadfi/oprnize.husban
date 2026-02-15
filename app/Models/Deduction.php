@@ -34,6 +34,7 @@ class Deduction extends Model
         'amount',
         'daily_rate',
         'status',
+        'is_recurring',
         'created_by_company_id',
     ];
 
@@ -43,6 +44,7 @@ class Deduction extends Model
             'days' => 'integer',
             'amount' => 'decimal:2',
             'daily_rate' => 'decimal:2',
+            'is_recurring' => 'boolean',
         ];
     }
 

@@ -4,6 +4,7 @@ namespace App\Filament\Company\Widgets;
 
 use App\Enums\CompanyTypes;
 use App\Enums\EmployeeAssignedStatus;
+use App\Filament\Company\Resources\EmployeeResource;
 use App\Models\Employee;
 use Filament\Facades\Filament;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
@@ -22,21 +23,25 @@ class EmployeeStatsWidget extends BaseWidget
                 ->whereHas('assigned', fn($q) => $q->where('status', EmployeeAssignedStatus::APPROVED))
                 ->count();
             
+            $url = EmployeeResource::getUrl('index');
             return [
                 Stat::make('إجمالي الموظفين', $totalEmployees)
                     ->description('عدد الموظفين المسجلين')
                     ->descriptionIcon('heroicon-o-users')
-                    ->color('primary'),
+                    ->color('primary')
+                    ->url($url),
                     
                 Stat::make('الموظفين المعينين', $assignedEmployees)
                     ->description('الموظفين المخصصين للعملاء')
                     ->descriptionIcon('heroicon-o-user-group')
-                    ->color('success'),
+                    ->color('success')
+                    ->url($url),
                     
                 Stat::make('الموظفين المتاحين', $totalEmployees - $assignedEmployees)
                     ->description('موظفين غير معينين')
                     ->descriptionIcon('heroicon-o-user-plus')
-                    ->color('warning'),
+                    ->color('warning')
+                    ->url($url),
             ];
         } else {
             // Client: count assigned employees only
@@ -49,7 +54,8 @@ class EmployeeStatsWidget extends BaseWidget
                 Stat::make('الموظفين المعينين', $assignedEmployees)
                     ->description('عدد الموظفين المخصصين لك')
                     ->descriptionIcon('heroicon-o-users')
-                    ->color('primary'),
+                    ->color('primary')
+                    ->url(EmployeeResource::getUrl('index')),
             ];
         }
     }

@@ -120,6 +120,21 @@ class Employee extends Authenticatable implements FilamentUser
         return $this->hasMany(BranchEntry::class);
     }
 
+    public function overtimes()
+    {
+        return $this->hasMany(EmployeeOvertime::class);
+    }
+
+    public function additions()
+    {
+        return $this->hasMany(EmployeeAddition::class);
+    }
+
+    public function timesheets()
+    {
+        return $this->hasMany(EmployeeTimesheet::class);
+    }
+
     /**
      * Check if employee has complete payroll data (basic_salary > 0)
      */

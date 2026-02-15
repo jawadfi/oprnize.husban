@@ -258,10 +258,7 @@ class PayrollResource extends Resource
                     ->schema([
                         Forms\Components\Placeholder::make('total_other_allow')
                             ->label('Total Other Allow')
-                            ->content(function ($get, $record) {
-                                if ($record) {
-                                    return number_format($record->total_other_allow, 2) . ' SAR';
-                                }
+                            ->content(function ($get) {
                                 $total = (float)($get('housing_allowance') ?? 0) +
                                          (float)($get('transportation_allowance') ?? 0) +
                                          (float)($get('food_allowance') ?? 0) +
@@ -270,10 +267,7 @@ class PayrollResource extends Resource
                             }),
                         Forms\Components\Placeholder::make('total_salary')
                             ->label('Total Salary')
-                            ->content(function ($get, $record) {
-                                if ($record) {
-                                    return number_format($record->total_salary, 2) . ' SAR';
-                                }
+                            ->content(function ($get) {
                                 $basic = (float)($get('basic_salary') ?? 0);
                                 $totalAllow = (float)($get('housing_allowance') ?? 0) +
                                              (float)($get('transportation_allowance') ?? 0) +
@@ -283,10 +277,7 @@ class PayrollResource extends Resource
                             }),
                         Forms\Components\Placeholder::make('monthly_cost')
                             ->label('Monthly Cost')
-                            ->content(function ($get, $record) {
-                                if ($record) {
-                                    return number_format($record->monthly_cost, 2) . ' SAR';
-                                }
+                            ->content(function ($get) {
                                 $basic = (float)($get('basic_salary') ?? 0);
                                 $totalAllow = (float)($get('housing_allowance') ?? 0) +
                                              (float)($get('transportation_allowance') ?? 0) +
@@ -297,10 +288,7 @@ class PayrollResource extends Resource
                             }),
                         Forms\Components\Placeholder::make('total_additions')
                             ->label('Total Additions')
-                            ->content(function ($get, $record) {
-                                if ($record) {
-                                    return number_format($record->total_additions, 2) . ' SAR';
-                                }
+                            ->content(function ($get) {
                                 $total = (float)($get('overtime_amount') ?? 0) +
                                          (float)($get('added_days_amount') ?? 0) +
                                          (float)($get('other_additions') ?? 0);
@@ -308,10 +296,7 @@ class PayrollResource extends Resource
                             }),
                         Forms\Components\Placeholder::make('total_earning')
                             ->label('Total Earning')
-                            ->content(function ($get, $record) {
-                                if ($record) {
-                                    return number_format($record->total_earning, 2) . ' SAR';
-                                }
+                            ->content(function ($get) {
                                 $totalPackage = (float)($get('total_package') ?? 0);
                                 $fees = (float)($get('fees') ?? 0);
                                 $totalAdditions = (float)($get('overtime_amount') ?? 0) +
@@ -321,10 +306,7 @@ class PayrollResource extends Resource
                             }),
                         Forms\Components\Placeholder::make('total_deductions')
                             ->label('Total Deductions')
-                            ->content(function ($get, $record) {
-                                if ($record) {
-                                    return number_format($record->total_deductions, 2) . ' SAR';
-                                }
+                            ->content(function ($get) {
                                 $total = (float)($get('absence_unpaid_leave_deduction') ?? 0) +
                                          (float)($get('food_subscription_deduction') ?? 0) +
                                          (float)($get('other_deduction') ?? 0);
@@ -332,10 +314,7 @@ class PayrollResource extends Resource
                             }),
                         Forms\Components\Placeholder::make('net_payment')
                             ->label('Net Payment')
-                            ->content(function ($get, $record) {
-                                if ($record) {
-                                    return number_format($record->net_payment, 2) . ' SAR';
-                                }
+                            ->content(function ($get) {
                                 $totalPackage = (float)($get('total_package') ?? 0);
                                 $fees = (float)($get('fees') ?? 0);
                                 $totalAdditions = (float)($get('overtime_amount') ?? 0) +

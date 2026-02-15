@@ -4,6 +4,7 @@ namespace App\Filament\Company\Widgets;
 
 use App\Enums\CompanyTypes;
 use App\Enums\LeaveRequestStatus;
+use App\Filament\Company\Pages\LeaveRequests;
 use App\Models\LeaveRequest;
 use Filament\Facades\Filament;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
@@ -22,10 +23,12 @@ class LeaveRequestStatsWidget extends BaseWidget
             ->where('status', LeaveRequestStatus::PENDING)
             ->count();
         
+        $leaveUrl = LeaveRequests::getUrl();
         $stats[] = Stat::make('طلبات الإجازات المعلقة', $pending)
             ->description('بانتظار الموافقة')
             ->descriptionIcon('heroicon-o-clock')
-            ->color($pending > 0 ? 'warning' : 'success');
+            ->color($pending > 0 ? 'warning' : 'success')
+            ->url($leaveUrl);
         
         if ($user->type === CompanyTypes::PROVIDER) {
             // Show monthly leave requests statistics
@@ -39,7 +42,8 @@ class LeaveRequestStatsWidget extends BaseWidget
             $stats[] = Stat::make('الإجازات المعتمدة هذا الشهر', $approved)
                 ->description(now()->format('F Y'))
                 ->descriptionIcon('heroicon-o-check-circle')
-                ->color('success');
+                ->color('success')
+                ->url($leaveUrl);
         }
         
         return $stats;

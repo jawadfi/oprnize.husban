@@ -4,6 +4,7 @@ namespace App\Filament\Company\Widgets;
 
 use App\Enums\CompanyTypes;
 use App\Enums\DeductionStatus;
+use App\Filament\Company\Resources\DeductionResource;
 use App\Models\Deduction;
 use Filament\Facades\Filament;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
@@ -24,21 +25,25 @@ class DeductionStatsWidget extends BaseWidget
         $pendingCount = (clone $query)->where('status', DeductionStatus::PENDING)->count();
         $approvedCount = (clone $query)->where('status', DeductionStatus::APPROVED)->count();
         
+        $url = DeductionResource::getUrl('index');
         return [
             Stat::make('إجمالي الخصومات', number_format($totalAmount, 2) . ' ريال')
                 ->description('الخصومات المعتمدة لشهر ' . now()->format('F'))
                 ->descriptionIcon('heroicon-o-minus-circle')
-                ->color('danger'),
+                ->color('danger')
+                ->url($url),
                 
             Stat::make('خصومات معلقة', $pendingCount)
                 ->description('بانتظار الموافقة')
                 ->descriptionIcon('heroicon-o-clock')
-                ->color($pendingCount > 0 ? 'warning' : 'success'),
+                ->color($pendingCount > 0 ? 'warning' : 'success')
+                ->url($url),
                 
             Stat::make('خصومات معتمدة', $approvedCount)
                 ->description('تم اعتمادها')
                 ->descriptionIcon('heroicon-o-check-circle')
-                ->color('info'),
+                ->color('info')
+                ->url($url),
         ];
     }
 }
