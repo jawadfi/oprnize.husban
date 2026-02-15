@@ -34,7 +34,7 @@ class DatabaseSeeder extends Seeder
 
         // PROVIDER company
         $provider = Company::firstOrCreate(
-            ['email' => 'provider@test.com'],
+            ['email' => 'masar@masar.com'],
             [
                 'name' => 'مسار العقود / Masar alaqood',
                 'commercial_registration_number' => '1234567890',
