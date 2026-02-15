@@ -17,6 +17,8 @@ services:
         value: false
       - key: APP_KEY
         generateValue: true
+      - key: QUEUE_CONNECTION
+        value: sync
       - key: DB_CONNECTION
         value: pgsql
       - key: DB_HOST

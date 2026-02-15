@@ -37,6 +37,9 @@ RUN chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache
 # Expose port
 EXPOSE ${PORT:-10000}
 
+# Force sync queue (no queue worker on Render)
+ENV QUEUE_CONNECTION=sync
+
 # Start Laravel server
 CMD php artisan storage:link && \
     php artisan config:cache && \
