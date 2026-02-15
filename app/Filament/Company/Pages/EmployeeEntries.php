@@ -200,17 +200,11 @@ class EmployeeEntries extends Page implements HasForms
         if ($timesheet) {
             $this->attendanceData = $timesheet->attendance_data ?? [];
         } else {
-            // Initialize with defaults  
+            // Initialize with defaults - all days as Present
             $daysInMonth = Carbon::create($year, $month, 1)->daysInMonth;
             $this->attendanceData = [];
             for ($d = 1; $d <= $daysInMonth; $d++) {
-                $date = Carbon::create($year, $month, $d);
-                // Default: weekends (Friday/Saturday) = DO, rest = P
-                if ($date->isFriday() || $date->isSaturday()) {
-                    $this->attendanceData[$d] = 'DO';
-                } else {
-                    $this->attendanceData[$d] = 'P';
-                }
+                $this->attendanceData[$d] = 'P';
             }
         }
     }
@@ -446,8 +440,7 @@ class EmployeeEntries extends Page implements HasForms
     public function getTimesheetSummary(): array
     {
         $counts = [
-            'P' => 0, 'A' => 0, 'DO' => 0, 'L' => 0,
-            'AL' => 0, 'UL' => 0, 'SL' => 0, 'FR' => 0,
+            'P' => 0, 'A' => 0,
         ];
 
         foreach ($this->attendanceData as $status) {

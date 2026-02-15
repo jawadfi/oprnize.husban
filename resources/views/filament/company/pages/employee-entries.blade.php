@@ -107,16 +107,8 @@
         .timesheet-select:focus { outline: 2px solid #076EA7; border-radius: 4px; }
         .status-P { background-color: #ffffff; }
         .status-A { background-color: #fee2e2; }
-        .status-DO { background-color: #dbeafe; }
-        .status-L { background-color: #f3f4f6; }
-        .status-AL { background-color: #ccfbf1; }
-        .status-UL { background-color: #fef9c3; }
-        .status-SL { background-color: #ffedd5; }
-        .status-FR { background-color: #ede9fe; }
         .dark .status-P { background-color: #1f2937; }
         .dark .status-A { background-color: #7f1d1d; }
-        .dark .status-DO { background-color: #1e3a5f; }
-        .dark .status-L { background-color: #374151; }
 
         /* Summary cards */
         .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-top: 12px; }
@@ -378,10 +370,6 @@
                             @endfor
                             <th style="background: #d1fae5; min-width: 50px;">P</th>
                             <th style="background: #fee2e2; min-width: 50px;">A</th>
-                            <th style="background: #dbeafe; min-width: 50px;">DO</th>
-                            <th style="background: #ccfbf1; min-width: 50px;">AL</th>
-                            <th style="background: #fef9c3; min-width: 50px;">UL</th>
-                            <th style="background: #ede9fe; min-width: 50px;">FR</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -403,10 +391,6 @@
                             @php $summary = $this->getTimesheetSummary(); @endphp
                             <td style="background: #d1fae5; font-weight: 700;">{{ $summary['P'] }}</td>
                             <td style="background: #fee2e2; font-weight: 700;">{{ $summary['A'] }}</td>
-                            <td style="background: #dbeafe; font-weight: 700;">{{ $summary['DO'] }}</td>
-                            <td style="background: #ccfbf1; font-weight: 700;">{{ $summary['AL'] }}</td>
-                            <td style="background: #fef9c3; font-weight: 700;">{{ $summary['UL'] }}</td>
-                            <td style="background: #ede9fe; font-weight: 700;">{{ $summary['FR'] }}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -416,12 +400,6 @@
             <div class="summary-grid" style="margin-top: 16px;">
                 <div class="summary-card" style="background: #d1fae5; color: #065f46;">P = حاضر ({{ $summary['P'] ?? 0 }})</div>
                 <div class="summary-card" style="background: #fee2e2; color: #991b1b;">A = غائب ({{ $summary['A'] ?? 0 }})</div>
-                <div class="summary-card" style="background: #dbeafe; color: #1e40af;">DO = يوم إجازة ({{ $summary['DO'] ?? 0 }})</div>
-                <div class="summary-card" style="background: #f3f4f6; color: #374151;">L = إجازة ({{ $summary['L'] ?? 0 }})</div>
-                <div class="summary-card" style="background: #ccfbf1; color: #115e59;">AL = سنوية ({{ $summary['AL'] ?? 0 }})</div>
-                <div class="summary-card" style="background: #fef9c3; color: #854d0e;">UL = بدون راتب ({{ $summary['UL'] ?? 0 }})</div>
-                <div class="summary-card" style="background: #ffedd5; color: #9a3412;">SL = مرضية ({{ $summary['SL'] ?? 0 }})</div>
-                <div class="summary-card" style="background: #ede9fe; color: #5b21b6;">FR = لم يباشر ({{ $summary['FR'] ?? 0 }})</div>
             </div>
 
             <div style="text-align: left; margin-top: 16px;">

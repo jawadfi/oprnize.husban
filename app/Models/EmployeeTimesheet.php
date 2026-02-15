@@ -74,12 +74,6 @@ class EmployeeTimesheet extends Model
             match($status) {
                 'P' => $counts['work_days']++,
                 'A' => $counts['absent_days']++,
-                'DO' => $counts['day_off_count']++,
-                'L' => $counts['leave_days']++,
-                'AL' => $counts['annual_leave_days']++,
-                'UL' => $counts['unpaid_leave_days']++,
-                'SL' => $counts['sick_leave_days']++,
-                'FR' => $counts['failed_to_report_days']++,
                 default => null,
             };
         }
