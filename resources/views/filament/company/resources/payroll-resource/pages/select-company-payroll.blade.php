@@ -511,6 +511,6 @@
                 @endif
             </div>
         @endif
-    @endif
+        @endif
     </div>
 </x-filament-panels::page>
