@@ -21,6 +21,8 @@ class SelectCompanyPayroll extends Page
 
     public ?string $payrollCategory = null;
 
+    public ?string $selectedCompanyId = null;
+
     public function mount(): void
     {
         $user = Filament::auth()->user();
@@ -29,30 +31,63 @@ class SelectCompanyPayroll extends Page
 
     public function getTitle(): string
     {
-        if ($this->payrollCategory) {
-            $categoryLabels = [
-                'contracted' => 'Contracted Payroll / كشف رواتب تعاقدي',
-                'run' => 'Run Payroll / تشغيل الرواتب',
-                'review' => 'Review Payroll / مراجعة الرواتب',
-            ];
-            $label = $categoryLabels[$this->payrollCategory] ?? '';
-            if ($this->companyType === CompanyTypes::CLIENT) {
-                return $label . ' - Select Provider / اختر شركة المزود';
-            }
-            return $label . ' - Select Company';
+        if ($this->selectedCompanyId) {
+            $companyName = $this->getSelectedCompanyName();
+            return $companyName . ' - Select Category / اختر نوع كشف الرواتب';
         }
 
-        return 'Payroll - Select Category / اختر نوع كشف الرواتب';
+        if ($this->companyType === CompanyTypes::CLIENT) {
+            return 'Payroll - Select Provider / اختر شركة المزود';
+        }
+
+        return 'Payroll - Select Company / اختر الشركة';
     }
 
     public function selectCategory(string $category): void
     {
         $this->payrollCategory = $category;
+
+        if (!$this->selectedCompanyId) {
+            return;
+        }
+
+        $user = Filament::auth()->user();
+
+        // For 'no_payroll', auto-create empty DRAFT payrolls
+        if ($this->selectedCompanyId === 'no_payroll' && $user->type === CompanyTypes::PROVIDER) {
+            $this->createEmptyPayrollsForMissing();
+        }
+
+        $params = ['payrollCategory' => $this->payrollCategory];
+
+        if ($user->type === CompanyTypes::CLIENT) {
+            $params['providerCompany'] = $this->selectedCompanyId;
+        } else {
+            $params['clientCompany'] = $this->selectedCompanyId;
+        }
+
+        $this->redirect(PayrollResource::getUrl('list', $params));
     }
 
-    public function resetCategory(): void
+    public function resetCompany(): void
     {
+        $this->selectedCompanyId = null;
         $this->payrollCategory = null;
+    }
+
+    protected function getSelectedCompanyName(): string
+    {
+        if ($this->selectedCompanyId === 'all') {
+            return $this->companyType === CompanyTypes::CLIENT ? 'All Providers / جميع المزودين' : 'All Companies / جميع الشركات';
+        }
+        if ($this->selectedCompanyId === 'in_house') {
+            return 'In-House / موظفين داخليين';
+        }
+        if ($this->selectedCompanyId === 'no_payroll') {
+            return 'No Payroll Data / بدون بيانات رواتب';
+        }
+        $company = Company::find($this->selectedCompanyId);
+        return $company ? $company->name : '';
     }
 
     /**
@@ -223,23 +258,7 @@ class SelectCompanyPayroll extends Page
 
     public function selectCompany(string $companyId): void
     {
-        $user = Filament::auth()->user();
-
-        // For 'no_payroll', auto-create empty DRAFT payrolls for employees missing payroll (PROVIDER only)
-        if ($companyId === 'no_payroll' && $user->type === CompanyTypes::PROVIDER) {
-            $this->createEmptyPayrollsForMissing();
-        }
-
-        $params = ['payrollCategory' => $this->payrollCategory ?? 'run'];
-
-        // Use different URL param depending on company type
-        if ($user->type === CompanyTypes::CLIENT) {
-            $params['providerCompany'] = $companyId;
-        } else {
-            $params['clientCompany'] = $companyId;
-        }
-
-        $this->redirect(PayrollResource::getUrl('list', $params));
+        $this->selectedCompanyId = $companyId;
     }
 
     /**
