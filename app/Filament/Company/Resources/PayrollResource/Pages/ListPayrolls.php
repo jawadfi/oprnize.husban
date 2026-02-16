@@ -35,6 +35,9 @@ class ListPayrolls extends ListRecords
     #[Url]
     public ?string $providerCompany = null;
 
+    #[Url]
+    public ?string $payrollCategory = null;
+
     public ?string $clientCompanyName = null;
     public ?string $providerCompanyName = null;
 
@@ -71,7 +74,12 @@ class ListPayrolls extends ListRecords
     public function getTitle(): string
     {
         $date = Carbon::parse($this->selectedMonth . '-01');
-        $title = 'Payroll - ' . $date->format('F Y');
+        $categoryLabels = [
+            'contracted' => 'Contracted Payroll',
+            'run' => 'Run Payroll',
+            'review' => 'Review',
+        ];
+        $title = ($categoryLabels[$this->payrollCategory] ?? 'Payroll') . ' - ' . $date->format('F Y');
         if ($this->clientCompanyName) {
             $title .= ' - ' . $this->clientCompanyName;
         }
@@ -83,6 +91,10 @@ class ListPayrolls extends ListRecords
 
     protected function getHeaderActions(): array
     {
+        if (in_array($this->payrollCategory, ['contracted', 'review'])) {
+            return [];
+        }
+
         return [
             Actions\CreateAction::make(),
         ];

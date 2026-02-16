@@ -19,6 +19,8 @@ class SelectCompanyPayroll extends Page
 
     public ?string $companyType = null;
 
+    public ?string $payrollCategory = null;
+
     public function mount(): void
     {
         $user = Filament::auth()->user();
@@ -27,10 +29,30 @@ class SelectCompanyPayroll extends Page
 
     public function getTitle(): string
     {
-        if ($this->companyType === CompanyTypes::CLIENT) {
-            return 'Payroll - Select Provider / اختر شركة المزود';
+        if ($this->payrollCategory) {
+            $categoryLabels = [
+                'contracted' => 'Contracted Payroll / كشف رواتب تعاقدي',
+                'run' => 'Run Payroll / تشغيل الرواتب',
+                'review' => 'Review Payroll / مراجعة الرواتب',
+            ];
+            $label = $categoryLabels[$this->payrollCategory] ?? '';
+            if ($this->companyType === CompanyTypes::CLIENT) {
+                return $label . ' - Select Provider / اختر شركة المزود';
+            }
+            return $label . ' - Select Company';
         }
-        return 'Payroll - Select Company';
+
+        return 'Payroll - Select Category / اختر نوع كشف الرواتب';
+    }
+
+    public function selectCategory(string $category): void
+    {
+        $this->payrollCategory = $category;
+    }
+
+    public function resetCategory(): void
+    {
+        $this->payrollCategory = null;
     }
 
     /**
@@ -208,12 +230,16 @@ class SelectCompanyPayroll extends Page
             $this->createEmptyPayrollsForMissing();
         }
 
+        $params = ['payrollCategory' => $this->payrollCategory ?? 'run'];
+
         // Use different URL param depending on company type
         if ($user->type === CompanyTypes::CLIENT) {
-            $this->redirect(PayrollResource::getUrl('list', ['providerCompany' => $companyId]));
+            $params['providerCompany'] = $companyId;
         } else {
-            $this->redirect(PayrollResource::getUrl('list', ['clientCompany' => $companyId]));
+            $params['clientCompany'] = $companyId;
         }
+
+        $this->redirect(PayrollResource::getUrl('list', $params));
     }
 
     /**

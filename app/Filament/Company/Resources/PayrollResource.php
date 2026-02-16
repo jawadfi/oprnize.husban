@@ -340,6 +340,9 @@ class PayrollResource extends Resource
             $companyType = $user->company->type;
         }
 
+        // Get payroll category from URL query parameter
+        $payrollCategory = request()->query('payrollCategory', 'run');
+
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('employee.emp_id')
@@ -486,11 +489,13 @@ class PayrollResource extends Resource
                     ->options(PayrollStatus::getTranslatedEnum()),
             ])
             ->headerActions([
-                FilamentExportHeaderAction::make('export'),
+                FilamentExportHeaderAction::make('export')
+                    ->visible($payrollCategory === 'review'),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn() => $payrollCategory === 'run'),
 
                 // CLIENT: Submit to Provider (send movements/deductions)
                 Tables\Actions\Action::make('submit_to_provider')
@@ -501,6 +506,7 @@ class PayrollResource extends Resource
                     ->modalHeading('إرسال الحركات للشركة الأم')
                     ->modalDescription('سيتم إرسال جميع الحركات والخصومات والإضافات للشركة الأم لاحتساب الراتب')
                     ->visible(fn(Payroll $record) =>
+                        $payrollCategory === 'run' &&
                         $companyType === CompanyTypes::CLIENT &&
                         in_array($record->status, [PayrollStatus::DRAFT, PayrollStatus::REBACK])
                     )
@@ -526,6 +532,7 @@ class PayrollResource extends Resource
                     ->modalHeading('احتساب الراتب')
                     ->modalDescription('سيتم احتساب راتب هذا الموظف')
                     ->visible(fn(Payroll $record) =>
+                        $payrollCategory === 'run' &&
                         $companyType === CompanyTypes::PROVIDER &&
                         in_array($record->status, [PayrollStatus::SUBMITTED_TO_PROVIDER, PayrollStatus::REBACK])
                     )
@@ -554,6 +561,7 @@ class PayrollResource extends Resource
                     ->modalHeading('تقديم الراتب النهائي')
                     ->modalDescription('سيتم تقديم كشف الراتب النهائي للعميل للمراجعة')
                     ->visible(fn(Payroll $record) =>
+                        $payrollCategory === 'run' &&
                         $companyType === CompanyTypes::PROVIDER &&
                         $record->status === PayrollStatus::CALCULATED
                     )
@@ -582,6 +590,7 @@ class PayrollResource extends Resource
                             ->rows(3),
                     ])
                     ->visible(fn(Payroll $record) =>
+                        $payrollCategory === 'run' &&
                         $companyType === CompanyTypes::CLIENT &&
                         $record->status === PayrollStatus::SUBMITTED_TO_CLIENT
                     )
@@ -607,6 +616,7 @@ class PayrollResource extends Resource
                     ->modalHeading('اعتماد الراتب')
                     ->modalDescription('سيتم اعتماد كشف الراتب بشكل نهائي ولا يمكن التعديل عليه بعد ذلك')
                     ->visible(fn(Payroll $record) =>
+                        $payrollCategory === 'run' &&
                         $companyType === CompanyTypes::CLIENT &&
                         $record->status === PayrollStatus::SUBMITTED_TO_CLIENT
                     )
@@ -623,11 +633,13 @@ class PayrollResource extends Resource
                             ->send();
                     }),
 
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn() => $payrollCategory === 'run'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible($payrollCategory === 'run'),
                 ]),
             ])
             ->checkIfRecordIsSelectableUsing(fn (): bool => true)

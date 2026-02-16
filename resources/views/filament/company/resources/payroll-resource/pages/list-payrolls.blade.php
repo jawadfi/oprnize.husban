@@ -130,7 +130,7 @@
 
     <div class="space-y-6">
         {{-- Back to Companies button (for Provider with selected company) --}}
-        @if ($this->clientCompany)
+        @if ($this->clientCompany || $this->providerCompany)
             <div class="flex items-center gap-3">
                 <a href="{{ \App\Filament\Company\Resources\PayrollResource::getUrl('index') }}"
                    class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors">
@@ -143,6 +143,24 @@
                     <span class="text-lg font-semibold text-blue-600">{{ $this->clientCompanyName }}</span>
                 @elseif ($this->clientCompany === 'all')
                     <span class="text-lg font-semibold text-blue-600">All Companies</span>
+                @elseif ($this->providerCompanyName)
+                    <span class="text-lg font-semibold text-blue-600">{{ $this->providerCompanyName }}</span>
+                @elseif ($this->providerCompany === 'all')
+                    <span class="text-lg font-semibold text-blue-600">All Providers</span>
+                @endif
+
+                @if ($this->payrollCategory)
+                    @php
+                        $categoryBadges = [
+                            'contracted' => ['label' => 'Contracted / تعاقدي', 'color' => '#6366F1', 'bg' => '#EEF2FF'],
+                            'run' => ['label' => 'Run / تشغيل', 'color' => '#076EA7', 'bg' => '#F0F9FF'],
+                            'review' => ['label' => 'Review / مراجعة', 'color' => '#059669', 'bg' => '#ECFDF5'],
+                        ];
+                        $badge = $categoryBadges[$this->payrollCategory] ?? $categoryBadges['run'];
+                    @endphp
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold" style="background: {{ $badge['bg'] }}; color: {{ $badge['color'] }};">
+                        {{ $badge['label'] }}
+                    </span>
                 @endif
             </div>
         @endif
@@ -260,29 +278,40 @@
 
             {{-- Action Buttons --}}
             <div class="flex items-center gap-4">
+                {{-- Import Salaries: only in "run" mode --}}
+                @if ($this->payrollCategory === 'run' || !$this->payrollCategory)
                 <button type="button" wire:click="toggleSalaryImport" class="oprnize-btn-export" style="border-color: #076EA7; color: #076EA7;">
                     <svg class="w-5 h-5" fill="none" stroke="#076EA7" stroke-width="1.5" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                     </svg>
                     رفع الرواتب / Import Salaries
                 </button>
+                @endif
+
+                {{-- Export: only in "review" mode --}}
+                @if ($this->payrollCategory === 'review')
                 <button type="button" wire:click="exportPayroll" class="oprnize-btn-export">
                     <svg class="w-5 h-5" fill="none" stroke="#B1B1B1" stroke-width="1.5" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                     </svg>
                     Export
                 </button>
+                @endif
+
+                {{-- Calculate: only in "run" mode --}}
+                @if ($this->payrollCategory === 'run' || !$this->payrollCategory)
                 <button type="button" wire:click="calculatePayroll" class="oprnize-btn-calculate">
                     <svg class="w-5 h-5" fill="none" stroke="white" stroke-width="1.5" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V13.5zm0 2.25h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V18zm2.498-6.75h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V13.5zm0 2.25h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V18zm2.504-6.75h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V13.5zm0 2.25h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V18zm2.498-6.75h.008v.008H18v-.008zm0 2.25h.008v.008H18V13.5zM7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
                     Calculate Payroll
                 </button>
+                @endif
             </div>
         </div>
 
         {{-- Salary Import Panel --}}
-        @if ($this->showSalaryImport)
+        @if ($this->showSalaryImport && ($this->payrollCategory === 'run' || !$this->payrollCategory))
         <div class="oprnize-card" style="border: 2px solid #076EA7;">
             <div class="flex flex-col gap-4">
                 <div class="flex items-center justify-between">
