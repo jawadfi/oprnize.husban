@@ -22,11 +22,14 @@ use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Carbon;
+use League\Csv\Reader;
 use Livewire\Attributes\Url;
+use Livewire\WithFileUploads;
 
 class EmployeeEntries extends Page implements HasForms
 {
     use InteractsWithForms;
+    use WithFileUploads;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-plus';
     protected static ?string $navigationLabel = 'إدخالات الموظفين / Employee Entries';
@@ -70,6 +73,14 @@ class EmployeeEntries extends Page implements HasForms
     // Timesheet data - attendance_data[day] = status
     public array $attendanceData = [];
 
+    // All employees timesheet data: [employeeId => [day => status]]
+    public array $allTimesheetData = [];
+    public array $allBranchEmployees = [];
+
+    // Bulk upload
+    public $bulkFile = null;
+    public bool $showBulkUpload = false;
+
     // Existing entries lists
     public array $existingOvertimes = [];
     public array $existingAdditions = [];
@@ -90,6 +101,7 @@ class EmployeeEntries extends Page implements HasForms
     public function mount(): void
     {
         $this->selectedMonth = now()->format('Y-m');
+        $this->loadAllTimesheetData();
     }
 
     public function getCompanyUser()
@@ -219,6 +231,104 @@ class EmployeeEntries extends Page implements HasForms
             $this->loadExistingEntries();
             $this->loadTimesheetData();
         }
+        $this->loadAllTimesheetData();
+    }
+
+    /**
+     * Load ALL employees' timesheet data for the selected month
+     */
+    public function loadAllTimesheetData(): void
+    {
+        $company = $this->getCompanyUser();
+        if (!$company) return;
+
+        $parts = explode('-', $this->selectedMonth ?? now()->format('Y-m'));
+        $year = (int) $parts[0];
+        $month = (int) $parts[1];
+        $daysInMonth = Carbon::create($year, $month, 1)->daysInMonth;
+
+        if ($company->type === CompanyTypes::PROVIDER) {
+            $employees = Employee::where('company_id', $company->id)->orderBy('emp_id')->get();
+        } else {
+            $employees = Employee::whereHas('assigned', fn($q) =>
+                $q->where('employee_assigned.company_id', $company->id)
+                  ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
+            )->orderBy('emp_id')->get();
+        }
+
+        $this->allBranchEmployees = $employees->map(fn($e) => [
+            'id' => $e->id,
+            'name' => $e->name,
+            'emp_id' => $e->emp_id,
+        ])->toArray();
+
+        $timesheets = EmployeeTimesheet::where('company_id', $company->id)
+            ->where('year', $year)
+            ->where('month', $month)
+            ->whereIn('employee_id', $employees->pluck('id'))
+            ->get()
+            ->keyBy('employee_id');
+
+        $this->allTimesheetData = [];
+        foreach ($employees as $emp) {
+            if (isset($timesheets[$emp->id])) {
+                $this->allTimesheetData[$emp->id] = $timesheets[$emp->id]->attendance_data ?? [];
+            } else {
+                $data = [];
+                for ($d = 1; $d <= $daysInMonth; $d++) {
+                    $data[$d] = 'P';
+                }
+                $this->allTimesheetData[$emp->id] = $data;
+            }
+        }
+    }
+
+    /**
+     * Save all employees' timesheets at once
+     */
+    public function saveAllTimesheets(): void
+    {
+        $company = $this->getCompanyUser();
+        if (!$company) return;
+
+        $parts = explode('-', $this->selectedMonth);
+        $year = (int) $parts[0];
+        $month = (int) $parts[1];
+
+        foreach ($this->allTimesheetData as $employeeId => $attendance) {
+            $timesheet = EmployeeTimesheet::updateOrCreate(
+                [
+                    'employee_id' => $employeeId,
+                    'company_id' => $company->id,
+                    'year' => $year,
+                    'month' => $month,
+                ],
+                [
+                    'attendance_data' => $attendance,
+                ]
+            );
+            $timesheet->recalculateTotals();
+            $timesheet->save();
+
+            Payroll::syncFromEntries($employeeId, $company->id, $this->selectedMonth);
+        }
+
+        Notification::make()->title('تم حفظ جميع التايم شيتات بنجاح / All timesheets saved')->success()->send();
+    }
+
+    /**
+     * Get summary for all employees' timesheets
+     */
+    public function getEmployeeTimesheetSummary(int $employeeId): array
+    {
+        $counts = ['P' => 0, 'A' => 0];
+        $data = $this->allTimesheetData[$employeeId] ?? [];
+        foreach ($data as $status) {
+            if (isset($counts[$status])) {
+                $counts[$status]++;
+            }
+        }
+        return $counts;
     }
 
     public function getDaysInMonth(): int
@@ -527,6 +637,140 @@ class EmployeeEntries extends Page implements HasForms
             $this->searchEmpId = $employee->emp_id;
             $this->loadExistingEntries();
             $this->loadTimesheetData();
+        }
+    }
+
+    // ========================
+    // BULK UPLOAD
+    // ========================
+
+    public function toggleBulkUpload(): void
+    {
+        $this->showBulkUpload = !$this->showBulkUpload;
+        $this->bulkFile = null;
+    }
+
+    public function importBulkEntries(): void
+    {
+        if (!$this->bulkFile) {
+            Notification::make()->title('يرجى رفع ملف CSV')->warning()->send();
+            return;
+        }
+
+        $company = $this->getCompanyUser();
+        if (!$company) return;
+
+        try {
+            $filePath = $this->bulkFile->getRealPath();
+            $csv = Reader::createFromPath($filePath, 'r');
+            $csv->setHeaderOffset(0);
+            $records = $csv->getRecords();
+
+            $created = 0;
+            $skipped = 0;
+            $errors = [];
+
+            foreach ($records as $rowNum => $row) {
+                try {
+                    $normalized = [];
+                    foreach ($row as $key => $value) {
+                        $clean = strtolower(trim($key));
+                        $normalized[$clean] = is_string($value) ? trim($value) : $value;
+                    }
+
+                    $empId = $normalized['emp_id'] ?? $normalized['employee_id'] ?? $normalized['رقم الموظف'] ?? null;
+                    if (!$empId) { $skipped++; continue; }
+
+                    $employee = Employee::where('emp_id', $empId)->first();
+                    if (!$employee) { $errors[] = "Row {$rowNum}: Employee {$empId} not found"; continue; }
+
+                    $month = $normalized['month'] ?? $normalized['الشهر'] ?? $this->selectedMonth;
+
+                    if ($this->activeTab === 'overtime') {
+                        $hours = floatval($normalized['hours'] ?? $normalized['الساعات'] ?? 0);
+                        $rate = floatval($normalized['rate'] ?? $normalized['السعر'] ?? 0);
+                        $amount = floatval($normalized['amount'] ?? $normalized['المبلغ'] ?? ($hours * $rate));
+                        if ($hours <= 0 && $amount <= 0) { $skipped++; continue; }
+
+                        EmployeeOvertime::create([
+                            'employee_id' => $employee->id,
+                            'company_id' => $company->id,
+                            'payroll_month' => $month,
+                            'hours' => $hours,
+                            'rate_per_hour' => $rate,
+                            'amount' => $amount,
+                            'notes' => $normalized['notes'] ?? $normalized['ملاحظات'] ?? null,
+                            'is_recurring' => false,
+                            'status' => 'pending',
+                            'created_by_company_id' => $company->id,
+                        ]);
+                        $created++;
+                    } elseif ($this->activeTab === 'additions') {
+                        $amount = floatval($normalized['amount'] ?? $normalized['المبلغ'] ?? 0);
+                        if ($amount <= 0) { $skipped++; continue; }
+
+                        EmployeeAddition::create([
+                            'employee_id' => $employee->id,
+                            'company_id' => $company->id,
+                            'payroll_month' => $month,
+                            'amount' => $amount,
+                            'reason' => $normalized['reason'] ?? $normalized['السبب'] ?? null,
+                            'description' => $normalized['description'] ?? $normalized['الوصف'] ?? null,
+                            'is_recurring' => false,
+                            'status' => 'pending',
+                            'created_by_company_id' => $company->id,
+                        ]);
+                        $created++;
+                    } elseif ($this->activeTab === 'deductions') {
+                        $amount = floatval($normalized['amount'] ?? $normalized['المبلغ'] ?? 0);
+                        if ($amount <= 0) { $skipped++; continue; }
+
+                        Deduction::create([
+                            'employee_id' => $employee->id,
+                            'company_id' => $company->id,
+                            'payroll_month' => $month,
+                            'type' => $normalized['type'] ?? $normalized['النوع'] ?? 'fixed',
+                            'reason' => $normalized['reason'] ?? $normalized['السبب'] ?? 'other',
+                            'description' => $normalized['description'] ?? $normalized['الوصف'] ?? null,
+                            'days' => intval($normalized['days'] ?? $normalized['الأيام'] ?? 0),
+                            'daily_rate' => floatval($normalized['daily_rate'] ?? 0),
+                            'amount' => $amount,
+                            'status' => 'pending',
+                            'is_recurring' => false,
+                            'created_by_company_id' => $company->id,
+                        ]);
+                        $created++;
+                    }
+
+                    Payroll::syncFromEntries($employee->id, $company->id, $month);
+                } catch (\Exception $e) {
+                    $errors[] = "Row {$rowNum}: " . $e->getMessage();
+                }
+            }
+
+            $this->showBulkUpload = false;
+            $this->bulkFile = null;
+
+            if ($this->selectedEmployeeId) {
+                $this->loadExistingEntries();
+            }
+
+            $msg = "تم إنشاء {$created} سجل";
+            if ($skipped > 0) $msg .= " | تم تخطي {$skipped}";
+            if (count($errors) > 0) $msg .= " | أخطاء: " . count($errors);
+
+            Notification::make()
+                ->title('تم استيراد الملف')
+                ->body($msg)
+                ->success()
+                ->send();
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('خطأ في استيراد الملف')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
         }
     }
 }

@@ -132,59 +132,75 @@
         .dark .employee-info { background: #064e3b; color: #a7f3d0; }
     </style>
 
-    {{-- Employee Search Bar --}}
-    <div class="search-bar">
-        <div class="form-group" style="flex: 0 0 200px;">
-            <label>الرقم الوظيفي / Emp ID</label>
-            <input type="text" wire:model="searchEmpId" placeholder="أدخل الرقم الوظيفي..."
-                   wire:keydown.enter="searchEmployee">
+    {{-- Tabs - always visible --}}
+    <div class="entry-tabs">
+        <div class="entry-tab {{ $activeTab === 'overtime' ? 'active' : '' }}"
+             wire:click="$set('activeTab', 'overtime')">
+            ⏱️ ساعات عمل إضافي / Overtime
         </div>
-        <div class="form-group" style="flex: 0 0 300px;">
-            <label>أو اختر موظف / Or Select Employee</label>
-            <select wire:change="selectEmployee($event.target.value)">
-                <option value="">-- اختر موظف --</option>
-                @foreach($this->getEmployees() as $id => $name)
-                    <option value="{{ $id }}" @if($selectedEmployeeId == $id) selected @endif>{{ $name }}</option>
-                @endforeach
-            </select>
+        <div class="entry-tab {{ $activeTab === 'additions' ? 'active' : '' }}"
+             wire:click="$set('activeTab', 'additions')">
+            💰 مبالغ إضافية / Additions
         </div>
-        <button class="btn-primary" wire:click="searchEmployee" style="height: 38px;">
-            🔍 بحث
-        </button>
-        <div class="form-group" style="flex: 0 0 180px;">
-            <label>الشهر / Month</label>
-            <input type="month" wire:model.live="selectedMonth" value="{{ $selectedMonth }}">
+        <div class="entry-tab {{ $activeTab === 'timesheet' ? 'active' : '' }}"
+             wire:click="$set('activeTab', 'timesheet')">
+            📅 تايم شيت / Timesheet
         </div>
-        @if($selectedEmployeeName)
-            <div class="employee-info">
-                ✅ {{ $selectedEmployeeName }}
-            </div>
-        @endif
+        <div class="entry-tab {{ $activeTab === 'deductions' ? 'active' : '' }}"
+             wire:click="$set('activeTab', 'deductions')">
+            📉 خصومات / Deductions
+        </div>
     </div>
 
-    @if($selectedEmployeeId)
-        {{-- Tabs --}}
-        <div class="entry-tabs">
-            <div class="entry-tab {{ $activeTab === 'overtime' ? 'active' : '' }}"
-                 wire:click="$set('activeTab', 'overtime')">
-                ⏱️ ساعات عمل إضافي / Overtime
+    {{-- ===================== TAB 1: OVERTIME ===================== --}}
+    @if($activeTab === 'overtime')
+        {{-- Search Bar inside tab --}}
+        <div class="search-bar">
+            <div class="form-group" style="flex: 0 0 200px;">
+                <label>الرقم الوظيفي / Emp ID</label>
+                <input type="text" wire:model="searchEmpId" placeholder="أدخل الرقم الوظيفي..."
+                       wire:keydown.enter="searchEmployee">
             </div>
-            <div class="entry-tab {{ $activeTab === 'additions' ? 'active' : '' }}"
-                 wire:click="$set('activeTab', 'additions')">
-                💰 مبالغ إضافية / Additions
+            <div class="form-group" style="flex: 0 0 300px;">
+                <label>أو اختر موظف / Or Select Employee</label>
+                <select wire:change="selectEmployee($event.target.value)">
+                    <option value="">-- اختر موظف --</option>
+                    @foreach($this->getEmployees() as $id => $name)
+                        <option value="{{ $id }}" @if($selectedEmployeeId == $id) selected @endif>{{ $name }}</option>
+                    @endforeach
+                </select>
             </div>
-            <div class="entry-tab {{ $activeTab === 'timesheet' ? 'active' : '' }}"
-                 wire:click="$set('activeTab', 'timesheet')">
-                📅 تايم شيت / Timesheet
+            <button class="btn-primary" wire:click="searchEmployee" style="height: 38px;">🔍 بحث</button>
+            <div class="form-group" style="flex: 0 0 180px;">
+                <label>الشهر / Month</label>
+                <input type="month" wire:model.live="selectedMonth" value="{{ $selectedMonth }}">
             </div>
-            <div class="entry-tab {{ $activeTab === 'deductions' ? 'active' : '' }}"
-                 wire:click="$set('activeTab', 'deductions')">
-                📉 خصومات / Deductions
-            </div>
+            <button class="btn-primary" wire:click="toggleBulkUpload" style="height: 38px; background: {{ $showBulkUpload ? '#dc2626' : '#7c3aed' }};">
+                📤 {{ $showBulkUpload ? 'إلغاء الرفع' : 'رفع ملف CSV' }}
+            </button>
+            @if($selectedEmployeeName)
+                <div class="employee-info">✅ {{ $selectedEmployeeName }}</div>
+            @endif
         </div>
 
-        {{-- TAB 1: OVERTIME --}}
-        @if($activeTab === 'overtime')
+        {{-- Bulk Upload Section --}}
+        @if($showBulkUpload)
+        <div class="entry-card" style="border: 2px dashed #7c3aed; background: #f5f3ff;">
+            <h4 style="margin-bottom: 12px; font-weight: 600; color: #7c3aed;">📤 رفع ملف CSV للساعات الإضافية / Bulk Upload Overtime CSV</h4>
+            <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">الأعمدة المطلوبة: emp_id, hours, rate, amount, notes (اختياري)</p>
+            <div style="display: flex; gap: 12px; align-items: flex-end;">
+                <div class="form-group" style="flex: 1;">
+                    <label>اختر ملف CSV</label>
+                    <input type="file" wire:model="bulkFile" accept=".csv,.txt">
+                </div>
+                <button class="btn-primary" wire:click="importBulkEntries" style="height: 38px; background: #7c3aed;">
+                    📥 استيراد / Import
+                </button>
+            </div>
+        </div>
+        @endif
+
+        @if($selectedEmployeeId)
         <div class="entry-card">
             <h3 style="margin-bottom: 16px; font-size: 16px; font-weight: 700;">
                 إضافة ساعات عمل إضافي / Add Overtime Hours
@@ -224,7 +240,6 @@
             </div>
         </div>
 
-        {{-- Existing Overtime Entries --}}
         @if(count($existingOvertimes) > 0)
         <div class="entry-card">
             <h4 style="margin-bottom: 8px; font-size: 14px; font-weight: 600;">
@@ -265,10 +280,62 @@
             </table>
         </div>
         @endif
+        @else
+        <div class="entry-card" style="text-align: center; padding: 40px 20px;">
+            <div style="font-size: 40px; margin-bottom: 12px;">👤</div>
+            <p style="color: #6b7280;">ابحث عن موظف أو اختره من القائمة أعلاه / Search or select an employee above</p>
+        </div>
+        @endif
+    @endif
+
+    {{-- ===================== TAB 2: ADDITIONS ===================== --}}
+    @if($activeTab === 'additions')
+        {{-- Search Bar inside tab --}}
+        <div class="search-bar">
+            <div class="form-group" style="flex: 0 0 200px;">
+                <label>الرقم الوظيفي / Emp ID</label>
+                <input type="text" wire:model="searchEmpId" placeholder="أدخل الرقم الوظيفي..."
+                       wire:keydown.enter="searchEmployee">
+            </div>
+            <div class="form-group" style="flex: 0 0 300px;">
+                <label>أو اختر موظف / Or Select Employee</label>
+                <select wire:change="selectEmployee($event.target.value)">
+                    <option value="">-- اختر موظف --</option>
+                    @foreach($this->getEmployees() as $id => $name)
+                        <option value="{{ $id }}" @if($selectedEmployeeId == $id) selected @endif>{{ $name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <button class="btn-primary" wire:click="searchEmployee" style="height: 38px;">🔍 بحث</button>
+            <div class="form-group" style="flex: 0 0 180px;">
+                <label>الشهر / Month</label>
+                <input type="month" wire:model.live="selectedMonth" value="{{ $selectedMonth }}">
+            </div>
+            <button class="btn-primary" wire:click="toggleBulkUpload" style="height: 38px; background: {{ $showBulkUpload ? '#dc2626' : '#7c3aed' }};">
+                📤 {{ $showBulkUpload ? 'إلغاء الرفع' : 'رفع ملف CSV' }}
+            </button>
+            @if($selectedEmployeeName)
+                <div class="employee-info">✅ {{ $selectedEmployeeName }}</div>
+            @endif
+        </div>
+
+        @if($showBulkUpload)
+        <div class="entry-card" style="border: 2px dashed #7c3aed; background: #f5f3ff;">
+            <h4 style="margin-bottom: 12px; font-weight: 600; color: #7c3aed;">📤 رفع ملف CSV للمبالغ الإضافية / Bulk Upload Additions CSV</h4>
+            <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">الأعمدة المطلوبة: emp_id, amount, reason (اختياري), description (اختياري)</p>
+            <div style="display: flex; gap: 12px; align-items: flex-end;">
+                <div class="form-group" style="flex: 1;">
+                    <label>اختر ملف CSV</label>
+                    <input type="file" wire:model="bulkFile" accept=".csv,.txt">
+                </div>
+                <button class="btn-primary" wire:click="importBulkEntries" style="height: 38px; background: #7c3aed;">
+                    📥 استيراد / Import
+                </button>
+            </div>
+        </div>
         @endif
 
-        {{-- TAB 2: ADDITIONS --}}
-        @if($activeTab === 'additions')
+        @if($selectedEmployeeId)
         <div class="entry-card">
             <h3 style="margin-bottom: 16px; font-size: 16px; font-weight: 700;">
                 إضافة مبالغ إضافية / Add Additional Amounts
@@ -342,20 +409,37 @@
             </table>
         </div>
         @endif
+        @else
+        <div class="entry-card" style="text-align: center; padding: 40px 20px;">
+            <div style="font-size: 40px; margin-bottom: 12px;">👤</div>
+            <p style="color: #6b7280;">ابحث عن موظف أو اختره من القائمة أعلاه / Search or select an employee above</p>
+        </div>
         @endif
+    @endif
 
-        {{-- TAB 3: TIMESHEET --}}
-        @if($activeTab === 'timesheet')
+    {{-- ===================== TAB 3: TIMESHEET (ALL EMPLOYEES) ===================== --}}
+    @if($activeTab === 'timesheet')
+        <div class="search-bar" style="justify-content: flex-start;">
+            <div class="form-group" style="flex: 0 0 180px;">
+                <label>الشهر / Month</label>
+                <input type="month" wire:model.live="selectedMonth" value="{{ $selectedMonth }}">
+            </div>
+            <div style="font-weight: 600; color: #076EA7; font-size: 15px;">
+                📅 {{ $this->getMonthLabel() }} — {{ count($allBranchEmployees) }} موظف
+            </div>
+        </div>
+
         <div class="entry-card">
             <h3 style="margin-bottom: 16px; font-size: 16px; font-weight: 700;">
-                الحضور والإنصراف الشهري / Monthly Time Sheet - {{ $this->getMonthLabel() }}
+                الحضور والإنصراف الشهري لجميع الموظفين / Monthly Time Sheet - All Employees
             </h3>
 
             <div class="timesheet-container">
                 <table class="timesheet-table">
                     <thead>
                         <tr>
-                            <th style="min-width: 50px; position: sticky; left: 0; z-index: 2; background: #f3f4f6;">#</th>
+                            <th style="min-width: 40px; position: sticky; left: 0; z-index: 3; background: #f3f4f6;">#</th>
+                            <th style="min-width: 150px; position: sticky; left: 40px; z-index: 3; background: #f3f4f6; text-align: right;">الموظف</th>
                             @for($d = 1; $d <= $this->getDaysInMonth(); $d++)
                                 @php
                                     $parts = explode('-', $selectedMonth);
@@ -368,50 +452,97 @@
                                     <div style="font-size: 10px; color: #6b7280;">{{ substr($date->format('D'), 0, 2) }}</div>
                                 </th>
                             @endfor
-                            <th style="background: #d1fae5; min-width: 50px;">P</th>
-                            <th style="background: #fee2e2; min-width: 50px;">A</th>
+                            <th style="background: #d1fae5; min-width: 45px;">P</th>
+                            <th style="background: #fee2e2; min-width: 45px;">A</th>
                         </tr>
                     </thead>
                     <tbody>
+                        @foreach($allBranchEmployees as $idx => $emp)
+                        @php $empSummary = $this->getEmployeeTimesheetSummary($emp['id']); @endphp
                         <tr>
-                            <td style="position: sticky; left: 0; z-index: 1; background: white; font-weight: 600;">
-                                {{ $selectedEmployeeName }}
-                            </td>
+                            <td style="position: sticky; left: 0; z-index: 1; background: white; font-size: 11px; color: #6b7280;">{{ $emp['emp_id'] }}</td>
+                            <td style="position: sticky; left: 40px; z-index: 1; background: white; font-weight: 600; font-size: 12px; text-align: right; white-space: nowrap;">{{ $emp['name'] }}</td>
                             @for($d = 1; $d <= $this->getDaysInMonth(); $d++)
-                                @php $currentStatus = $attendanceData[$d] ?? 'P'; @endphp
+                                @php $currentStatus = $allTimesheetData[$emp['id']][$d] ?? 'P'; @endphp
                                 <td class="status-{{ $currentStatus }}">
                                     <select class="timesheet-select"
-                                            wire:model.live="attendanceData.{{ $d }}">
+                                            wire:model.live="allTimesheetData.{{ $emp['id'] }}.{{ $d }}">
                                         @foreach(App\Enums\AttendanceStatus::cases() as $status)
                                             <option value="{{ $status->value }}">{{ $status->value }}</option>
                                         @endforeach
                                     </select>
                                 </td>
                             @endfor
-                            @php $summary = $this->getTimesheetSummary(); @endphp
-                            <td style="background: #d1fae5; font-weight: 700;">{{ $summary['P'] }}</td>
-                            <td style="background: #fee2e2; font-weight: 700;">{{ $summary['A'] }}</td>
+                            <td style="background: #d1fae5; font-weight: 700;">{{ $empSummary['P'] }}</td>
+                            <td style="background: #fee2e2; font-weight: 700;">{{ $empSummary['A'] }}</td>
                         </tr>
+                        @endforeach
                     </tbody>
                 </table>
             </div>
 
             {{-- Legend --}}
             <div class="summary-grid" style="margin-top: 16px;">
-                <div class="summary-card" style="background: #d1fae5; color: #065f46;">P = حاضر ({{ $summary['P'] ?? 0 }})</div>
-                <div class="summary-card" style="background: #fee2e2; color: #991b1b;">A = غائب ({{ $summary['A'] ?? 0 }})</div>
+                <div class="summary-card" style="background: #d1fae5; color: #065f46;">P = حاضر / Present</div>
+                <div class="summary-card" style="background: #fee2e2; color: #991b1b;">A = غائب / Absent</div>
             </div>
 
             <div style="text-align: left; margin-top: 16px;">
-                <button class="btn-primary" wire:click="saveTimesheet">
-                    💾 حفظ التايم شيت / Save Timesheet
+                <button class="btn-primary" wire:click="saveAllTimesheets">
+                    💾 حفظ جميع التايم شيتات / Save All Timesheets
+                </button>
+            </div>
+        </div>
+    @endif
+
+    {{-- ===================== TAB 4: DEDUCTIONS ===================== --}}
+    @if($activeTab === 'deductions')
+        {{-- Search Bar inside tab --}}
+        <div class="search-bar">
+            <div class="form-group" style="flex: 0 0 200px;">
+                <label>الرقم الوظيفي / Emp ID</label>
+                <input type="text" wire:model="searchEmpId" placeholder="أدخل الرقم الوظيفي..."
+                       wire:keydown.enter="searchEmployee">
+            </div>
+            <div class="form-group" style="flex: 0 0 300px;">
+                <label>أو اختر موظف / Or Select Employee</label>
+                <select wire:change="selectEmployee($event.target.value)">
+                    <option value="">-- اختر موظف --</option>
+                    @foreach($this->getEmployees() as $id => $name)
+                        <option value="{{ $id }}" @if($selectedEmployeeId == $id) selected @endif>{{ $name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <button class="btn-primary" wire:click="searchEmployee" style="height: 38px;">🔍 بحث</button>
+            <div class="form-group" style="flex: 0 0 180px;">
+                <label>الشهر / Month</label>
+                <input type="month" wire:model.live="selectedMonth" value="{{ $selectedMonth }}">
+            </div>
+            <button class="btn-primary" wire:click="toggleBulkUpload" style="height: 38px; background: {{ $showBulkUpload ? '#dc2626' : '#7c3aed' }};">
+                📤 {{ $showBulkUpload ? 'إلغاء الرفع' : 'رفع ملف CSV' }}
+            </button>
+            @if($selectedEmployeeName)
+                <div class="employee-info">✅ {{ $selectedEmployeeName }}</div>
+            @endif
+        </div>
+
+        @if($showBulkUpload)
+        <div class="entry-card" style="border: 2px dashed #7c3aed; background: #f5f3ff;">
+            <h4 style="margin-bottom: 12px; font-weight: 600; color: #7c3aed;">📤 رفع ملف CSV للخصومات / Bulk Upload Deductions CSV</h4>
+            <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">الأعمدة المطلوبة: emp_id, amount, type (اختياري), reason (اختياري), description (اختياري)</p>
+            <div style="display: flex; gap: 12px; align-items: flex-end;">
+                <div class="form-group" style="flex: 1;">
+                    <label>اختر ملف CSV</label>
+                    <input type="file" wire:model="bulkFile" accept=".csv,.txt">
+                </div>
+                <button class="btn-primary" wire:click="importBulkEntries" style="height: 38px; background: #7c3aed;">
+                    📥 استيراد / Import
                 </button>
             </div>
         </div>
         @endif
 
-        {{-- TAB 4: DEDUCTIONS --}}
-        @if($activeTab === 'deductions')
+        @if($selectedEmployeeId)
         <div class="entry-card">
             <h3 style="margin-bottom: 16px; font-size: 16px; font-weight: 700;">
                 إضافة خصم / Add Deduction
@@ -513,18 +644,11 @@
             </table>
         </div>
         @endif
-        @endif
-
-    @else
-        {{-- No employee selected message --}}
-        <div class="entry-card" style="text-align: center; padding: 60px 20px;">
-            <div style="font-size: 48px; margin-bottom: 16px;">👤</div>
-            <h3 style="font-size: 18px; font-weight: 600; color: #374151; margin-bottom: 8px;">
-                ابحث عن موظف بالرقم الوظيفي
-            </h3>
-            <p style="color: #6b7280; font-size: 14px;">
-                Search for an employee by ID to view and manage their entries
-            </p>
+        @else
+        <div class="entry-card" style="text-align: center; padding: 40px 20px;">
+            <div style="font-size: 40px; margin-bottom: 12px;">👤</div>
+            <p style="color: #6b7280;">ابحث عن موظف أو اختره من القائمة أعلاه / Search or select an employee above</p>
         </div>
+        @endif
     @endif
 </x-filament-panels::page>
