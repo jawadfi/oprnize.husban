@@ -37,6 +37,17 @@ class ProviderCompanyEmployees extends Page implements HasTable
     #[Url]
     public ?int $companyId = null;
 
+    public static function canAccess(): bool
+    {
+        // Old client-initiated flow disabled — Provider now assigns employees to Client
+        return false;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public function mount(): void
     {
         abort_unless($this->canAccess(), 403);
@@ -50,17 +61,6 @@ class ProviderCompanyEmployees extends Page implements HasTable
         } else {
             abort(404);
         }
-    }
-
-    public static function canAccess(): bool
-    {
-        return Filament::auth()->check() && 
-               Filament::auth()->user()->type === CompanyTypes::CLIENT;
-    }
-
-    public static function shouldRegisterNavigation(): bool
-    {
-        return false;
     }
 
     public function table(Table $table): Table

@@ -32,13 +32,13 @@ class ProviderCompaniesListing extends Page
 
     public static function canAccess(): bool
     {
-        return Filament::auth()->check() && 
-               Filament::auth()->user()->type === CompanyTypes::CLIENT;
+        // Old client-initiated flow disabled — Provider now assigns employees to Client
+        return false;
     }
 
     public static function shouldRegisterNavigation(): bool
     {
-        return static::canAccess();
+        return false;
     }
 
     public function getCompaniesProperty(): LengthAwarePaginator

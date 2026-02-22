@@ -139,18 +139,15 @@ class ClientCompanyEmployees extends Page implements HasTable
                             return;
                         }
 
-                        // Attach employee to client company with APPROVED status (provider assigns directly)
+                        // Attach employee to client company with PENDING status (client must approve)
                         $clientCompany->used_employees()->attach($record->id, [
                             'start_date' => $data['start_date'],
-                            'status' => EmployeeAssignedStatus::APPROVED,
+                            'status' => EmployeeAssignedStatus::PENDING,
                         ]);
 
-                        // Update employee's company_assigned_id
-                        $record->update(['company_assigned_id' => $clientCompany->id]);
-
                         Notification::make()
-                            ->title('تم تعيين الموظف بنجاح')
-                            ->body('Employee assigned to ' . $clientCompany->name)
+                            ->title('تم إرسال طلب التعيين بنجاح')
+                            ->body('في انتظار موافقة العميل / Waiting for client approval')
                             ->success()
                             ->send();
                     })
@@ -221,12 +218,9 @@ class ClientCompanyEmployees extends Page implements HasTable
                             foreach ($newIds as $id) {
                                 $clientCompany->used_employees()->attach($id, [
                                     'start_date' => $data['start_date'],
-                                    'status' => EmployeeAssignedStatus::APPROVED,
+                                    'status' => EmployeeAssignedStatus::PENDING,
                                 ]);
                             }
-
-                            Employee::whereIn('id', $newIds)
-                                ->update(['company_assigned_id' => $clientCompany->id]);
                         }
 
                         $count = count($newIds);
