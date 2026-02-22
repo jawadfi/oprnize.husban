@@ -124,11 +124,11 @@ class PendingHiring extends Page implements HasTable
                 TextColumn::make('start_date')->date('Y-m-d'),
                 TextColumn::make('branch.name')
                     ->label('الفرع / Branch')
-                    ->default('-'),
+                    ->placeholder('-'),
                 TextColumn::make('arrival_date')
                     ->label('تاريخ الوصول / Arrival')
                     ->date('Y-m-d')
-                    ->default('-'),
+                    ->placeholder('-'),
                 TextColumn::make('status')
                     ->formatStateUsing(fn($state) => EmployeeAssignedStatus::getKey($state))
                     ->badge()
