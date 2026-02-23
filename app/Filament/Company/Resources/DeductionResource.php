@@ -39,7 +39,7 @@ class DeductionResource extends Resource
         $user = Filament::auth()->user();
 
         if ($user instanceof Company) {
-            return in_array($user->type, [CompanyTypes::PROVIDER, CompanyTypes::CLIENT]);
+            return $user->type === CompanyTypes::CLIENT;
         }
 
         if ($user instanceof User) {

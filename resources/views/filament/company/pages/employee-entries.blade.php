@@ -107,8 +107,14 @@
         .timesheet-select:focus { outline: 2px solid #076EA7; border-radius: 4px; }
         .status-P { background-color: #ffffff; }
         .status-A { background-color: #fee2e2; }
+        .status-L { background-color: #fed7aa; }
+        .status-O { background-color: #e9d5ff; }
+        .status-X { background-color: #e5e7eb; }
         .dark .status-P { background-color: #1f2937; }
         .dark .status-A { background-color: #7f1d1d; }
+        .dark .status-L { background-color: #78350f; }
+        .dark .status-O { background-color: #581c87; }
+        .dark .status-X { background-color: #374151; }
 
         /* Summary cards */
         .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-top: 12px; }
@@ -146,10 +152,12 @@
              wire:click="$set('activeTab', 'timesheet')">
             📅 تايم شيت / Timesheet
         </div>
+        @if(!$this->isProvider())
         <div class="entry-tab {{ $activeTab === 'deductions' ? 'active' : '' }}"
              wire:click="$set('activeTab', 'deductions')">
             📉 خصومات / Deductions
         </div>
+        @endif
     </div>
 
     {{-- ===================== TAB 1: OVERTIME ===================== --}}
@@ -454,6 +462,9 @@
                             @endfor
                             <th style="background: #d1fae5; min-width: 45px;">P</th>
                             <th style="background: #fee2e2; min-width: 45px;">A</th>
+                            <th style="background: #fed7aa; min-width: 45px;">L</th>
+                            <th style="background: #e9d5ff; min-width: 45px;">O</th>
+                            <th style="background: #e5e7eb; min-width: 45px;">X</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -475,6 +486,9 @@
                             @endfor
                             <td style="background: #d1fae5; font-weight: 700;">{{ $empSummary['P'] }}</td>
                             <td style="background: #fee2e2; font-weight: 700;">{{ $empSummary['A'] }}</td>
+                            <td style="background: #fed7aa; font-weight: 700;">{{ $empSummary['L'] }}</td>
+                            <td style="background: #e9d5ff; font-weight: 700;">{{ $empSummary['O'] }}</td>
+                            <td style="background: #e5e7eb; font-weight: 700;">{{ $empSummary['X'] }}</td>
                         </tr>
                         @endforeach
                     </tbody>
@@ -485,6 +499,9 @@
             <div class="summary-grid" style="margin-top: 16px;">
                 <div class="summary-card" style="background: #d1fae5; color: #065f46;">P = حاضر / Present</div>
                 <div class="summary-card" style="background: #fee2e2; color: #991b1b;">A = غائب / Absent</div>
+                <div class="summary-card" style="background: #fed7aa; color: #92400e;">L = إجازة / Leave</div>
+                <div class="summary-card" style="background: #e9d5ff; color: #581c87;">O = يوم راحة / Off Day</div>
+                <div class="summary-card" style="background: #e5e7eb; color: #374151;">X = مستبعد / Excluded</div>
             </div>
 
             <div style="text-align: left; margin-top: 16px;">
@@ -495,8 +512,8 @@
         </div>
     @endif
 
-    {{-- ===================== TAB 4: DEDUCTIONS ===================== --}}
-    @if($activeTab === 'deductions')
+    {{-- ===================== TAB 4: DEDUCTIONS (CLIENT ONLY) ===================== --}}
+    @if($activeTab === 'deductions' && !$this->isProvider())
         {{-- Search Bar inside tab --}}
         <div class="search-bar">
             <div class="form-group" style="flex: 0 0 200px;">

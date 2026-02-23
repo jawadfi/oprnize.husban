@@ -74,6 +74,9 @@ class EmployeeTimesheet extends Model
             match($status) {
                 'P' => $counts['work_days']++,
                 'A' => $counts['absent_days']++,
+                'L' => $counts['leave_days']++,
+                'O' => $counts['day_off_count']++,
+                'X' => $counts['unpaid_leave_days']++,
                 default => null,
             };
         }

@@ -186,6 +186,52 @@ class PendingHiring extends Page implements HasTable
                             ->send();
                     }),
 
+                // Edit start date (for client company owner / authorized users)
+                Action::make('edit_start_date')
+                    ->label('تعديل تاريخ التعيين / Edit Start Date')
+                    ->icon('heroicon-o-pencil-square')
+                    ->color('warning')
+                    ->form(fn (EmployeeAssigned $record) => [
+                        Forms\Components\DatePicker::make('start_date')
+                            ->label('تاريخ التعيين / Assignment Start Date')
+                            ->required()
+                            ->default($record->start_date),
+                    ])
+                    ->visible(function (?EmployeeAssigned $record) {
+                        if (!$record) return false;
+
+                        $user = Filament::auth()->user();
+
+                        // Company owner (CLIENT side)
+                        if ($user instanceof \App\Models\Company) {
+                            return $record->company_id === $user->id;
+                        }
+
+                        // Authorized user in the client company
+                        if ($user instanceof \App\Models\User) {
+                            return $user->company_id === $record->company_id;
+                        }
+
+                        return false;
+                    })
+                    ->requiresConfirmation()
+                    ->action(function (EmployeeAssigned $record, array $data) {
+                        $record->update(['start_date' => $data['start_date']]);
+
+                        // Also update branch pivot start_date if branch is assigned
+                        if ($record->branch_id) {
+                            $record->employee->branches()->updateExistingPivot(
+                                $record->branch_id,
+                                ['start_date' => $data['start_date']]
+                            );
+                        }
+
+                        Notification::make()
+                            ->title("تم تعديل تاريخ التعيين بنجاح / Start date updated")
+                            ->success()
+                            ->send();
+                    }),
+
                 // Set arrival date (for branch managers)
                 Action::make('set_arrival')
                     ->label('تحديد تاريخ الوصول / Set Arrival')

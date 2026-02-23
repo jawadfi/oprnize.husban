@@ -182,6 +182,11 @@ class Payroll extends Model
     /**
      * Sync payroll fields from EmployeeEntries data (overtime, additions, timesheet, deductions).
      * Finds or creates the Payroll record, then aggregates entry data into it.
+     *
+     * Overtime formula: (total_salary / 240 * hours) + (basic_salary / 480 * hours)
+     * Deduction rules:
+     *   A (Absent): deduct from salary only (no fees) = absent_days * (total_salary / 30)
+     *   L/O/X (Leave/Off/Excluded): deduct from salary + fees = days * ((total_salary + fees) / 30)
      */
     public static function syncFromEntries(int $employeeId, int $companyId, string $payrollMonth): void
     {
@@ -198,14 +203,32 @@ class Payroll extends Model
             ]
         );
 
+        // Pre-calculate salary totals used in formulas
+        $totalSalary = (float) $payroll->basic_salary
+            + (float) $payroll->housing_allowance
+            + (float) $payroll->transportation_allowance
+            + (float) $payroll->food_allowance
+            + (float) $payroll->other_allowance;
+        $basicSalary = (float) $payroll->basic_salary;
+        $fees = (float) $payroll->fees;
+
         // 1. Overtime → overtime_hours & overtime_amount
+        //    Formula: (total_salary / 240 * hours) + (basic_salary / 480 * hours)
         $overtimes = EmployeeOvertime::where('employee_id', $employeeId)
             ->where('company_id', $companyId)
             ->where('payroll_month', $payrollMonth)
             ->get();
 
-        $payroll->overtime_hours = $overtimes->sum('hours');
-        $payroll->overtime_amount = $overtimes->sum('amount');
+        $totalOvertimeHours = $overtimes->sum('hours');
+        $payroll->overtime_hours = $totalOvertimeHours;
+
+        if ($totalOvertimeHours > 0 && ($totalSalary > 0 || $basicSalary > 0)) {
+            $overtimeAmount = ($totalSalary / 240 * $totalOvertimeHours)
+                            + ($basicSalary / 480 * $totalOvertimeHours);
+            $payroll->overtime_amount = round($overtimeAmount, 2);
+        } else {
+            $payroll->overtime_amount = 0;
+        }
 
         // 2. Additions → other_additions
         $additions = EmployeeAddition::where('employee_id', $employeeId)
@@ -215,7 +238,7 @@ class Payroll extends Model
 
         $payroll->other_additions = $additions->sum('amount');
 
-        // 3. Timesheet → work_days, absence_days, absence_unpaid_leave_deduction
+        // 3. Timesheet → work_days, absence_days, deductions (salary-only vs salary+fees)
         $parts = explode('-', $payrollMonth);
         $year = (int) $parts[0];
         $month = (int) $parts[1];
@@ -230,20 +253,28 @@ class Payroll extends Model
             $payroll->work_days = $timesheet->work_days;
             $payroll->absence_days = $timesheet->absent_days;
 
-            // Calculate absence deduction: (total salary / days in month) * absent days
-            $totalSalary = (float) $payroll->basic_salary
-                + (float) $payroll->housing_allowance
-                + (float) $payroll->transportation_allowance
-                + (float) $payroll->food_allowance
-                + (float) $payroll->other_allowance;
+            $absentDays = (int) $timesheet->absent_days;          // A status
+            $leaveDays  = (int) ($timesheet->leave_days ?? 0);    // L status
+            $offDays    = (int) ($timesheet->day_off_count ?? 0); // O status
+            $excludedDays = (int) ($timesheet->unpaid_leave_days ?? 0); // X status
 
-            if ($totalSalary > 0 && $timesheet->absent_days > 0) {
-                $daysInMonth = \Carbon\Carbon::create($year, $month, 1)->daysInMonth;
-                $dailyRate = $totalSalary / $daysInMonth;
-                $payroll->absence_unpaid_leave_deduction = round($timesheet->absent_days * $dailyRate, 2);
-            } else {
-                $payroll->absence_unpaid_leave_deduction = 0;
+            $salaryOnlyDeduction = 0;
+            $salaryAndFeesDeduction = 0;
+
+            // A (Absent): deduct from salary only — no fees
+            if ($absentDays > 0 && $totalSalary > 0) {
+                $salaryOnlyDeduction = $absentDays * ($totalSalary / 30);
             }
+
+            // L + O + X: deduct from salary + fees
+            $feeDeductDays = $leaveDays + $offDays + $excludedDays;
+            if ($feeDeductDays > 0 && ($totalSalary + $fees) > 0) {
+                $salaryAndFeesDeduction = $feeDeductDays * (($totalSalary + $fees) / 30);
+            }
+
+            $payroll->absence_unpaid_leave_deduction = round($salaryOnlyDeduction + $salaryAndFeesDeduction, 2);
+        } else {
+            $payroll->absence_unpaid_leave_deduction = 0;
         }
 
         // 4. Deductions → other_deduction

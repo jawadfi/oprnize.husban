@@ -117,6 +117,15 @@ class EmployeeEntries extends Page implements HasForms
     }
 
     /**
+     * Check if current user is a PROVIDER company
+     */
+    public function isProvider(): bool
+    {
+        $company = $this->getCompanyUser();
+        return $company && $company->type === CompanyTypes::PROVIDER;
+    }
+
+    /**
      * Search employee by emp_id
      */
     public function searchEmployee(): void
@@ -321,7 +330,7 @@ class EmployeeEntries extends Page implements HasForms
      */
     public function getEmployeeTimesheetSummary(int $employeeId): array
     {
-        $counts = ['P' => 0, 'A' => 0];
+        $counts = ['P' => 0, 'A' => 0, 'L' => 0, 'O' => 0, 'X' => 0];
         $data = $this->allTimesheetData[$employeeId] ?? [];
         foreach ($data as $status) {
             if (isset($counts[$status])) {
@@ -563,7 +572,7 @@ class EmployeeEntries extends Page implements HasForms
     public function getTimesheetSummary(): array
     {
         $counts = [
-            'P' => 0, 'A' => 0,
+            'P' => 0, 'A' => 0, 'L' => 0, 'O' => 0, 'X' => 0,
         ];
 
         foreach ($this->attendanceData as $status) {
