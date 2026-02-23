@@ -4,7 +4,6 @@ namespace App\Filament\Company\Pages;
 
 use App\Enums\CompanyTypes;
 use App\Enums\EmployeeAssignedStatus;
-use App\Filament\Schema\EmployeeSchema;
 use App\Models\Branch;
 use App\Models\EmployeeAssigned;
 use Filament\Facades\Filament;
@@ -101,7 +100,7 @@ class PendingHiring extends Page implements HasTable
                 }
                 
                 return EmployeeAssigned::query()
-                    ->with(['employee', 'company', 'branch'])
+                    ->with(['employee.currentPayroll', 'company', 'branch'])
                     ->where(function ($query) use ($companyId) {
                         $query->where('employee_assigned.company_id', $companyId)
                             ->orWhereHas('employee', function ($q) use ($companyId) {
@@ -114,14 +113,74 @@ class PendingHiring extends Page implements HasTable
                     });
             })
             ->columns([
-                ...EmployeeSchema::getTableColumns(
-                    false,
-                    'employee.'
-                ),
+                // --- Employee Identity ---
+                TextColumn::make('employee.name')
+                    ->label('اسم الموظف / Name')
+                    ->sortable()
+                    ->searchable()
+                    ->weight('bold'),
+                TextColumn::make('employee.emp_id')
+                    ->label('الرقم الوظيفي / Emp ID')
+                    ->sortable()
+                    ->searchable()
+                    ->placeholder('-'),
+                TextColumn::make('employee.nationality')
+                    ->label('الجنسية / Nationality')
+                    ->sortable()
+                    ->searchable()
+                    ->placeholder('-'),
+                TextColumn::make('employee.job_title')
+                    ->label('المسمى الوظيفي / Job Title')
+                    ->sortable()
+                    ->searchable()
+                    ->placeholder('-'),
+
+                // --- Salary Info (from provider payroll) ---
+                TextColumn::make('employee.currentPayroll.basic_salary')
+                    ->label('الراتب الأساسي / Basic Salary')
+                    ->money('SAR')
+                    ->placeholder('-')
+                    ->toggleable(),
+                TextColumn::make('employee.currentPayroll.housing_allowance')
+                    ->label('بدل السكن / Housing')
+                    ->money('SAR')
+                    ->placeholder('-')
+                    ->toggleable(),
+                TextColumn::make('employee.currentPayroll.transportation_allowance')
+                    ->label('بدل المواصلات / Transport')
+                    ->money('SAR')
+                    ->placeholder('-')
+                    ->toggleable(),
+                TextColumn::make('employee.currentPayroll.food_allowance')
+                    ->label('بدل الطعام / Food')
+                    ->money('SAR')
+                    ->placeholder('-')
+                    ->toggleable(),
+                TextColumn::make('employee.currentPayroll.other_allowance')
+                    ->label('بدلات أخرى / Other Allow.')
+                    ->money('SAR')
+                    ->placeholder('-')
+                    ->toggleable(),
+                TextColumn::make('employee.currentPayroll.fees')
+                    ->label('الرسوم / Fees')
+                    ->money('SAR')
+                    ->placeholder('-')
+                    ->toggleable(),
+                TextColumn::make('employee.currentPayroll.total_salary')
+                    ->label('إجمالي الراتب / Total Salary')
+                    ->money('SAR')
+                    ->placeholder('-')
+                    ->weight('bold')
+                    ->color('success')
+                    ->toggleable(),
+
+                // --- Assignment Info ---
                 TextColumn::make('company.name')
                     ->label('الشركة المعينة / Assigned To')
                     ->searchable(),
-                TextColumn::make('start_date')->date('Y-m-d'),
+                TextColumn::make('start_date')
+                    ->label('تاريخ البدء / Start Date')
+                    ->date('Y-m-d'),
                 TextColumn::make('branch.name')
                     ->label('الفرع / Branch')
                     ->placeholder('-'),
