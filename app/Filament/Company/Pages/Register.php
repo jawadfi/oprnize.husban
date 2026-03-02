@@ -33,41 +33,37 @@ class Register extends \Filament\Pages\Auth\Register
                                     ])->descriptions([
                                         CompanyTypes::PROVIDER => 'I am a company that provide HR manpower',
                                         CompanyTypes::CLIENT => 'I am a client who will receive service',
-                                    ]) ->icons([
+                                    ])->icons([
                                         CompanyTypes::PROVIDER => 'heroicon-o-building-office-2',
                                         CompanyTypes::CLIENT => 'heroicon-o-building-office-2',
-                                    ])->required()
+                                    ])
+                                    ->required()
                                     ->color('primary')
-                                    ->gap('gap-5') // Gap between Options and Descriptions between the Icon
-                                    ->extraCardsAttributes([ // Extra attributes for card elements
-                                        'class' => 'rounded-xl'
-                                    ])
-                                    ->extraOptionsAttributes([ // Extra attributes for option elements
-                                        'class' => 'text-3xl leading-none w-full flex flex-col items-center justify-center p-4'
-                                    ])
-                                    ->extraDescriptionsAttributes([ // Extra attributes for description elements
-                                        'class' => 'text-sm font-light text-center'
-                                    ])
+                                    ->gap('gap-5')
+                                    ->extraCardsAttributes(['class' => 'rounded-xl'])
+                                    ->extraOptionsAttributes(['class' => 'text-3xl leading-none w-full flex flex-col items-center justify-center p-4'])
+                                    ->extraDescriptionsAttributes(['class' => 'text-sm font-light text-center'])
                             ])->hiddenLabel(),
                             Step::make('2')->schema([
                                 TextInput::make('name')
                                     ->hiddenLabel()
                                     ->placeholder('Enter Company Name')
-                                    ->prefixIcon('heroicon-o-building-office-2'),
+                                    ->prefixIcon('heroicon-o-building-office-2')
+                                    ->required()
+                                    ->maxLength(255),
                                 TextInput::make('commercial_registration_number')
-                                    ->prefixIcon('heroicon-s-numbered-list')
                                     ->hiddenLabel()
                                     ->placeholder('Enter company registration number')
-                                    ->prefixIcon('heroicon-o-building-office-2'),
+                                    ->prefixIcon('heroicon-s-numbered-list')
+                                    ->maxLength(255),
                                 self::getEmailFormComponent(),
                                 self::getPasswordFormComponent(),
                                 Select::make('city_id')
-                                ->hiddenLabel()
-                                ->placeholder('Select your city')
-                                ->options(City::pluck('name','id'))
-                                ->preload()
-                                ->searchable()
-
+                                    ->hiddenLabel()
+                                    ->placeholder('Select your city')
+                                    ->options(City::pluck('name', 'id'))
+                                    ->preload()
+                                    ->searchable(),
                             ])->hiddenLabel()
                         ])
                     ])
