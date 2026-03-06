@@ -17,6 +17,7 @@ class CreateUser extends CreateRecord
         $companyId = $company instanceof \App\Models\Company ? $company->id : ($company instanceof \App\Models\User ? $company->company_id : null);
         
         $data['company_id'] = $companyId;
+        $data['email_verified_at'] = now();
         
         return $data;
     }
