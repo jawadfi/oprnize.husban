@@ -124,32 +124,47 @@ class ClientCompanyEmployees extends Page implements HasTable
                             ->default(now()),
                     ])
                     ->action(function (Employee $record, array $data) {
-                        $clientCompany = Company::findOrFail($this->companyId);
+                        try {
+                            $clientCompany = Company::findOrFail($this->companyId);
 
-                        // Check if already assigned to this client
-                        $existing = EmployeeAssigned::where('employee_id', $record->id)
-                            ->where('company_id', $clientCompany->id)
-                            ->first();
+                            // Check if already assigned to this client
+                            $existing = EmployeeAssigned::where('employee_id', $record->id)
+                                ->where('company_id', $clientCompany->id)
+                                ->first();
 
-                        if ($existing) {
+                            if ($existing) {
+                                Notification::make()
+                                    ->title('هذا الموظف مُعين مسبقاً لهذا العميل')
+                                    ->warning()
+                                    ->send();
+                                return;
+                            }
+
+                            // Attach employee to client company with PENDING status (client must approve)
+                            $clientCompany->used_employees()->attach($record->id, [
+                                'start_date' => $data['start_date'],
+                                'status' => EmployeeAssignedStatus::PENDING,
+                            ]);
+
                             Notification::make()
-                                ->title('هذا الموظف مُعين مسبقاً لهذا العميل')
-                                ->warning()
+                                ->title('تم إرسال طلب التعيين بنجاح')
+                                ->body('في انتظار موافقة العميل / Waiting for client approval')
+                                ->success()
                                 ->send();
-                            return;
+                        } catch (\Throwable $e) {
+                            \Illuminate\Support\Facades\Log::error('Assign employee failed', [
+                                'employee_id' => $record->id,
+                                'company_id'  => $this->companyId,
+                                'error'       => $e->getMessage(),
+                                'trace'       => $e->getTraceAsString(),
+                            ]);
+
+                            Notification::make()
+                                ->title('حدث خطأ أثناء التعيين')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
                         }
-
-                        // Attach employee to client company with PENDING status (client must approve)
-                        $clientCompany->used_employees()->attach($record->id, [
-                            'start_date' => $data['start_date'],
-                            'status' => EmployeeAssignedStatus::PENDING,
-                        ]);
-
-                        Notification::make()
-                            ->title('تم إرسال طلب التعيين بنجاح')
-                            ->body('في انتظار موافقة العميل / Waiting for client approval')
-                            ->success()
-                            ->send();
                     })
                     ->visible(function (Employee $record) {
                         // Only show for employees not already assigned to this client
