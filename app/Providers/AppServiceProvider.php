@@ -17,11 +17,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        
-        // Register custom user provider for company guard
-        // Auth::provider('company', function ($app, array $config) {
-        //     return new CompanyUserProvider();
-        // });
+        // Register custom user provider for company guard (handles both Company and User models)
+        Auth::provider('company_multi', function ($app, array $config) {
+            return new CompanyUserProvider();
+        });
     }
 
     /**

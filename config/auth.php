@@ -42,7 +42,7 @@ return [
         ],
         'company' => [
             'driver' => 'session',
-            'provider' => 'companies',
+            'provider' => 'company_multi',
         ],
         'company_user' => [
             'driver' => 'session',
@@ -79,6 +79,9 @@ return [
         'companies' => [
             'driver' => 'eloquent',
             'model' => App\Models\Company::class,
+        ],
+        'company_multi' => [
+            'driver' => 'company_multi',
         ],
         'company_users' => [
             'driver' => 'eloquent',
