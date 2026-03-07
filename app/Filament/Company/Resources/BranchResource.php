@@ -40,7 +40,7 @@ class BranchResource extends Resource
             return $user->type === CompanyTypes::CLIENT;
         }
 
-        // User model - check if their company is CLIENT
+        // User model - branch managers can see their own branch
         if ($user instanceof User) {
             return $user->company?->type === CompanyTypes::CLIENT;
         }
@@ -51,6 +51,29 @@ class BranchResource extends Resource
     public static function shouldRegisterNavigation(): bool
     {
         return static::canAccess();
+    }
+
+    public static function canCreate(): bool
+    {
+        // Only Company model (admin) can create branches — not branch managers
+        return Filament::auth()->user() instanceof Company;
+    }
+
+    public static function canEdit($record): bool
+    {
+        // Only Company model (admin) can edit branches — not branch managers
+        return Filament::auth()->user() instanceof Company;
+    }
+
+    public static function canDelete($record): bool
+    {
+        // Only Company model (admin) can delete branches — not branch managers
+        return Filament::auth()->user() instanceof Company;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return Filament::auth()->user() instanceof Company;
     }
 
     public static function getEloquentQuery(): Builder
@@ -151,7 +174,8 @@ class BranchResource extends Resource
                     ->label('الحالة / Status'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn () => Filament::auth()->user() instanceof Company),
                 Tables\Actions\Action::make('manageEmployees')
                     ->label('إدارة الموظفين')
                     ->icon('heroicon-o-user-group')
@@ -160,7 +184,8 @@ class BranchResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn () => Filament::auth()->user() instanceof Company),
                 ]),
             ]);
     }
