@@ -7,18 +7,16 @@ use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Traits\HasRoles;
 
 class Company extends Authenticatable implements MustVerifyEmail, FilamentUser
 {
     use Notifiable,HasRoles;
 
-    protected $guarded = 'company';
     /**
      * The guard name for Spatie Permission
      */
-//    protected $guard_name = 'company';
+    protected $guard_name = 'company';
 
     protected $fillable = [
         'name',
@@ -48,15 +46,6 @@ class Company extends Authenticatable implements MustVerifyEmail, FilamentUser
             $company->assignRole('super_admin');
         });
     }
-    public function sendEmailVerificationNotification(): void
-    {
-        try {
-            parent::sendEmailVerificationNotification();
-        } catch (\Throwable $e) {
-            Log::error('Failed to send verification email to company: ' . $e->getMessage());
-        }
-    }
-
     public function canAccessPanel(Panel $panel): bool
     {
         return true;
