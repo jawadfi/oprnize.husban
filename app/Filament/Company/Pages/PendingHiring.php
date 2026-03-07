@@ -215,8 +215,8 @@ class PendingHiring extends Page implements HasTable
                     })
                     ->visible(function (?EmployeeAssigned $record) {
                         $user = Filament::auth()->user();
-                        $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
-                        return ($record?->company_id === $companyId || $record?->employee->company_id === $companyId) 
+                        $companyId = (int) ($user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null));
+                        return ((int) $record?->company_id === $companyId || (int) $record?->employee->company_id === $companyId) 
                             && $record->status === EmployeeAssignedStatus::PENDING;
                     })
                     ->requiresConfirmation()
@@ -340,8 +340,8 @@ class PendingHiring extends Page implements HasTable
                     ->color('danger')
                     ->visible(function (?EmployeeAssigned $record) {
                         $user = Filament::auth()->user();
-                        $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
-                        return ($record?->company_id === $companyId || $record?->employee->company_id === $companyId) 
+                        $companyId = (int) ($user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null));
+                        return ((int) $record?->company_id === $companyId || (int) $record?->employee->company_id === $companyId) 
                             && $record->status === EmployeeAssignedStatus::PENDING;
                     })
                     ->requiresConfirmation()
@@ -375,11 +375,11 @@ class PendingHiring extends Page implements HasTable
                         ->requiresConfirmation()
                         ->action(function ($records, array $data) {
                             $user = Filament::auth()->user();
-                            $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+                            $companyId = (int) ($user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null));
                             
                             $count = 0;
                             foreach ($records as $record) {
-                                if (($record->company_id === $companyId || $record->employee->company_id === $companyId) 
+                                if (((int) $record->company_id === $companyId || (int) $record->employee->company_id === $companyId) 
                                     && $record->status === EmployeeAssignedStatus::PENDING) {
                                     $record->updateStatus(EmployeeAssignedStatus::APPROVED);
                                     $record->employee->update(['company_assigned_id' => $record->company_id]);
@@ -412,11 +412,11 @@ class PendingHiring extends Page implements HasTable
                         ->requiresConfirmation()
                         ->action(function ($records) {
                             $user = Filament::auth()->user();
-                            $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+                            $companyId = (int) ($user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null));
                             
                             $count = 0;
                             foreach ($records as $record) {
-                                if (($record->company_id === $companyId || $record->employee->company_id === $companyId) 
+                                if (((int) $record->company_id === $companyId || (int) $record->employee->company_id === $companyId) 
                                     && $record->status === EmployeeAssignedStatus::PENDING) {
                                     $record->updateStatus(EmployeeAssignedStatus::DECLINED);
                                     $count++;
