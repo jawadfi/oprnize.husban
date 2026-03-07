@@ -17,10 +17,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Register custom user provider for company guard (handles both Company and User models)
-        Auth::provider('company_multi', function ($app, array $config) {
-            return new CompanyUserProvider();
-        });
+        //
     }
 
     /**
@@ -28,6 +25,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Register custom user provider for company guard (handles both Company and User models)
+        Auth::provider('company_multi', function ($app, array $config) {
+            return new CompanyUserProvider();
+        });
+
         // Force HTTPS in production (only if APP_URL uses https)
         if (str_starts_with((string) config('app.url'), 'https')) {
             URL::forceScheme('https');
