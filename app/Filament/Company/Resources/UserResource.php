@@ -81,13 +81,13 @@ class UserResource extends Resource
         
         // Both provider and client companies can edit their users
         if ($user instanceof \App\Models\Company) {
-            return $record->company_id === $user->id;
+            return (int) $record->company_id === (int) $user->id;
         }
         
         // User model needs permission and must be from same company
         if ($user instanceof User) {
             return ($user->can('update_UserResource') || $user->can('update_user')) 
-                && $record->company_id === $user->company_id;
+                && (int) $record->company_id === (int) $user->company_id;
         }
         
         return false;
@@ -99,13 +99,13 @@ class UserResource extends Resource
         
         // Both provider and client companies can delete their users
         if ($user instanceof \App\Models\Company) {
-            return $record->company_id === $user->id;
+            return (int) $record->company_id === (int) $user->id;
         }
         
         // User model needs permission and must be from same company
         if ($user instanceof User) {
             return ($user->can('delete_UserResource') || $user->can('delete_user'))
-                && $record->company_id === $user->company_id;
+                && (int) $record->company_id === (int) $user->company_id;
         }
         
         return false;
