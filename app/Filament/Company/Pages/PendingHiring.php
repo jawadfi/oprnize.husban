@@ -199,15 +199,15 @@ class PendingHiring extends Page implements HasTable
                     ->label('موافقة / Approve')
                     ->icon('heroicon-o-check')
                     ->color('success')
-                    ->form(function () {
+                        ->form(function () {
                         if ($this->isClientSide()) {
                             return [
                                 Forms\Components\Select::make('branch_id')
                                     ->label('اختر الفرع / Choose Branch (Location)')
                                     ->options(fn () => $this->getClientBranches())
-                                    ->required()
+                                    ->nullable()
                                     ->searchable()
-                                    ->helperText('سيتم تعيين الموظف في الفرع المحدد / Employee will be placed in the selected branch'),
+                                    ->helperText('سيتم تعيين الموظف في الفرع المحدد / Employee will be placed in the selected branch (optional)'),
                             ];
                         }
 
@@ -216,7 +216,8 @@ class PendingHiring extends Page implements HasTable
                     ->visible(function (?EmployeeAssigned $record) {
                         $user = Filament::auth()->user();
                         $companyId = (int) ($user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null));
-                        return ((int) $record?->company_id === $companyId || (int) $record?->employee->company_id === $companyId) 
+                        // Only the CLIENT company (company_id in the assignment) can approve
+                        return (int) $record?->company_id === $companyId
                             && $record->status === EmployeeAssignedStatus::PENDING;
                     })
                     ->requiresConfirmation()
@@ -365,7 +366,7 @@ class PendingHiring extends Page implements HasTable
                                     Forms\Components\Select::make('branch_id')
                                         ->label('اختر الفرع / Choose Branch')
                                         ->options(fn () => $this->getClientBranches())
-                                        ->required()
+                                        ->nullable()
                                         ->searchable(),
                                 ];
                             }
@@ -376,10 +377,10 @@ class PendingHiring extends Page implements HasTable
                         ->action(function ($records, array $data) {
                             $user = Filament::auth()->user();
                             $companyId = (int) ($user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null));
-                            
+
                             $count = 0;
                             foreach ($records as $record) {
-                                if (((int) $record->company_id === $companyId || (int) $record->employee->company_id === $companyId) 
+                                if ((int) $record->company_id === $companyId
                                     && $record->status === EmployeeAssignedStatus::PENDING) {
                                     $record->updateStatus(EmployeeAssignedStatus::APPROVED);
                                     $record->employee->update(['company_assigned_id' => $record->company_id]);
