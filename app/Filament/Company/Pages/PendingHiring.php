@@ -109,7 +109,7 @@ class PendingHiring extends Page implements HasTable
                     })
                     ->where(function ($query) {
                         $query->where('status', EmployeeAssignedStatus::PENDING)
-                            ->orWhereTodayOrAfter('start_date');
+                            ->orWhere('start_date', '>=', now()->toDateString());
                     });
             })
             ->columns([
@@ -263,12 +263,12 @@ class PendingHiring extends Page implements HasTable
 
                         // Company owner (CLIENT side)
                         if ($user instanceof \App\Models\Company) {
-                            return $record->company_id === $user->id;
+                            return (int) $record->company_id === (int) $user->id;
                         }
 
                         // Authorized user in the client company
                         if ($user instanceof \App\Models\User) {
-                            return $user->company_id === $record->company_id;
+                            return (int) $user->company_id === (int) $record->company_id;
                         }
 
                         return false;
@@ -312,7 +312,7 @@ class PendingHiring extends Page implements HasTable
                         
                         // Company owner can always set
                         if ($user instanceof \App\Models\Company) {
-                            return $record->company_id === $user->id;
+                            return (int) $record->company_id === (int) $user->id;
                         }
 
                         // Branch manager can set for their branch
@@ -320,7 +320,7 @@ class PendingHiring extends Page implements HasTable
                             if ($user->isBranchManager() && $record->branch_id) {
                                 return $user->managedBranches()->where('branches.id', $record->branch_id)->exists();
                             }
-                            return $user->company_id === $record->company_id;
+                            return (int) $user->company_id === (int) $record->company_id;
                         }
 
                         return false;
