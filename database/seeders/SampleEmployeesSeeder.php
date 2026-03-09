@@ -27,11 +27,13 @@ class SampleEmployeesSeeder extends Seeder
         $company ??= Company::first();
 
         if (! $company) {
-            $this->command->error('No company found. Run DatabaseSeeder first or set SEED_COMPANY_EMAIL.');
+            $msg = 'No company found. Run DatabaseSeeder first or set SEED_COMPANY_EMAIL.';
+            $this->command ? $this->command->error($msg) : print($msg . PHP_EOL);
             return;
         }
 
-        $this->command->info("Assigning employees to: {$company->name} (ID: {$company->id})");
+        $msg = "Assigning employees to: {$company->name} (ID: {$company->id})";
+        $this->command ? $this->command->info($msg) : print($msg . PHP_EOL);
 
         // emp_id = "Emp.ID" column value (used by salary import to match employees)
         $employees = [
@@ -199,6 +201,7 @@ class SampleEmployeesSeeder extends Seeder
             $exists ? $updated++ : $created++;
         }
 
-        $this->command->info("Done — created: {$created}, updated: {$updated}");
+        $msg = "Done — created: {$created}, updated: {$updated}";
+        $this->command ? $this->command->info($msg) : print($msg . PHP_EOL);
     }
 }

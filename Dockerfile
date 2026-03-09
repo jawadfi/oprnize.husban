@@ -34,17 +34,14 @@ RUN composer update --no-dev --optimize-autoloader --no-interaction
 # Set permissions - make storage fully writable
 RUN chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Ensure start.sh has Unix line endings and is executable
+RUN sed -i 's/\r//' /var/www/html/start.sh && chmod +x /var/www/html/start.sh
+
 # Expose port
 EXPOSE ${PORT:-10000}
 
 # Force sync queue (no queue worker on Render)
 ENV QUEUE_CONNECTION=sync
 
-# Start Laravel server
-CMD php artisan storage:link && \
-    php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache && \
-    php artisan migrate --force && \
-    php artisan db:seed --force && \
-    php artisan serve --host=0.0.0.0 --port=${PORT:-10000}
+# Start Laravel server via startup script
+CMD ["/bin/sh", "/var/www/html/start.sh"]
