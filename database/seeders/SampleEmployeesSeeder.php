@@ -19,11 +19,9 @@ class SampleEmployeesSeeder extends Seeder
 {
     public function run(): void
     {
-        // Resolve company
-        $email   = env('SEED_COMPANY_EMAIL');
-        $company = $email
-            ? Company::where('email', $email)->first()
-            : null;
+        // Resolve company — defaults to masar@masar.com (مسار العقود)
+        $email   = env('SEED_COMPANY_EMAIL', 'masar@masar.com');
+        $company = Company::where('email', $email)->first();
 
         $company ??= Company::where('type', 'provider')->first();
         $company ??= Company::first();
