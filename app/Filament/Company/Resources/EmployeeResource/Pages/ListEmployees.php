@@ -16,6 +16,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use League\Csv\Reader;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class ListEmployees extends ListRecords
 {
@@ -110,28 +111,79 @@ class ListEmployees extends ListRecords
         $fullPath = $disk->path($filePath);
 
         try {
-            $csv = Reader::createFromPath($fullPath, 'r');
-            $csv->setHeaderOffset(0);
-
-            $records = $csv->getRecords();
             $imported = 0;
-            $updated = 0;
-            $failed = 0;
-            $errors = [];
+            $updated  = 0;
+            $failed   = 0;
+            $errors   = [];
 
-            foreach ($records as $offset => $row) {
-                try {
-                    $result = $this->processRow($row, $companyId);
-                    if ($result === 'created') {
-                        $imported++;
-                    } elseif ($result === 'updated') {
-                        $updated++;
+            $extension = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+
+            if (in_array($extension, ['xlsx', 'xls'])) {
+                // ── Excel import via PhpSpreadsheet ──────────────────────────
+                $spreadsheet = IOFactory::load($fullPath);
+                $sheet       = $spreadsheet->getActiveSheet();
+                $allRows     = $sheet->toArray(null, true, true, false);
+
+                if (empty($allRows)) {
+                    Notification::make()->title('الملف فارغ / Empty file')->danger()->send();
+                    return;
+                }
+
+                // First row = headers
+                $headers = array_map(fn ($h) => trim((string) ($h ?? '')), $allRows[0]);
+
+                foreach (array_slice($allRows, 1) as $rowIndex => $row) {
+                    // Skip completely empty rows
+                    if (empty(array_filter($row, fn ($v) => $v !== null && $v !== ''))) {
+                        continue;
                     }
-                } catch (\Throwable $e) {
-                    $failed++;
-                    if (count($errors) < 5) {
-                        $rowNum = $offset + 2; // CSV rows are 1-indexed + header
-                        $errors[] = "Row {$rowNum}: {$e->getMessage()}";
+                    $associative = array_combine($headers, array_pad($row, count($headers), null));
+                    try {
+                        $result = $this->processRow($associative, $companyId);
+                        if ($result === 'created') $imported++;
+                        elseif ($result === 'updated') $updated++;
+                    } catch (\Throwable $e) {
+                        $failed++;
+                        if (count($errors) < 10) {
+                            $errors[] = 'Row ' . ($rowIndex + 2) . ': ' . $e->getMessage();
+                        }
+                    }
+                }
+            } else {
+                // ── CSV import via League\Csv ────────────────────────────────
+                $csv = Reader::createFromPath($fullPath, 'r');
+                $csv->setHeaderOffset(null);
+                $allRows = iterator_to_array($csv->getRecords());
+
+                if (empty($allRows)) {
+                    Notification::make()->title('الملف فارغ / Empty file')->danger()->send();
+                    return;
+                }
+
+                // Deduplicate headers (avoid League\Csv duplicate-column crash)
+                $rawHeaders = array_values($allRows[0]);
+                $headers    = [];
+                $seen       = [];
+                foreach ($rawHeaders as $h) {
+                    $key = strtolower(trim((string) $h));
+                    if ($key === '') $key = '_empty';
+                    if (isset($seen[$key])) { $seen[$key]++; $key .= '_' . $seen[$key]; }
+                    else { $seen[$key] = 0; }
+                    $headers[] = $key;
+                }
+
+                foreach (array_slice($allRows, 1) as $offset => $row) {
+                    $row = array_values($row);
+                    $associative = array_combine($headers, array_pad($row, count($headers), null));
+                    try {
+                        $result = $this->processRow($associative, $companyId);
+                        if ($result === 'created') $imported++;
+                        elseif ($result === 'updated') $updated++;
+                    } catch (\Throwable $e) {
+                        $failed++;
+                        if (count($errors) < 10) {
+                            $errors[] = 'Row ' . ($offset + 2) . ': ' . $e->getMessage();
+                        }
                     }
                 }
             }
@@ -192,27 +244,39 @@ class ListEmployees extends ListRecords
 
     protected function processRow(array $row, int $companyId): string
     {
-        // Normalize column names: trim, lowercase, and also create underscore variant
+        // Normalize column names: trim, lowercase, then create underscore / no-space / no-dot variants
         $normalized = [];
         foreach ($row as $key => $value) {
-            $clean = strtolower(trim($key));
-            $normalized[$clean] = is_string($value) ? trim($value) : $value;
-            // Also store with spaces replaced by underscores for flexible matching
+            $clean = strtolower(trim((string) $key));
+            $val   = is_string($value) ? trim($value) : $value;
+
+            $normalized[$clean] = $val;
+
+            // spaces → underscores
             $underscored = str_replace(' ', '_', $clean);
             if ($underscored !== $clean) {
-                $normalized[$underscored] = is_string($value) ? trim($value) : $value;
+                $normalized[$underscored] = $val;
             }
-            // Also store without underscores/spaces for flexible matching
+
+            // remove underscores + spaces
             $nospace = str_replace(['_', ' '], '', $clean);
             if ($nospace !== $clean && $nospace !== $underscored) {
-                $normalized[$nospace] = is_string($value) ? trim($value) : $value;
+                $normalized[$nospace] = $val;
+            }
+
+            // remove dots + underscores + spaces (handles "Emp.ID" → "empid")
+            $nodot = str_replace(['.', '_', ' '], '', $clean);
+            if ($nodot !== $clean && $nodot !== $underscored && $nodot !== $nospace) {
+                $normalized[$nodot] = $val;
             }
         }
 
         // Get identity_number (required)
+        // "Iqama No" column from Excel also counts as identity_number for foreign workers
         $identityNumber = $this->getField($normalized, [
             'identity_number', 'identitynumber', 'identity', 'id_number', 'idnumber',
-            'رقم الهوية', 'رقم_الهوية', 'الهوية',
+            'iqama no', 'iqama_no', 'iqamano', 'iqama number', 'iqama_number', 'iqamanumber',
+            'رقم الهوية', 'رقم_الهوية', 'الهوية', 'رقم الإقامة', 'رقم_الإقامة',
         ]);
 
         if (empty($identityNumber)) {
@@ -250,10 +314,11 @@ class ListEmployees extends ListRecords
         $employee->nationality = $nationality;
         $employee->company_id = $companyId;
 
-        // emp_id (Employee Number / الرقم الوظيفي)
+        // emp_id — "Emp.ID" in Excel normalises to 'empid' via dot-removal; "Nova Emp ID" as fallback
         $empId = $this->getField($normalized, [
-            'emp_id', 'empid', 'employee_id', 'employeeid', 'employee_number', 'employeenumber',
+            'emp_id', 'empid', 'emp.id', 'employee_id', 'employeeid', 'employee_number', 'employeenumber',
             'emp_no', 'empno', 'emp_number', 'empnumber',
+            'nova emp id', 'nova_emp_id', 'novaempid',
             'الرقم الوظيفي', 'الرقم_الوظيفي', 'رقم الموظف', 'رقم_الموظف',
         ]);
         if ($empId !== null) {
@@ -294,9 +359,10 @@ class ListEmployees extends ListRecords
             $employee->email = $email;
         }
 
-        // Handle hire_date
+        // Handle hire_date — "Hiring Date" column from the user's Excel
         $hireDate = $this->getField($normalized, [
-            'hire_date', 'hiredate', 'start_date', 'startdate', 'join_date', 'joindate',
+            'hire_date', 'hiredate', 'hiring_date', 'hiringdate', 'hiring date',
+            'start_date', 'startdate', 'join_date', 'joindate',
             'تاريخ التعيين', 'تاريخ_التعيين', 'تاريخ الالتحاق', 'تاريخ_الالتحاق',
         ]);
         if (!empty($hireDate)) {
