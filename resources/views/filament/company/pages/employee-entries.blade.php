@@ -303,6 +303,56 @@
     </div>
     @endif
 
+    {{-- ===== PAYROLL SALARY CARD — shown whenever an employee is selected ===== --}}
+    @if($selectedEmployeeId)
+    @php $payroll = $this->getCurrentPayroll(); @endphp
+    @if($payroll)
+    <div class="entry-card" style="border:1px solid #bfdbfe; background:#eff6ff; margin-bottom:16px; padding:14px 18px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+            <h5 style="font-weight:700; color:#1e40af; font-size:14px;">
+                💼 بيانات الراتب المستوردة / Imported Salary — {{ $selectedEmployeeName }} — {{ $selectedMonth }}
+                <span style="margin-right:8px; font-size:11px; background:#dbeafe; color:#1e40af; border-radius:10px; padding:2px 8px;">
+                    {{ $payroll['status'] }}
+                </span>
+            </h5>
+            <a href="{{ url('/company/payroll') }}"
+               style="font-size:12px; color:#2563eb; text-decoration:underline;">
+                📊 عرض في صفحة الرواتب ←
+            </a>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px;">
+            @foreach([
+                'الراتب الأساسي'   => $payroll['basic_salary'],
+                'بدل السكن'        => $payroll['housing_allowance'],
+                'بدل النقل'        => $payroll['transportation_allowance'],
+                'بدل الطعام'       => $payroll['food_allowance'],
+                'بدل آخر'          => $payroll['other_allowance'],
+                'الرسوم'           => $payroll['fees'],
+                'الإجمالي'         => $payroll['total_package'],
+                'ع. إضافي (ساعة)' => $payroll['overtime_hours'],
+                'ع. إضافي (مبلغ)' => $payroll['overtime_amount'],
+                'استحقاقات أخرى'  => $payroll['other_additions'],
+                'خصم الغياب'       => $payroll['absence_unpaid_leave_deduction'],
+                'خصومات أخرى'     => $payroll['other_deduction'],
+            ] as $label => $value)
+            <div style="background:white; border-radius:8px; padding:8px 10px; border:1px solid #bfdbfe;">
+                <div style="font-size:11px; color:#6b7280; margin-bottom:2px;">{{ $label }}</div>
+                <div style="font-weight:700; font-size:13px; color:#1e40af;">
+                    {{ number_format((float)($value ?? 0), 2) }}
+                </div>
+            </div>
+            @endforeach
+            <div style="background:#1e40af; border-radius:8px; padding:8px 10px;">
+                <div style="font-size:11px; color:#bfdbfe; margin-bottom:2px;">صافي الراتب</div>
+                <div style="font-weight:700; font-size:14px; color:white;">
+                    {{ number_format((float)($payroll['net_payment'] ?? 0), 2) }}
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+    @endif
+
     {{-- ===================== TAB 1: OVERTIME ===================== --}}
     @if($activeTab === 'overtime')
         {{-- Search Bar inside tab --}}

@@ -139,14 +139,21 @@ class EmployeeEntries extends Page implements HasForms
     public function searchEmployee(): void
     {
         if (empty($this->searchEmpId)) {
-            Notification::make()->title('أدخل الرقم الوظيفي')->warning()->send();
+            Notification::make()->title('أدخل الرقم الوظيفي أو الاسم')->warning()->send();
             return;
         }
 
         $company = $this->getCompanyUser();
         if (!$company) return;
 
-        $query = Employee::where('emp_id', $this->searchEmpId);
+        $term = trim($this->searchEmpId);
+
+        // Search by emp_id OR identity_number OR name (partial)
+        $query = Employee::where(function ($q) use ($term) {
+            $q->where('emp_id', $term)
+              ->orWhere('identity_number', $term)
+              ->orWhere('name', 'like', "%{$term}%");
+        });
 
         if ($company->type === CompanyTypes::PROVIDER) {
             $query->where('company_id', $company->id);
@@ -160,7 +167,11 @@ class EmployeeEntries extends Page implements HasForms
         $employee = $query->first();
 
         if (!$employee) {
-            Notification::make()->title('الموظف غير موجود')->body('لم يتم العثور على موظف بهذا الرقم الوظيفي')->danger()->send();
+            Notification::make()
+                ->title('الموظف غير موجود')
+                ->body("لم يتم العثور على موظف بـ: {$term} — تحقق من الرقم الوظيفي أو رقم الهوية أو الاسم")
+                ->danger()
+                ->send();
             $this->selectedEmployeeId = null;
             $this->selectedEmployeeName = null;
             return;
@@ -168,7 +179,7 @@ class EmployeeEntries extends Page implements HasForms
 
         $this->selectedEmployeeId = $employee->id;
         $this->selectedEmployeeName = $employee->name . ' (' . $employee->emp_id . ')';
-        
+
         $this->loadExistingEntries();
         $this->loadTimesheetData();
 
@@ -205,6 +216,41 @@ class EmployeeEntries extends Page implements HasForms
             ->orderBy('created_at', 'desc')
             ->get()
             ->toArray();
+    }
+
+    /**
+     * Return the current Payroll record for the selected employee + month (for salary card display).
+     */
+    public function getCurrentPayroll(): ?array
+    {
+        if (!$this->selectedEmployeeId || !$this->selectedMonth) return null;
+
+        $company = $this->getCompanyUser();
+        if (!$company) return null;
+
+        $payroll = Payroll::where('employee_id', $this->selectedEmployeeId)
+            ->where('company_id', $company->id)
+            ->where('payroll_month', $this->selectedMonth)
+            ->first();
+
+        if (!$payroll) return null;
+
+        return [
+            'basic_salary'               => $payroll->basic_salary,
+            'housing_allowance'          => $payroll->housing_allowance,
+            'transportation_allowance'   => $payroll->transportation_allowance,
+            'food_allowance'             => $payroll->food_allowance,
+            'other_allowance'            => $payroll->other_allowance,
+            'fees'                       => $payroll->fees,
+            'total_package'              => $payroll->total_package,
+            'overtime_hours'             => $payroll->overtime_hours,
+            'overtime_amount'            => $payroll->overtime_amount,
+            'other_additions'            => $payroll->other_additions,
+            'absence_unpaid_leave_deduction' => $payroll->absence_unpaid_leave_deduction,
+            'other_deduction'            => $payroll->other_deduction,
+            'net_payment'                => $payroll->net_payment,
+            'status'                     => $payroll->status,
+        ];
     }
 
     /**
@@ -1018,7 +1064,24 @@ class EmployeeEntries extends Page implements HasForms
             $this->salaryFile        = null;
             $this->showImportResults = true;
 
-            $total = $created + $updated;
+            // Auto-select the first successfully-imported employee so user can see them immediately
+            if (!empty($this->importResults)) {
+                $firstEmpId = $this->importResults[0]['emp_id'] ?? null;
+                if ($firstEmpId) {
+                    $autoEmp = Employee::where('emp_id', $firstEmpId)
+                        ->orWhere('identity_number', $firstEmpId)
+                        ->first();
+                    if ($autoEmp) {
+                        $this->selectedEmployeeId   = $autoEmp->id;
+                        $this->selectedEmployeeName = $autoEmp->name . ' (' . $autoEmp->emp_id . ')';
+                        $this->searchEmpId          = $autoEmp->emp_id;
+                        $this->loadExistingEntries();
+                        $this->loadTimesheetData();
+                    }
+                }
+            }
+
+            $total    = $created + $updated;
             $errCount = count($this->importErrors);
 
             if ($total === 0 && $errCount > 0) {
