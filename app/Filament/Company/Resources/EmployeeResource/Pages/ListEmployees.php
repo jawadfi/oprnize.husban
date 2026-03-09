@@ -2,9 +2,7 @@
 
 namespace App\Filament\Company\Resources\EmployeeResource\Pages;
 
-use App\Enums\PayrollStatus;
 use App\Models\Employee;
-use App\Models\Payroll;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -65,12 +63,18 @@ class ListEmployees extends ListRecords
             ->color('info')
             ->form([
                 Forms\Components\FileUpload::make('file')
-                    ->label('CSV File / ملف CSV')
+                    ->label('CSV / Excel / ملف CSV أو Excel')
                     ->required()
-                    ->acceptedFileTypes(['text/csv', 'application/vnd.ms-excel', 'text/plain'])
+                    ->acceptedFileTypes([
+                        'text/csv',
+                        'application/vnd.ms-excel',
+                        'text/plain',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        'application/octet-stream',
+                    ])
                     ->disk('local')
                     ->directory('imports')
-                    ->helperText('Upload a CSV file with columns: name, job_title, identity_number, nationality (required). Optional: emp_id, department, location, iqama_no, hire_date, email'),
+                    ->helperText('Upload a CSV or Excel (.xlsx/.xls) file with columns: name, job_title, identity_number, nationality (required). Optional: emp_id, department, hire_date, email'),
             ])
             ->action(function (array $data): void {
                 $this->processImport($data['file']);
@@ -304,40 +308,6 @@ class ListEmployees extends ListRecords
         }
 
         $employee->save();
-
-        // Create payroll record for new employees
-        if ($isNew) {
-            $existingPayroll = Payroll::where('employee_id', $employee->id)
-                ->where('company_id', $companyId)
-                ->where('payroll_month', now()->format('Y-m'))
-                ->exists();
-
-            if (!$existingPayroll) {
-                Payroll::create([
-                    'employee_id' => $employee->id,
-                    'company_id' => $companyId,
-                    'payroll_month' => now()->format('Y-m'),
-                    'status' => PayrollStatus::DRAFT,
-                    'basic_salary' => 0,
-                    'housing_allowance' => 0,
-                    'transportation_allowance' => 0,
-                    'food_allowance' => 0,
-                    'other_allowance' => 0,
-                    'fees' => 0,
-                    'total_package' => 0,
-                    'work_days' => 0,
-                    'added_days' => 0,
-                    'overtime_hours' => 0,
-                    'overtime_amount' => 0,
-                    'added_days_amount' => 0,
-                    'other_additions' => 0,
-                    'absence_days' => 0,
-                    'absence_unpaid_leave_deduction' => 0,
-                    'food_subscription_deduction' => 0,
-                    'other_deduction' => 0,
-                ]);
-            }
-        }
 
         return $isNew ? 'created' : 'updated';
     }

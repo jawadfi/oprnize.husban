@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
 use League\Csv\Reader;
 use Livewire\Attributes\Url;
 use Livewire\WithFileUploads;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class EmployeeEntries extends Page implements HasForms
 {
@@ -80,6 +81,10 @@ class EmployeeEntries extends Page implements HasForms
     // Bulk upload
     public $bulkFile = null;
     public bool $showBulkUpload = false;
+
+    // Salary data upload (Excel)
+    public $salaryFile = null;
+    public bool $showSalaryUpload = false;
 
     // Existing entries lists
     public array $existingOvertimes = [];
@@ -662,7 +667,7 @@ class EmployeeEntries extends Page implements HasForms
     public function importBulkEntries(): void
     {
         if (!$this->bulkFile) {
-            Notification::make()->title('يرجى رفع ملف CSV')->warning()->send();
+            Notification::make()->title('يرجى رفع ملف CSV أو Excel')->warning()->send();
             return;
         }
 
@@ -671,26 +676,66 @@ class EmployeeEntries extends Page implements HasForms
 
         try {
             $filePath = $this->bulkFile->getRealPath();
-            $csv = Reader::createFromPath($filePath, 'r');
-            $csv->setHeaderOffset(0);
-            $records = $csv->getRecords();
+            $extension = strtolower(pathinfo($this->bulkFile->getClientOriginalName(), PATHINFO_EXTENSION));
+
+            // Get records based on file type
+            $records = [];
+            if (in_array($extension, ['xlsx', 'xls'])) {
+                // Excel file - use PhpSpreadsheet
+                $records = $this->readExcelFile($filePath);
+            } else {
+                // CSV file - read manually to handle duplicate column headers
+                $csv = Reader::createFromPath($filePath, 'r');
+                $csv->setHeaderOffset(null); // don't use built-in header parsing
+
+                $allRows = iterator_to_array($csv->getRecords());
+                if (empty($allRows)) {
+                    Notification::make()->title('الملف فارغ')->warning()->send();
+                    return;
+                }
+
+                // Build deduplicated headers from first row
+                $rawHeaders = array_values($allRows[0]);
+                $headers = [];
+                $seen = [];
+                foreach ($rawHeaders as $h) {
+                    $key = strtolower(trim((string) $h));
+                    if ($key === '') $key = '_empty';
+                    if (isset($seen[$key])) {
+                        $seen[$key]++;
+                        $key .= '_' . $seen[$key];
+                    } else {
+                        $seen[$key] = 0;
+                    }
+                    $headers[] = $key;
+                }
+
+                // Map data rows using deduplicated headers
+                foreach ($allRows as $rowIndex => $rawRow) {
+                    if ($rowIndex === 0) continue; // skip header row
+                    $rawRow = array_values($rawRow);
+                    $normalized = [];
+                    foreach ($headers as $colIdx => $colName) {
+                        $normalized[$colName] = isset($rawRow[$colIdx])
+                            ? (is_string($rawRow[$colIdx]) ? trim($rawRow[$colIdx]) : $rawRow[$colIdx])
+                            : null;
+                    }
+                    $records[$rowIndex + 1] = $normalized;
+                }
+            }
 
             $created = 0;
             $skipped = 0;
             $errors = [];
 
-            foreach ($records as $rowNum => $row) {
+            foreach ($records as $rowNum => $normalized) {
                 try {
-                    $normalized = [];
-                    foreach ($row as $key => $value) {
-                        $clean = strtolower(trim($key));
-                        $normalized[$clean] = is_string($value) ? trim($value) : $value;
-                    }
-
-                    $empId = $normalized['emp_id'] ?? $normalized['employee_id'] ?? $normalized['رقم الموظف'] ?? null;
+                    $empId = $normalized['emp_id'] ?? $normalized['employee_id'] ?? $normalized['رقم الموظف'] ?? $normalized['emp.id'] ?? null;
                     if (!$empId) { $skipped++; continue; }
 
-                    $employee = Employee::where('emp_id', $empId)->first();
+                    $employee = Employee::where('emp_id', $empId)
+                        ->orWhere('identity_number', $empId)
+                        ->first();
                     if (!$employee) { $errors[] = "Row {$rowNum}: Employee {$empId} not found"; continue; }
 
                     $month = $normalized['month'] ?? $normalized['الشهر'] ?? $this->selectedMonth;
@@ -781,5 +826,253 @@ class EmployeeEntries extends Page implements HasForms
                 ->danger()
                 ->send();
         }
+    }
+
+    // ========================
+    // SALARY DATA IMPORT (Excel)
+    // ========================
+
+    public function toggleSalaryUpload(): void
+    {
+        $this->showSalaryUpload = !$this->showSalaryUpload;
+        $this->salaryFile = null;
+    }
+
+    /**
+     * Import salary data from Excel file
+     * Maps columns: Emp.ID, Basic Salary, Housing Allowance, Transportation Allowance,
+     * Food Allowance, Other Allowance, Fees, End of Service Date, etc.
+     */
+    public function importSalaryData(): void
+    {
+        if (!$this->salaryFile) {
+            Notification::make()->title('يرجى رفع ملف Excel / Please upload an Excel file')->warning()->send();
+            return;
+        }
+
+        $company = $this->getCompanyUser();
+        if (!$company) return;
+
+        try {
+            $filePath = $this->salaryFile->getRealPath();
+            $rows = $this->readExcelFile($filePath);
+
+            if (empty($rows)) {
+                Notification::make()->title('الملف فارغ / File is empty')->warning()->send();
+                return;
+            }
+
+            $created = 0;
+            $updated = 0;
+            $skipped = 0;
+            $errors = [];
+
+            foreach ($rows as $rowNum => $row) {
+                try {
+                    // Find employee by emp_id
+                    $empId = $this->getExcelField($row, [
+                        'emp.id', 'emp id', 'empid', 'emp_id', 'employee_id', 'nova emp id', 'nova emp id.',
+                        'رقم الموظف', 'رقم_الموظف'
+                    ]);
+
+                    if (!$empId) {
+                        $skipped++;
+                        continue;
+                    }
+
+                    $employee = Employee::where('emp_id', $empId)
+                        ->orWhere('identity_number', $empId)
+                        ->first();
+
+                    if (!$employee) {
+                        $errors[] = "Row {$rowNum}: Employee {$empId} not found";
+                        continue;
+                    }
+
+                    $month = $this->selectedMonth ?? now()->format('Y-m');
+
+                    // Get salary fields from Excel
+                    $basicSalary = $this->getExcelNumericField($row, [
+                        'basic salary', 'basic_salary', 'basicsalary', 'basic after increment',
+                        'الراتب الأساسي', 'الراتب_الأساسي'
+                    ]);
+                    $housingAllowance = $this->getExcelNumericField($row, [
+                        'housing allowance', 'housing_allowance', 'housingallowance',
+                        'بدل السكن', 'بدل_السكن'
+                    ]);
+                    $transportationAllowance = $this->getExcelNumericField($row, [
+                        'transportation allowance', 'transportation_allowance', 'transportationallowance', 'transport allowance',
+                        'بدل النقل', 'بدل_النقل', 'بدل المواصلات'
+                    ]);
+                    $foodAllowance = $this->getExcelNumericField($row, [
+                        'food allowance', 'food_allowance', 'foodallowance',
+                        'بدل الطعام', 'بدل_الطعام'
+                    ]);
+                    $otherAllowance = $this->getExcelNumericField($row, [
+                        'other allowance', 'other_allowance', 'otherallowance',
+                        'بدل آخر', 'بدلات أخرى'
+                    ]);
+                    $fees = $this->getExcelNumericField($row, [
+                        'fees', 'fee', 'الرسوم', 'رسوم'
+                    ]);
+
+                    // Check if any salary data found
+                    if ($basicSalary === null && $housingAllowance === null && $transportationAllowance === null
+                        && $foodAllowance === null && $otherAllowance === null && $fees === null) {
+                        $skipped++;
+                        continue;
+                    }
+
+                    // Find or create payroll for this employee
+                    $payroll = Payroll::firstOrNew([
+                        'employee_id' => $employee->id,
+                        'company_id' => $company->id,
+                        'payroll_month' => $month,
+                    ]);
+
+                    $isNew = !$payroll->exists;
+
+                    // Update salary fields (only if provided in Excel)
+                    if ($basicSalary !== null) $payroll->basic_salary = $basicSalary;
+                    if ($housingAllowance !== null) $payroll->housing_allowance = $housingAllowance;
+                    if ($transportationAllowance !== null) $payroll->transportation_allowance = $transportationAllowance;
+                    if ($foodAllowance !== null) $payroll->food_allowance = $foodAllowance;
+                    if ($otherAllowance !== null) $payroll->other_allowance = $otherAllowance;
+                    if ($fees !== null) $payroll->fees = $fees;
+
+                    // Calculate total_package
+                    $payroll->total_package = ($payroll->basic_salary ?? 0)
+                        + ($payroll->housing_allowance ?? 0)
+                        + ($payroll->transportation_allowance ?? 0)
+                        + ($payroll->food_allowance ?? 0)
+                        + ($payroll->other_allowance ?? 0);
+
+                    // Set default status if new
+                    if ($isNew) {
+                        $payroll->status = 'draft';
+                    }
+
+                    $payroll->save();
+
+                    // Update employee hire_date if provided
+                    $hireDate = $this->getExcelField($row, [
+                        'hiring date', 'hire_date', 'hiredate', 'start date', 'join date',
+                        'تاريخ التعيين', 'تاريخ_التعيين'
+                    ]);
+                    if ($hireDate) {
+                        try {
+                            $parsedDate = Carbon::parse($hireDate);
+                            $employee->hire_date = $parsedDate->format('Y-m-d');
+                            $employee->save();
+                        } catch (\Exception $e) {
+                            // Skip invalid date
+                        }
+                    }
+
+                    // Sync payroll entries
+                    Payroll::syncFromEntries($employee->id, $company->id, $month);
+
+                    $isNew ? $created++ : $updated++;
+
+                } catch (\Exception $e) {
+                    $errors[] = "Row {$rowNum}: " . $e->getMessage();
+                }
+            }
+
+            $this->showSalaryUpload = false;
+            $this->salaryFile = null;
+
+            if ($this->selectedEmployeeId) {
+                $this->loadExistingEntries();
+            }
+
+            $msg = "تم إنشاء {$created} سجل | تم تحديث {$updated} سجل";
+            if ($skipped > 0) $msg .= " | تم تخطي {$skipped}";
+            if (count($errors) > 0) $msg .= " | أخطاء: " . count($errors);
+
+            Notification::make()
+                ->title('تم استيراد بيانات الرواتب / Salary data imported')
+                ->body($msg)
+                ->success()
+                ->send();
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('خطأ في استيراد الملف / Import error')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    /**
+     * Read Excel file and return array of rows
+     */
+    protected function readExcelFile(string $filePath): array
+    {
+        $spreadsheet = IOFactory::load($filePath);
+        $worksheet = $spreadsheet->getActiveSheet();
+        $rows = [];
+
+        $headers = [];
+        $rowIterator = $worksheet->getRowIterator();
+
+        foreach ($rowIterator as $rowIndex => $row) {
+            $cellIterator = $row->getCellIterator();
+            $cellIterator->setIterateOnlyExistingCells(false);
+
+            $rowData = [];
+            $colIndex = 0;
+
+            foreach ($cellIterator as $cell) {
+                $value = $cell->getValue();
+
+                if ($rowIndex === 1) {
+                    // First row is headers
+                    $headers[$colIndex] = strtolower(trim((string) $value));
+                } else {
+                    // Data rows
+                    if (isset($headers[$colIndex]) && $headers[$colIndex] !== '') {
+                        $rowData[$headers[$colIndex]] = $value;
+                    }
+                }
+                $colIndex++;
+            }
+
+            if ($rowIndex > 1 && !empty(array_filter($rowData))) {
+                $rows[$rowIndex] = $rowData;
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Get field value from Excel row with multiple possible column names
+     */
+    protected function getExcelField(array $row, array $possibleNames): ?string
+    {
+        foreach ($possibleNames as $name) {
+            $key = strtolower(trim($name));
+            if (isset($row[$key]) && $row[$key] !== null && $row[$key] !== '') {
+                return trim((string) $row[$key]);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get numeric field value from Excel row
+     */
+    protected function getExcelNumericField(array $row, array $possibleNames): ?float
+    {
+        $value = $this->getExcelField($row, $possibleNames);
+        if ($value === null) return null;
+
+        // Remove currency symbols, commas, spaces
+        $cleaned = preg_replace('/[^\d.\-]/', '', $value);
+        if ($cleaned === '' || $cleaned === '-') return null;
+
+        return floatval($cleaned);
     }
 }

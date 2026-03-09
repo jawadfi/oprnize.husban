@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Company\Pages\LeaveRequests;
+use App\Filament\Company\Pages\Auth\EmailVerificationPrompt;
 use App\Filament\Company\Pages\Login;
 use App\Filament\Company\Pages\PendingHiring;
 use App\Filament\Company\Pages\ProviderCompaniesListing;
@@ -47,7 +48,7 @@ class CompanyPanelProvider extends PanelProvider
             ])
             ->login(Login::class)
             ->registration(Register::class)
-            ->emailVerification()
+            ->emailVerification(EmailVerificationPrompt::class)
             ->profile(\App\Filament\Company\Pages\Profile::class)
             ->discoverResources(in: app_path('Filament/Company/Resources'), for: 'App\\Filament\\Company\\Resources')
             ->resources([

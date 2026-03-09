@@ -115,10 +115,12 @@ class EmployeeResource extends Resource
                     ])->action(function ($records, array $data){
                         /** @var Company $company */
                         $company = Company::find($data['company_id']);
-                        $company->used_employees()->attach($records,['start_date'=>$data['start_date']]);
-                        Employee::whereIn('id',$records->pluck('id')->toArray())->update(['company_assigned_id'=>$company->id]);
+                        $company->used_employees()->attach($records, [
+                            'start_date' => $data['start_date'],
+                            'status' => \App\Enums\EmployeeAssignedStatus::PENDING,
+                        ]);
                         Notification::make()
-                            ->title('Employees assigned successfully')
+                            ->title('تم إرسال طلب التعيين / Assignment request sent — awaiting client approval')
                             ->success()
                             ->send();
                     }),

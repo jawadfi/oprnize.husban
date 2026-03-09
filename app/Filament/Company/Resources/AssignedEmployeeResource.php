@@ -19,9 +19,9 @@ class AssignedEmployeeResource extends Resource
 {
     protected static ?string $model = Employee::class;
 
-    protected static ?string $label = 'Assigned Employees';
-    
-    protected static ?string $navigationLabel = 'Assigned Employees';
+    protected static ?string $label = 'Employees';
+
+    protected static ?string $navigationLabel = 'Employees';
 
     public static function canAccess(): bool
     {

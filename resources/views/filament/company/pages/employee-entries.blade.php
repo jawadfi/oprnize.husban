@@ -160,6 +160,46 @@
         @endif
     </div>
 
+    {{-- Salary Data Import (Excel) - Always visible --}}
+    <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center;">
+        <button class="btn-primary" wire:click="toggleSalaryUpload" style="background: {{ $showSalaryUpload ? '#dc2626' : '#059669' }}; padding: 12px 24px;">
+            📊 {{ $showSalaryUpload ? 'إلغاء' : 'استيراد بيانات الرواتب / Import Salary Data (Excel)' }}
+        </button>
+        @if(!$showSalaryUpload)
+        <span style="font-size: 12px; color: #6b7280;">
+            استورد ملف Excel يحتوي على: Emp.ID, Basic Salary, Housing Allowance, Transportation Allowance, Food Allowance, Other Allowance, Fees
+        </span>
+        @endif
+    </div>
+
+    @if($showSalaryUpload)
+    <div class="entry-card" style="border: 2px dashed #059669; background: #ecfdf5; margin-bottom: 16px;">
+        <h4 style="margin-bottom: 12px; font-weight: 600; color: #059669;">📊 استيراد بيانات الرواتب من ملف Excel / Import Salary Data from Excel</h4>
+        <p style="font-size: 12px; color: #374151; margin-bottom: 12px;">
+            <strong>الأعمدة المدعومة:</strong> Emp.ID (أو Nova Emp ID), Basic Salary, Housing Allowance, Transportation Allowance, Food Allowance, Other Allowance, Fees, Hiring Date
+        </p>
+        <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+            <div class="form-group" style="flex: 0 0 180px;">
+                <label>الشهر / Month</label>
+                <input type="month" wire:model.live="selectedMonth" value="{{ $selectedMonth }}">
+            </div>
+            <div class="form-group" style="flex: 1; min-width: 250px;">
+                <label>اختر ملف Excel (.xlsx, .xls, .csv)</label>
+                <input type="file" wire:model="salaryFile" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+            </div>
+            <button class="btn-primary" wire:click="importSalaryData" style="height: 38px; background: #059669;">
+                📥 استيراد / Import
+            </button>
+        </div>
+        <div wire:loading wire:target="salaryFile" style="margin-top: 10px; color: #059669; font-size: 13px;">
+            ⏳ جاري رفع الملف...
+        </div>
+        <div wire:loading wire:target="importSalaryData" style="margin-top: 10px; color: #059669; font-size: 13px;">
+            ⏳ جاري استيراد البيانات...
+        </div>
+    </div>
+    @endif
+
     {{-- ===================== TAB 1: OVERTIME ===================== --}}
     @if($activeTab === 'overtime')
         {{-- Search Bar inside tab --}}
@@ -184,7 +224,7 @@
                 <input type="month" wire:model.live="selectedMonth" value="{{ $selectedMonth }}">
             </div>
             <button class="btn-primary" wire:click="toggleBulkUpload" style="height: 38px; background: {{ $showBulkUpload ? '#dc2626' : '#7c3aed' }};">
-                📤 {{ $showBulkUpload ? 'إلغاء الرفع' : 'رفع ملف CSV' }}
+                📤 {{ $showBulkUpload ? 'إلغاء الرفع' : 'رفع ملف CSV/Excel' }}
             </button>
             @if($selectedEmployeeName)
                 <div class="employee-info">✅ {{ $selectedEmployeeName }}</div>
@@ -199,7 +239,7 @@
             <div style="display: flex; gap: 12px; align-items: flex-end;">
                 <div class="form-group" style="flex: 1;">
                     <label>اختر ملف CSV</label>
-                    <input type="file" wire:model="bulkFile" accept=".csv,.txt">
+                    <input type="file" wire:model="bulkFile" accept=".csv,.txt,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
                 </div>
                 <button class="btn-primary" wire:click="importBulkEntries" style="height: 38px; background: #7c3aed;">
                     📥 استيراد / Import
@@ -320,7 +360,7 @@
                 <input type="month" wire:model.live="selectedMonth" value="{{ $selectedMonth }}">
             </div>
             <button class="btn-primary" wire:click="toggleBulkUpload" style="height: 38px; background: {{ $showBulkUpload ? '#dc2626' : '#7c3aed' }};">
-                📤 {{ $showBulkUpload ? 'إلغاء الرفع' : 'رفع ملف CSV' }}
+                📤 {{ $showBulkUpload ? 'إلغاء الرفع' : 'رفع ملف CSV/Excel' }}
             </button>
             @if($selectedEmployeeName)
                 <div class="employee-info">✅ {{ $selectedEmployeeName }}</div>
@@ -334,7 +374,7 @@
             <div style="display: flex; gap: 12px; align-items: flex-end;">
                 <div class="form-group" style="flex: 1;">
                     <label>اختر ملف CSV</label>
-                    <input type="file" wire:model="bulkFile" accept=".csv,.txt">
+                    <input type="file" wire:model="bulkFile" accept=".csv,.txt,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
                 </div>
                 <button class="btn-primary" wire:click="importBulkEntries" style="height: 38px; background: #7c3aed;">
                     📥 استيراد / Import
@@ -536,7 +576,7 @@
                 <input type="month" wire:model.live="selectedMonth" value="{{ $selectedMonth }}">
             </div>
             <button class="btn-primary" wire:click="toggleBulkUpload" style="height: 38px; background: {{ $showBulkUpload ? '#dc2626' : '#7c3aed' }};">
-                📤 {{ $showBulkUpload ? 'إلغاء الرفع' : 'رفع ملف CSV' }}
+                📤 {{ $showBulkUpload ? 'إلغاء الرفع' : 'رفع ملف CSV/Excel' }}
             </button>
             @if($selectedEmployeeName)
                 <div class="employee-info">✅ {{ $selectedEmployeeName }}</div>
@@ -550,7 +590,7 @@
             <div style="display: flex; gap: 12px; align-items: flex-end;">
                 <div class="form-group" style="flex: 1;">
                     <label>اختر ملف CSV</label>
-                    <input type="file" wire:model="bulkFile" accept=".csv,.txt">
+                    <input type="file" wire:model="bulkFile" accept=".csv,.txt,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
                 </div>
                 <button class="btn-primary" wire:click="importBulkEntries" style="height: 38px; background: #7c3aed;">
                     📥 استيراد / Import

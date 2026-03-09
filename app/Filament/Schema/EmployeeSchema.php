@@ -19,8 +19,6 @@ class EmployeeSchema
                     Forms\Components\TextInput::make('job_title')->required(),
                     Forms\Components\TextInput::make('department')->required(),
                     Forms\Components\DatePicker::make('hire_date')->required(),
-                    Forms\Components\TextInput::make('location'),
-                    Forms\Components\TextInput::make('iqama_no'),
                     Forms\Components\TextInput::make('identity_number')
                         ->unique(ignoreRecord:true)
                         ->label('ID Number')->required(),
