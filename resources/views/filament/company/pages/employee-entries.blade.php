@@ -200,6 +200,109 @@
     </div>
     @endif
 
+    {{-- ===== IMPORT RESULTS PANEL ===== --}}
+    @if($showImportResults)
+    <div style="margin-bottom: 20px;">
+
+        {{-- Header --}}
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h4 style="font-weight:700; font-size:15px;">
+                📋 نتائج الاستيراد / Import Results
+                @if(count($importResults) > 0)
+                    <span style="background:#d1fae5; color:#065f46; border-radius:12px; padding:2px 10px; font-size:12px; margin-right:8px;">
+                        ✅ {{ count($importResults) }} تم استيراده
+                    </span>
+                @endif
+                @if(count($importErrors) > 0)
+                    <span style="background:#fee2e2; color:#991b1b; border-radius:12px; padding:2px 10px; font-size:12px; margin-right:8px;">
+                        ❌ {{ count($importErrors) }} فشل
+                    </span>
+                @endif
+            </h4>
+            <button wire:click="dismissImportResults"
+                    style="background:#6b7280; color:white; border:none; padding:6px 16px; border-radius:6px; cursor:pointer; font-size:13px;">
+                ✕ إغلاق
+            </button>
+        </div>
+
+        {{-- SUCCESS TABLE --}}
+        @if(count($importResults) > 0)
+        <div class="entry-card" style="border:1px solid #6ee7b7; margin-bottom:14px; overflow-x:auto; padding:12px;">
+            <h5 style="font-weight:600; color:#065f46; margin-bottom:10px;">✅ السجلات المستوردة / Imported Records</h5>
+            <table class="entries-table" style="min-width:700px;">
+                <thead>
+                    <tr>
+                        <th>EmpID</th>
+                        <th>الاسم</th>
+                        <th>الشهر</th>
+                        <th>الراتب الأساسي</th>
+                        <th>بدل السكن</th>
+                        <th>بدل النقل</th>
+                        <th>بدل الطعام</th>
+                        <th>بدل آخر</th>
+                        <th>الرسوم</th>
+                        <th>الإجمالي</th>
+                        <th>الحالة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($importResults as $r)
+                    <tr>
+                        <td>{{ $r['emp_id'] }}</td>
+                        <td style="text-align:right;">{{ $r['name'] }}</td>
+                        <td>{{ $r['month'] }}</td>
+                        <td>{{ number_format($r['basic'] ?? 0, 2) }}</td>
+                        <td>{{ number_format($r['housing'] ?? 0, 2) }}</td>
+                        <td>{{ number_format($r['transport'] ?? 0, 2) }}</td>
+                        <td>{{ number_format($r['food'] ?? 0, 2) }}</td>
+                        <td>{{ number_format($r['other'] ?? 0, 2) }}</td>
+                        <td>{{ number_format($r['fees'] ?? 0, 2) }}</td>
+                        <td><strong>{{ number_format($r['total'] ?? 0, 2) }}</strong></td>
+                        <td>
+                            <span class="badge {{ $r['action'] === 'created' ? 'badge-approved' : 'badge-pending' }}">
+                                {{ $r['action'] === 'created' ? 'جديد' : 'تحديث' }}
+                            </span>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @endif
+
+        {{-- ERRORS TABLE --}}
+        @if(count($importErrors) > 0)
+        <div class="entry-card" style="border:1px solid #fca5a5; margin-bottom:14px; overflow-x:auto; padding:12px;">
+            <h5 style="font-weight:600; color:#991b1b; margin-bottom:10px;">
+                ❌ الأخطاء / Errors — {{ count($importErrors) }} صف لم يُستورد
+            </h5>
+            <p style="font-size:12px; color:#6b7280; margin-bottom:8px;">
+                السبب الأكثر شيوعاً: الموظف غير موجود في النظام — يجب إضافته أولاً عبر صفحة "الموظفين"
+            </p>
+            <table class="entries-table" style="min-width:500px;">
+                <thead>
+                    <tr>
+                        <th>الصف</th>
+                        <th>Emp ID في الملف</th>
+                        <th>السبب / Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($importErrors as $err)
+                    <tr>
+                        <td style="color:#6b7280;">{{ $err['row'] }}</td>
+                        <td><strong>{{ $err['emp_id'] }}</strong></td>
+                        <td style="color:#dc2626; text-align:right;">{{ $err['reason'] }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @endif
+
+    </div>
+    @endif
+
     {{-- ===================== TAB 1: OVERTIME ===================== --}}
     @if($activeTab === 'overtime')
         {{-- Search Bar inside tab --}}

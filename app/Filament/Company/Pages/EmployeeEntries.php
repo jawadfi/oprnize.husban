@@ -85,6 +85,9 @@ class EmployeeEntries extends Page implements HasForms
     // Salary data upload (Excel)
     public $salaryFile = null;
     public bool $showSalaryUpload = false;
+    public array $importResults = [];   // rows successfully imported
+    public array $importErrors  = [];   // rows that failed with reason
+    public bool  $showImportResults = false;
 
     // Existing entries lists
     public array $existingOvertimes = [];
@@ -834,8 +837,18 @@ class EmployeeEntries extends Page implements HasForms
 
     public function toggleSalaryUpload(): void
     {
-        $this->showSalaryUpload = !$this->showSalaryUpload;
-        $this->salaryFile = null;
+        $this->showSalaryUpload  = !$this->showSalaryUpload;
+        $this->salaryFile        = null;
+        $this->showImportResults = false;
+        $this->importResults     = [];
+        $this->importErrors      = [];
+    }
+
+    public function dismissImportResults(): void
+    {
+        $this->showImportResults = false;
+        $this->importResults     = [];
+        $this->importErrors      = [];
     }
 
     /**
@@ -885,7 +898,11 @@ class EmployeeEntries extends Page implements HasForms
                         ->first();
 
                     if (!$employee) {
-                        $errors[] = "Row {$rowNum}: Employee {$empId} not found";
+                        $this->importErrors[] = [
+                            'row'    => $rowNum,
+                            'emp_id' => $empId,
+                            'reason' => 'Employee not found in system — add employee first',
+                        ];
                         continue;
                     }
 
@@ -972,29 +989,52 @@ class EmployeeEntries extends Page implements HasForms
                     // Sync payroll entries
                     Payroll::syncFromEntries($employee->id, $company->id, $month);
 
+                    $this->importResults[] = [
+                        'emp_id'   => $empId,
+                        'name'     => $employee->name,
+                        'month'    => $month,
+                        'basic'    => $payroll->basic_salary,
+                        'housing'  => $payroll->housing_allowance,
+                        'transport'=> $payroll->transportation_allowance,
+                        'food'     => $payroll->food_allowance,
+                        'other'    => $payroll->other_allowance,
+                        'fees'     => $payroll->fees,
+                        'total'    => $payroll->total_package,
+                        'action'   => $isNew ? 'created' : 'updated',
+                    ];
+
                     $isNew ? $created++ : $updated++;
 
                 } catch (\Exception $e) {
-                    $errors[] = "Row {$rowNum}: " . $e->getMessage();
+                    $this->importErrors[] = [
+                        'row'    => $rowNum,
+                        'emp_id' => $empId ?? '?',
+                        'reason' => $e->getMessage(),
+                    ];
                 }
             }
 
-            $this->showSalaryUpload = false;
-            $this->salaryFile = null;
+            $this->showSalaryUpload  = false;
+            $this->salaryFile        = null;
+            $this->showImportResults = true;
 
-            if ($this->selectedEmployeeId) {
-                $this->loadExistingEntries();
+            $total = $created + $updated;
+            $errCount = count($this->importErrors);
+
+            if ($total === 0 && $errCount > 0) {
+                Notification::make()
+                    ->title('لم يتم استيراد أي سجل / No records imported')
+                    ->body("تحقق من جدول الأخطاء أدناه — {$errCount} صف لم يُعثر على الموظف فيه")
+                    ->warning()
+                    ->persistent()
+                    ->send();
+            } else {
+                Notification::make()
+                    ->title('تم الاستيراد / Import complete')
+                    ->body("✅ إنشاء: {$created} | تحديث: {$updated}" . ($errCount ? " | ⚠️ أخطاء: {$errCount}" : ''))
+                    ->success()
+                    ->send();
             }
-
-            $msg = "تم إنشاء {$created} سجل | تم تحديث {$updated} سجل";
-            if ($skipped > 0) $msg .= " | تم تخطي {$skipped}";
-            if (count($errors) > 0) $msg .= " | أخطاء: " . count($errors);
-
-            Notification::make()
-                ->title('تم استيراد بيانات الرواتب / Salary data imported')
-                ->body($msg)
-                ->success()
-                ->send();
 
         } catch (\Exception $e) {
             Notification::make()
