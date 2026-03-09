@@ -82,5 +82,8 @@ class DatabaseSeeder extends Seeder
         if (!$company->email_verified_at) {
             $company->update(['email_verified_at' => now()]);
         }
+
+        // Seed the 13 sample employees under مسار العقود (masar@masar.com)
+        $this->call(SampleEmployeesSeeder::class);
     }
 }
