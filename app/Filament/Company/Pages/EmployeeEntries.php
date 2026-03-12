@@ -26,6 +26,8 @@ use League\Csv\Reader;
 use Livewire\Attributes\Url;
 use Livewire\WithFileUploads;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 
 class EmployeeEntries extends Page implements HasForms
 {
@@ -895,6 +897,70 @@ class EmployeeEntries extends Page implements HasForms
         $this->showImportResults = false;
         $this->importResults     = [];
         $this->importErrors      = [];
+    }
+
+    // ========================
+    // DEMO EXCEL DOWNLOADS
+    // ========================
+
+    public function downloadOvertimeDemo(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        return response()->streamDownload(function () {
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet()->setTitle('Overtime Import');
+            $sheet->fromArray([
+                ['emp_id', 'hours', 'rate', 'amount', 'notes', 'month'],
+                ['80132',  '8',     '50',   '400',    'Weekend overtime', date('Y-m')],
+                ['60459',  '4',     '50',   '200',    '',                date('Y-m')],
+            ]);
+            $sheet->getStyle('A1:F1')->getFont()->setBold(true);
+            foreach (range('A', 'F') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+            (new XlsxWriter($spreadsheet))->save('php://output');
+        }, 'overtime-demo.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    public function downloadAdditionsDemo(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        return response()->streamDownload(function () {
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet()->setTitle('Additions Import');
+            $sheet->fromArray([
+                ['emp_id', 'amount',  'reason',         'description', 'month'],
+                ['80132',  '500.00',  'Housing extra',  '',            date('Y-m')],
+                ['60459',  '250.00',  'Bonus',          'Q1 bonus',   date('Y-m')],
+            ]);
+            $sheet->getStyle('A1:E1')->getFont()->setBold(true);
+            foreach (range('A', 'E') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+            (new XlsxWriter($spreadsheet))->save('php://output');
+        }, 'additions-demo.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    public function downloadDeductionsDemo(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        return response()->streamDownload(function () {
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet()->setTitle('Deductions Import');
+            $sheet->fromArray([
+                ['emp_id', 'amount',  'type',  'reason',   'description', 'days', 'daily_rate', 'month'],
+                ['80132',  '200.00',  'fixed', 'absence',  '',            '',     '',            date('Y-m')],
+                ['60459',  '',        'days',  'absence',  '2-day absent','2',    '100',         date('Y-m')],
+            ]);
+            $sheet->getStyle('A1:H1')->getFont()->setBold(true);
+            foreach (range('A', 'H') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+            (new XlsxWriter($spreadsheet))->save('php://output');
+        }, 'deductions-demo.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     /**

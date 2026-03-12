@@ -303,56 +303,6 @@
     </div>
     @endif
 
-    {{-- ===== PAYROLL SALARY CARD — shown whenever an employee is selected ===== --}}
-    @if($selectedEmployeeId)
-    @php $payroll = $this->getCurrentPayroll(); @endphp
-    @if($payroll)
-    <div class="entry-card" style="border:1px solid #bfdbfe; background:#eff6ff; margin-bottom:16px; padding:14px 18px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-            <h5 style="font-weight:700; color:#1e40af; font-size:14px;">
-                💼 بيانات الراتب المستوردة / Imported Salary — {{ $selectedEmployeeName }} — {{ $selectedMonth }}
-                <span style="margin-right:8px; font-size:11px; background:#dbeafe; color:#1e40af; border-radius:10px; padding:2px 8px;">
-                    {{ $payroll['status'] }}
-                </span>
-            </h5>
-            <a href="{{ url('/company/payroll') }}"
-               style="font-size:12px; color:#2563eb; text-decoration:underline;">
-                📊 عرض في صفحة الرواتب ←
-            </a>
-        </div>
-        <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px;">
-            @foreach([
-                'الراتب الأساسي'   => $payroll['basic_salary'],
-                'بدل السكن'        => $payroll['housing_allowance'],
-                'بدل النقل'        => $payroll['transportation_allowance'],
-                'بدل الطعام'       => $payroll['food_allowance'],
-                'بدل آخر'          => $payroll['other_allowance'],
-                'الرسوم'           => $payroll['fees'],
-                'الإجمالي'         => $payroll['total_package'],
-                'ع. إضافي (ساعة)' => $payroll['overtime_hours'],
-                'ع. إضافي (مبلغ)' => $payroll['overtime_amount'],
-                'استحقاقات أخرى'  => $payroll['other_additions'],
-                'خصم الغياب'       => $payroll['absence_unpaid_leave_deduction'],
-                'خصومات أخرى'     => $payroll['other_deduction'],
-            ] as $label => $value)
-            <div style="background:white; border-radius:8px; padding:8px 10px; border:1px solid #bfdbfe;">
-                <div style="font-size:11px; color:#6b7280; margin-bottom:2px;">{{ $label }}</div>
-                <div style="font-weight:700; font-size:13px; color:#1e40af;">
-                    {{ number_format((float)($value ?? 0), 2) }}
-                </div>
-            </div>
-            @endforeach
-            <div style="background:#1e40af; border-radius:8px; padding:8px 10px;">
-                <div style="font-size:11px; color:#bfdbfe; margin-bottom:2px;">صافي الراتب</div>
-                <div style="font-weight:700; font-size:14px; color:white;">
-                    {{ number_format((float)($payroll['net_payment'] ?? 0), 2) }}
-                </div>
-            </div>
-        </div>
-    </div>
-    @endif
-    @endif
-
     {{-- ===================== TAB 1: OVERTIME ===================== --}}
     @if($activeTab === 'overtime')
         {{-- Search Bar inside tab --}}
@@ -387,11 +337,19 @@
         {{-- Bulk Upload Section --}}
         @if($showBulkUpload)
         <div class="entry-card" style="border: 2px dashed #7c3aed; background: #f5f3ff;">
-            <h4 style="margin-bottom: 12px; font-weight: 600; color: #7c3aed;">📤 رفع ملف CSV للساعات الإضافية / Bulk Upload Overtime CSV</h4>
-            <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">الأعمدة المطلوبة: emp_id, hours, rate, amount, notes (اختياري)</p>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h4 style="font-weight: 600; color: #7c3aed;">📤 رفع ملف CSV/Excel للساعات الإضافية / Bulk Upload Overtime</h4>
+                <button wire:click="downloadOvertimeDemo"
+                        style="background:#7c3aed; color:white; border:none; padding:6px 14px; border-radius:6px; font-size:12px; cursor:pointer;">
+                    ⬇️ تحميل نموذج Excel / Download Demo
+                </button>
+            </div>
+            <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">
+                الأعمدة المطلوبة: <strong>emp_id</strong>, hours, rate, amount, notes
+            </p>
             <div style="display: flex; gap: 12px; align-items: flex-end;">
                 <div class="form-group" style="flex: 1;">
-                    <label>اختر ملف CSV</label>
+                    <label>اختر ملف CSV أو Excel</label>
                     <input type="file" wire:model="bulkFile" accept=".csv,.txt,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
                 </div>
                 <button class="btn-primary" wire:click="importBulkEntries" style="height: 38px; background: #7c3aed;">
@@ -522,11 +480,19 @@
 
         @if($showBulkUpload)
         <div class="entry-card" style="border: 2px dashed #7c3aed; background: #f5f3ff;">
-            <h4 style="margin-bottom: 12px; font-weight: 600; color: #7c3aed;">📤 رفع ملف CSV للمبالغ الإضافية / Bulk Upload Additions CSV</h4>
-            <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">الأعمدة المطلوبة: emp_id, amount, reason (اختياري), description (اختياري)</p>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h4 style="font-weight: 600; color: #7c3aed;">📤 رفع ملف CSV/Excel للمبالغ الإضافية / Bulk Upload Additions</h4>
+                <button wire:click="downloadAdditionsDemo"
+                        style="background:#7c3aed; color:white; border:none; padding:6px 14px; border-radius:6px; font-size:12px; cursor:pointer;">
+                    ⬇️ تحميل نموذج Excel / Download Demo
+                </button>
+            </div>
+            <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">
+                الأعمدة المطلوبة: <strong>emp_id</strong>, amount, reason (اختياري), description (اختياري)
+            </p>
             <div style="display: flex; gap: 12px; align-items: flex-end;">
                 <div class="form-group" style="flex: 1;">
-                    <label>اختر ملف CSV</label>
+                    <label>اختر ملف CSV أو Excel</label>
                     <input type="file" wire:model="bulkFile" accept=".csv,.txt,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
                 </div>
                 <button class="btn-primary" wire:click="importBulkEntries" style="height: 38px; background: #7c3aed;">
@@ -738,11 +704,19 @@
 
         @if($showBulkUpload)
         <div class="entry-card" style="border: 2px dashed #7c3aed; background: #f5f3ff;">
-            <h4 style="margin-bottom: 12px; font-weight: 600; color: #7c3aed;">📤 رفع ملف CSV للخصومات / Bulk Upload Deductions CSV</h4>
-            <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">الأعمدة المطلوبة: emp_id, amount, type (اختياري), reason (اختياري), description (اختياري)</p>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h4 style="font-weight: 600; color: #7c3aed;">📤 رفع ملف CSV/Excel للخصومات / Bulk Upload Deductions</h4>
+                <button wire:click="downloadDeductionsDemo"
+                        style="background:#7c3aed; color:white; border:none; padding:6px 14px; border-radius:6px; font-size:12px; cursor:pointer;">
+                    ⬇️ تحميل نموذج Excel / Download Demo
+                </button>
+            </div>
+            <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">
+                الأعمدة المطلوبة: <strong>emp_id</strong>, amount, type (fixed/days), reason, description (اختياري), days, daily_rate
+            </p>
             <div style="display: flex; gap: 12px; align-items: flex-end;">
                 <div class="form-group" style="flex: 1;">
-                    <label>اختر ملف CSV</label>
+                    <label>اختر ملف CSV أو Excel</label>
                     <input type="file" wire:model="bulkFile" accept=".csv,.txt,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
                 </div>
                 <button class="btn-primary" wire:click="importBulkEntries" style="height: 38px; background: #7c3aed;">

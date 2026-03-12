@@ -17,6 +17,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use League\Csv\Reader;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 
 class ListEmployees extends ListRecords
 {
@@ -53,6 +55,11 @@ class ListEmployees extends ListRecords
         return [
             Actions\CreateAction::make(),
             $this->getCustomImportAction(),
+            Actions\Action::make('downloadEmployeeDemo')
+                ->label('⬇️ تحميل نموذج الاستيراد / Download Import Template')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->color('gray')
+                ->action(fn () => $this->downloadEmployeeDemo()),
         ];
     }
 
@@ -80,6 +87,26 @@ class ListEmployees extends ListRecords
             ->action(function (array $data): void {
                 $this->processImport($data['file']);
             });
+    }
+
+    public function downloadEmployeeDemo(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        return response()->streamDownload(function () {
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet()->setTitle('Employee Import');
+            $sheet->fromArray([
+                ['emp_id', 'name',                  'identity_number', 'nationality', 'location',      'hire_date',  'job_title',          'department'],
+                ['80132',  'Mohammad Masud Rana',    '2464871595',      'Bangladesh',  'Riyadh Sulay',  '2021-05-25', 'Salesman Assistant', 'Retail Sales'],
+                ['60459',  'Mohammad Zahangir Alom', '2496901741',      'Bangladesh',  'Khamis Mushait','2021-06-04', 'Salesman Assistant', 'Retail Sales'],
+            ]);
+            $sheet->getStyle('A1:H1')->getFont()->setBold(true);
+            foreach (range('A', 'H') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+            (new XlsxWriter($spreadsheet))->save('php://output');
+        }, 'employee-import-template.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     protected function processImport(string $filePath): void
