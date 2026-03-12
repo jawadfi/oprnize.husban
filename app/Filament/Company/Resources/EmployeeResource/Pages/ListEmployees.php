@@ -56,11 +56,6 @@ class ListEmployees extends ListRecords
         return [
             Actions\CreateAction::make(),
             $this->getCustomImportAction(),
-            Actions\Action::make('downloadEmployeeDemo')
-                ->label('⬇️ تحميل نموذج الاستيراد / Download Import Template')
-                ->icon('heroicon-o-arrow-down-tray')
-                ->color('gray')
-                ->action(fn () => $this->downloadEmployeeDemo()),
         ];
     }
 
@@ -71,6 +66,13 @@ class ListEmployees extends ListRecords
             ->icon('heroicon-o-arrow-up-tray')
             ->color('info')
             ->form([
+                Forms\Components\Actions::make([
+                    Forms\Components\Actions\Action::make('downloadTemplate')
+                        ->label('⬇️ تحميل النموذج / Download Template')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->color('success')
+                        ->action(fn () => $this->downloadEmployeeDemo()),
+                ]),
                 Forms\Components\FileUpload::make('file')
                     ->label('CSV / Excel / ملف CSV أو Excel')
                     ->required()
@@ -83,7 +85,7 @@ class ListEmployees extends ListRecords
                     ])
                     ->disk('local')
                     ->directory('imports')
-                    ->helperText('Upload CSV or Excel (.xlsx/.xls). Required: Name, Iqama No. Optional: Emp.ID, Nationality, Hiring Date, Title, Department, Basic Salary, Housing Allowance, Transportation Allowance, Food Allowance, Other Allowance, Fees'),
+                    ->helperText('Required: Name, Iqama No. Optional: Emp.ID, Nationality, Hiring Date, Title, Department, Basic Salary, Housing Allowance, Transportation Allowance, Food Allowance, Other Allowance, Fees'),
             ])
             ->action(function (array $data): void {
                 $this->processImport($data['file']);
