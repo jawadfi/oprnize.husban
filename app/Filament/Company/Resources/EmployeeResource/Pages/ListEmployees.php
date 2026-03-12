@@ -285,6 +285,15 @@ class ListEmployees extends ListRecords
         return $default;
     }
 
+    /**
+     * Parse a numeric value, stripping comma thousand-separators ("1,600" → 1600.0).
+     */
+    protected function parseNumber($value, float $default = 0): float
+    {
+        if ($value === null || $value === '') return $default;
+        return (float) str_replace(',', '', (string) $value);
+    }
+
     protected function processRow(array $row, int $companyId): string
     {
         // Normalize column names: trim, lowercase, then create underscore / no-space / no-dot variants
@@ -419,7 +428,10 @@ class ListEmployees extends ListRecords
         $employee->save();
 
         // Handle salary fields → save/update the base Payroll template (payroll_month = null)
+        // Note: "Basic After Increment" preferred over "Basic Salary" as it's the current value.
+        // Strip comma thousand-separators ("1,600" → 1600) before casting to float.
         $basicSalary = $this->getField($normalized, [
+            'basic after increment', 'basicafterincrement', 'basic_after_increment',
             'basic_salary', 'basicsalary', 'basic salary', 'basic',
             'الراتب الأساسي', 'الراتب_الأساسي', 'الراتب',
         ]);
@@ -436,14 +448,16 @@ class ListEmployees extends ListRecords
             'بدل الطعام', 'بدل_الطعام',
         ]);
         $otherAllowance = $this->getField($normalized, [
-            'other_allowance', 'otherallowance', 'other allowance', 'other',
+            'other_allowance', 'otherallowance', 'other allowance', 'other allowances',
+            'increment 2024 & 2025', 'increment2024&2025', 'increment',
             'بدل أخرى', 'بدلات أخرى',
         ]);
         $fees = $this->getField($normalized, [
-            'fees', 'fee', 'الرسوم', 'رسوم',
+            'fees', 'fee', 'monthly fees', 'monthlyfees',
+            'الرسوم', 'رسوم',
         ]);
 
-        if ($basicSalary !== null && (float) $basicSalary > 0) {
+        if ($basicSalary !== null && $this->parseNumber($basicSalary) > 0) {
             Payroll::updateOrCreate(
                 [
                     'employee_id'   => $employee->id,
@@ -451,12 +465,12 @@ class ListEmployees extends ListRecords
                     'payroll_month' => null,
                 ],
                 [
-                    'basic_salary'              => (float) $basicSalary,
-                    'housing_allowance'         => (float) ($housingAllowance ?? 0),
-                    'transportation_allowance'  => (float) ($transportationAllowance ?? 0),
-                    'food_allowance'            => (float) ($foodAllowance ?? 0),
-                    'other_allowance'           => (float) ($otherAllowance ?? 0),
-                    'fees'                      => (float) ($fees ?? 0),
+                    'basic_salary'              => $this->parseNumber($basicSalary),
+                    'housing_allowance'         => $this->parseNumber($housingAllowance),
+                    'transportation_allowance'  => $this->parseNumber($transportationAllowance),
+                    'food_allowance'            => $this->parseNumber($foodAllowance),
+                    'other_allowance'           => $this->parseNumber($otherAllowance),
+                    'fees'                      => $this->parseNumber($fees),
                     'status'                    => 'draft',
                 ]
             );
