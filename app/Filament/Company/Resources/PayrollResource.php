@@ -135,35 +135,70 @@ class PayrollResource extends Resource
                             ->prefix('SAR')
                             ->default(0)
                             ->step(0.01)
-                            ->live(onBlur: true),
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(fn ($get, $set) => $set('total_package',
+                                (float)($get('basic_salary') ?? 0) +
+                                (float)($get('housing_allowance') ?? 0) +
+                                (float)($get('transportation_allowance') ?? 0) +
+                                (float)($get('food_allowance') ?? 0) +
+                                (float)($get('other_allowance') ?? 0)
+                            )),
                         Forms\Components\TextInput::make('housing_allowance')
                             ->label('Housing Allowance')
                             ->numeric()
                             ->prefix('SAR')
                             ->default(0)
                             ->step(0.01)
-                            ->live(onBlur: true),
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(fn ($get, $set) => $set('total_package',
+                                (float)($get('basic_salary') ?? 0) +
+                                (float)($get('housing_allowance') ?? 0) +
+                                (float)($get('transportation_allowance') ?? 0) +
+                                (float)($get('food_allowance') ?? 0) +
+                                (float)($get('other_allowance') ?? 0)
+                            )),
                         Forms\Components\TextInput::make('transportation_allowance')
                             ->label('Transportation Allowance')
                             ->numeric()
                             ->prefix('SAR')
                             ->default(0)
                             ->step(0.01)
-                            ->live(onBlur: true),
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(fn ($get, $set) => $set('total_package',
+                                (float)($get('basic_salary') ?? 0) +
+                                (float)($get('housing_allowance') ?? 0) +
+                                (float)($get('transportation_allowance') ?? 0) +
+                                (float)($get('food_allowance') ?? 0) +
+                                (float)($get('other_allowance') ?? 0)
+                            )),
                         Forms\Components\TextInput::make('food_allowance')
                             ->label('Food Allowance')
                             ->numeric()
                             ->prefix('SAR')
                             ->default(0)
                             ->step(0.01)
-                            ->live(onBlur: true),
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(fn ($get, $set) => $set('total_package',
+                                (float)($get('basic_salary') ?? 0) +
+                                (float)($get('housing_allowance') ?? 0) +
+                                (float)($get('transportation_allowance') ?? 0) +
+                                (float)($get('food_allowance') ?? 0) +
+                                (float)($get('other_allowance') ?? 0)
+                            )),
                         Forms\Components\TextInput::make('other_allowance')
                             ->label('Other Allowance')
                             ->numeric()
                             ->prefix('SAR')
                             ->default(0)
                             ->step(0.01)
-                            ->live(onBlur: true),
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(fn ($get, $set) => $set('total_package',
+                                (float)($get('basic_salary') ?? 0) +
+                                (float)($get('housing_allowance') ?? 0) +
+                                (float)($get('transportation_allowance') ?? 0) +
+                                (float)($get('food_allowance') ?? 0) +
+                                (float)($get('other_allowance') ?? 0)
+                            )),
                     ])->columns(2),
                 Forms\Components\Section::make('Additional Costs')
                     ->schema([

@@ -46,7 +46,15 @@ class CreatePayroll extends CreateRecord
                 $data[$field] = 0;
             }
         }
-        
+
+        // Always recalculate total_package from salary components
+        $data['total_package'] =
+            (float)($data['basic_salary'] ?? 0) +
+            (float)($data['housing_allowance'] ?? 0) +
+            (float)($data['transportation_allowance'] ?? 0) +
+            (float)($data['food_allowance'] ?? 0) +
+            (float)($data['other_allowance'] ?? 0);
+
         return $data;
     }
 }
