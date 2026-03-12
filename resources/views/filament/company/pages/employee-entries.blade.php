@@ -438,6 +438,10 @@
                 </tbody>
             </table>
         </div>
+        @else
+        <div class="entry-card" style="text-align:center; padding:20px; background:#f9fafb; border:1px dashed #d1d5db; color:#6b7280;">
+            📋 لا توجد سجلات للوقت الإضافي لهذا الشهر / No overtime records for {{ $selectedMonth }}
+        </div>
         @endif
         @else
         <div class="entry-card" style="text-align: center; padding: 40px 20px;">
@@ -574,6 +578,10 @@
                     @endforeach
                 </tbody>
             </table>
+        </div>
+        @else
+        <div class="entry-card" style="text-align:center; padding:20px; background:#f9fafb; border:1px dashed #d1d5db; color:#6b7280;">
+            📋 لا توجد مبالغ إضافية لهذا الشهر / No additions for {{ $selectedMonth }}
         </div>
         @endif
         @else
@@ -826,6 +834,10 @@
                     @endforeach
                 </tbody>
             </table>
+        </div>
+        @else
+        <div class="entry-card" style="text-align:center; padding:20px; background:#f9fafb; border:1px dashed #d1d5db; color:#6b7280;">
+            📋 لا توجد خصومات لهذا الشهر / No deductions for {{ $selectedMonth }}
         </div>
         @endif
         @else
