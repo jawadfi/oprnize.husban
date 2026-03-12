@@ -3,6 +3,7 @@
 namespace App\Filament\Company\Resources\EmployeeResource\Pages;
 
 use App\Models\Employee;
+use App\Models\Payroll;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -82,7 +83,7 @@ class ListEmployees extends ListRecords
                     ])
                     ->disk('local')
                     ->directory('imports')
-                    ->helperText('Upload a CSV or Excel (.xlsx/.xls) file with columns: name, job_title, identity_number, nationality (required). Optional: emp_id, department, hire_date, email'),
+                    ->helperText('Upload CSV or Excel (.xlsx/.xls). Required: Name, Iqama No. Optional: Emp.ID, Nationality, Hiring Date, Title, Department, Basic Salary, Housing Allowance, Transportation Allowance, Food Allowance, Other Allowance, Fees'),
             ])
             ->action(function (array $data): void {
                 $this->processImport($data['file']);
@@ -95,12 +96,25 @@ class ListEmployees extends ListRecords
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet()->setTitle('Employee Import');
             $sheet->fromArray([
-                ['emp_id', 'name',                  'identity_number', 'nationality', 'location',      'hire_date',  'job_title',          'department'],
-                ['80132',  'Mohammad Masud Rana',    '2464871595',      'Bangladesh',  'Riyadh Sulay',  '2021-05-25', 'Salesman Assistant', 'Retail Sales'],
-                ['60459',  'Mohammad Zahangir Alom', '2496901741',      'Bangladesh',  'Khamis Mushait','2021-06-04', 'Salesman Assistant', 'Retail Sales'],
+                [
+                    'Emp.ID', 'Name', 'Nationality', 'Iqama No', 'Hiring Date',
+                    'Title', 'Department',
+                    'Basic Salary', 'Housing Allowance', 'Transportation Allowance',
+                    'Food Allowance', 'Other Allowance', 'Fees',
+                ],
+                [
+                    '80132', 'Mohammad Masud Rana', 'Bangladesh', '2464871595', '2021-05-25',
+                    'Salesman Assistant', 'Retail Sales',
+                    3000, 750, 400, 300, 0, 0,
+                ],
+                [
+                    '60459', 'Mohammad Zahangir Alom', 'Bangladesh', '2496901741', '2021-06-04',
+                    'Salesman Assistant', 'Retail Sales',
+                    3000, 750, 400, 300, 0, 0,
+                ],
             ]);
-            $sheet->getStyle('A1:H1')->getFont()->setBold(true);
-            foreach (range('A', 'H') as $col) {
+            $sheet->getStyle('A1:M1')->getFont()->setBold(true);
+            foreach (range('A', 'M') as $col) {
                 $sheet->getColumnDimension($col)->setAutoSize(true);
             }
             (new XlsxWriter($spreadsheet))->save('php://output');
@@ -401,6 +415,50 @@ class ListEmployees extends ListRecords
         }
 
         $employee->save();
+
+        // Handle salary fields → save/update the base Payroll template (payroll_month = null)
+        $basicSalary = $this->getField($normalized, [
+            'basic_salary', 'basicsalary', 'basic salary', 'basic',
+            'الراتب الأساسي', 'الراتب_الأساسي', 'الراتب',
+        ]);
+        $housingAllowance = $this->getField($normalized, [
+            'housing_allowance', 'housingallowance', 'housing allowance', 'housing',
+            'بدل السكن', 'بدل_السكن',
+        ]);
+        $transportationAllowance = $this->getField($normalized, [
+            'transportation_allowance', 'transportationallowance', 'transportation allowance', 'transportation',
+            'بدل المواصلات', 'بدل_المواصلات',
+        ]);
+        $foodAllowance = $this->getField($normalized, [
+            'food_allowance', 'foodallowance', 'food allowance', 'food',
+            'بدل الطعام', 'بدل_الطعام',
+        ]);
+        $otherAllowance = $this->getField($normalized, [
+            'other_allowance', 'otherallowance', 'other allowance', 'other',
+            'بدل أخرى', 'بدلات أخرى',
+        ]);
+        $fees = $this->getField($normalized, [
+            'fees', 'fee', 'الرسوم', 'رسوم',
+        ]);
+
+        if ($basicSalary !== null && (float) $basicSalary > 0) {
+            Payroll::updateOrCreate(
+                [
+                    'employee_id'   => $employee->id,
+                    'company_id'    => $companyId,
+                    'payroll_month' => null,
+                ],
+                [
+                    'basic_salary'              => (float) $basicSalary,
+                    'housing_allowance'         => (float) ($housingAllowance ?? 0),
+                    'transportation_allowance'  => (float) ($transportationAllowance ?? 0),
+                    'food_allowance'            => (float) ($foodAllowance ?? 0),
+                    'other_allowance'           => (float) ($otherAllowance ?? 0),
+                    'fees'                      => (float) ($fees ?? 0),
+                    'status'                    => 'draft',
+                ]
+            );
+        }
 
         return $isNew ? 'created' : 'updated';
     }
