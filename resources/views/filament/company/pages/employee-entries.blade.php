@@ -345,7 +345,7 @@
                 </button>
             </div>
             <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">
-                الأعمدة المطلوبة: <strong>emp_id</strong>, hours, rate, amount, notes
+                الأعمدة المطلوبة: <strong>Emp.ID</strong>, Hours, Rate &nbsp;|&nbsp; <em>Amount يُحسب تلقائياً (Hours × Rate)</em>
             </p>
             <div style="display: flex; gap: 12px; align-items: flex-end;">
                 <div class="form-group" style="flex: 1;">
@@ -492,7 +492,7 @@
                 </button>
             </div>
             <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">
-                الأعمدة المطلوبة: <strong>emp_id</strong>, amount, reason (اختياري), description (اختياري)
+                الأعمدة المطلوبة: <strong>Emp.ID</strong>, Amount &nbsp;|&nbsp; اختياري: Reason, Description
             </p>
             <div style="display: flex; gap: 12px; align-items: flex-end;">
                 <div class="form-group" style="flex: 1;">
@@ -720,7 +720,7 @@
                 </button>
             </div>
             <p style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">
-                الأعمدة المطلوبة: <strong>emp_id</strong>, amount, type (fixed/days), reason, description (اختياري), days, daily_rate
+                الأعمدة المطلوبة: <strong>Emp.ID</strong>, Amount &nbsp;|&nbsp; اختياري: Type (fixed/days), Reason, Description, Days, Daily Rate
             </p>
             <div style="display: flex; gap: 12px; align-items: flex-end;">
                 <div class="form-group" style="flex: 1;">

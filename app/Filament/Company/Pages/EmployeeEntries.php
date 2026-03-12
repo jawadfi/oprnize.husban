@@ -761,15 +761,22 @@ class EmployeeEntries extends Page implements HasForms
                     $headers[] = $key;
                 }
 
-                // Map data rows using deduplicated headers
+                // Map data rows using deduplicated headers (with normalized variants)
                 foreach ($allRows as $rowIndex => $rawRow) {
                     if ($rowIndex === 0) continue; // skip header row
                     $rawRow = array_values($rawRow);
                     $normalized = [];
                     foreach ($headers as $colIdx => $colName) {
-                        $normalized[$colName] = isset($rawRow[$colIdx])
+                        $val = isset($rawRow[$colIdx])
                             ? (is_string($rawRow[$colIdx]) ? trim($rawRow[$colIdx]) : $rawRow[$colIdx])
                             : null;
+                        $normalized[$colName] = $val;
+                        $underscored = str_replace(' ', '_', $colName);
+                        if ($underscored !== $colName) $normalized[$underscored] = $val;
+                        $nospace = str_replace(['_', ' '], '', $colName);
+                        if ($nospace !== $colName && $nospace !== $underscored) $normalized[$nospace] = $val;
+                        $nodot = str_replace(['.', '_', ' '], '', $colName);
+                        if ($nodot !== $colName && $nodot !== $underscored && $nodot !== $nospace) $normalized[$nodot] = $val;
                     }
                     $records[$rowIndex + 1] = $normalized;
                 }
@@ -781,7 +788,11 @@ class EmployeeEntries extends Page implements HasForms
 
             foreach ($records as $rowNum => $normalized) {
                 try {
-                    $empId = $normalized['emp_id'] ?? $normalized['employee_id'] ?? $normalized['رقم الموظف'] ?? $normalized['emp.id'] ?? null;
+                    $empId = $normalized['emp_id'] ?? $normalized['empid'] ?? $normalized['emp.id']
+                        ?? $normalized['employee_id'] ?? $normalized['employeeid']
+                        ?? $normalized['nova emp id'] ?? $normalized['novaempid'] ?? $normalized['nova_emp_id']
+                        ?? $normalized['رقم الموظف'] ?? $normalized['الرقم الوظيفي']
+                        ?? null;
                     if (!$empId) { $skipped++; continue; }
 
                     $employee = Employee::where('emp_id', $empId)
@@ -909,16 +920,16 @@ class EmployeeEntries extends Page implements HasForms
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet()->setTitle('Overtime Import');
             $sheet->fromArray([
-                ['emp_id', 'hours', 'rate', 'amount', 'notes', 'month'],
-                ['80132',  '8',     '50',   '400',    'Weekend overtime', date('Y-m')],
-                ['60459',  '4',     '50',   '200',    '',                date('Y-m')],
+                ['Emp.ID', 'Hours', 'Rate', 'Notes'],
+                ['80132',  '8',     '50',   'Weekend overtime'],
+                ['60459',  '4',     '50',   ''],
             ]);
-            $sheet->getStyle('A1:F1')->getFont()->setBold(true);
-            foreach (range('A', 'F') as $col) {
+            $sheet->getStyle('A1:D1')->getFont()->setBold(true);
+            foreach (range('A', 'D') as $col) {
                 $sheet->getColumnDimension($col)->setAutoSize(true);
             }
             (new XlsxWriter($spreadsheet))->save('php://output');
-        }, 'overtime-demo.xlsx', [
+        }, 'overtime-template.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
@@ -929,16 +940,16 @@ class EmployeeEntries extends Page implements HasForms
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet()->setTitle('Additions Import');
             $sheet->fromArray([
-                ['emp_id', 'amount',  'reason',         'description', 'month'],
-                ['80132',  '500.00',  'Housing extra',  '',            date('Y-m')],
-                ['60459',  '250.00',  'Bonus',          'Q1 bonus',   date('Y-m')],
+                ['Emp.ID', 'Amount',  'Reason',        'Description'],
+                ['80132',  '500.00',  'Housing extra', ''],
+                ['60459',  '250.00',  'Bonus',         'Q1 bonus'],
             ]);
-            $sheet->getStyle('A1:E1')->getFont()->setBold(true);
-            foreach (range('A', 'E') as $col) {
+            $sheet->getStyle('A1:D1')->getFont()->setBold(true);
+            foreach (range('A', 'D') as $col) {
                 $sheet->getColumnDimension($col)->setAutoSize(true);
             }
             (new XlsxWriter($spreadsheet))->save('php://output');
-        }, 'additions-demo.xlsx', [
+        }, 'additions-template.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
@@ -949,16 +960,16 @@ class EmployeeEntries extends Page implements HasForms
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet()->setTitle('Deductions Import');
             $sheet->fromArray([
-                ['emp_id', 'amount',  'type',  'reason',   'description', 'days', 'daily_rate', 'month'],
-                ['80132',  '200.00',  'fixed', 'absence',  '',            '',     '',            date('Y-m')],
-                ['60459',  '',        'days',  'absence',  '2-day absent','2',    '100',         date('Y-m')],
+                ['Emp.ID', 'Amount',  'Type',  'Reason',   'Description', 'Days', 'Daily Rate'],
+                ['80132',  '200.00',  'fixed', 'absence',  '',            '',     ''],
+                ['60459',  '',        'days',  'absence',  '2-day absent','2',    '100'],
             ]);
-            $sheet->getStyle('A1:H1')->getFont()->setBold(true);
-            foreach (range('A', 'H') as $col) {
+            $sheet->getStyle('A1:G1')->getFont()->setBold(true);
+            foreach (range('A', 'G') as $col) {
                 $sheet->getColumnDimension($col)->setAutoSize(true);
             }
             (new XlsxWriter($spreadsheet))->save('php://output');
-        }, 'deductions-demo.xlsx', [
+        }, 'deductions-template.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
@@ -1197,12 +1208,30 @@ class EmployeeEntries extends Page implements HasForms
                 $value = $cell->getValue();
 
                 if ($rowIndex === 1) {
-                    // First row is headers
-                    $headers[$colIndex] = strtolower(trim((string) $value));
+                    // First row is headers — normalize: lowercase, trim, plus space/dot/underscore-free variants
+                    $clean = strtolower(trim((string) $value));
+                    $headers[$colIndex] = $clean;
                 } else {
-                    // Data rows
+                    // Data rows — store under all normalized key variants
                     if (isset($headers[$colIndex]) && $headers[$colIndex] !== '') {
-                        $rowData[$headers[$colIndex]] = $value;
+                        $clean = $headers[$colIndex];
+                        $rowData[$clean] = $value;
+
+                        // spaces → underscores
+                        $underscored = str_replace(' ', '_', $clean);
+                        if ($underscored !== $clean) {
+                            $rowData[$underscored] = $value;
+                        }
+                        // remove underscores + spaces
+                        $nospace = str_replace(['_', ' '], '', $clean);
+                        if ($nospace !== $clean && $nospace !== $underscored) {
+                            $rowData[$nospace] = $value;
+                        }
+                        // remove dots + underscores + spaces (handles "Emp.ID" → "empid")
+                        $nodot = str_replace(['.', '_', ' '], '', $clean);
+                        if ($nodot !== $clean && $nodot !== $underscored && $nodot !== $nospace) {
+                            $rowData[$nodot] = $value;
+                        }
                     }
                 }
                 $colIndex++;
