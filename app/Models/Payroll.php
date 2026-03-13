@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\DeductionReason;
+use App\Enums\EmployeeAssignedStatus;
 use App\Enums\PayrollStatus;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
@@ -136,7 +138,7 @@ class Payroll extends Model
 
     public function getMonthlyCostAttribute(): float
     {
-        return (float) ($this->total_salary + $this->fees);
+        return (float) ($this->total_salary + $this->effective_fees);
     }
 
     public function getTotalAdditionsAttribute(): float
@@ -152,7 +154,7 @@ class Payroll extends Model
     {
         return (float) (
             ($this->total_package ?? 0) +
-            ($this->fees ?? 0) +
+            $this->effective_fees +
             $this->total_additions
         );
     }
@@ -168,7 +170,77 @@ class Payroll extends Model
 
     public function getNetPaymentAttribute(): float
     {
-        return (float) ($this->total_earning - $this->total_deductions);
+        return (float) ($this->net_salary + $this->effective_fees);
+    }
+
+    /**
+     * Net Salary = Total Salary + Additions - Deductions
+     */
+    public function getNetSalaryAttribute(): float
+    {
+        return (float) ($this->total_salary + $this->total_additions - $this->total_deductions);
+    }
+
+    /**
+     * Effective monthly fees after start-day proration and absence deduction.
+     * Rules:
+     * - If employee starts on day 10, fees apply from day 10 to month end.
+     * - Absent days are excluded from fee charge.
+     */
+    public function getEffectiveFeesAttribute(): float
+    {
+        $fees = (float) ($this->fees ?? 0);
+        if ($fees <= 0) {
+            return 0.0;
+        }
+
+        if (empty($this->payroll_month)) {
+            return round($fees, 2);
+        }
+
+        $monthStart = Carbon::createFromFormat('Y-m-d', $this->payroll_month . '-01')->startOfDay();
+        $monthEnd = $monthStart->copy()->endOfMonth();
+        $daysInMonth = (int) $monthStart->daysInMonth;
+
+        $serviceStartDay = 1;
+
+        $assignmentStart = EmployeeAssigned::query()
+            ->where('employee_id', $this->employee_id)
+            ->where('company_id', $this->company_id)
+            ->where('status', EmployeeAssignedStatus::APPROVED)
+            ->orderByDesc('start_date')
+            ->value('start_date');
+
+        if ($assignmentStart) {
+            $start = Carbon::parse($assignmentStart);
+
+            if ($start->greaterThan($monthEnd)) {
+                return 0.0;
+            }
+
+            if ($start->year === $monthStart->year && $start->month === $monthStart->month) {
+                $serviceStartDay = (int) $start->day;
+            }
+        } elseif ($this->employee && $this->employee->hire_date) {
+            $hireDate = Carbon::parse($this->employee->hire_date);
+
+            if ($hireDate->greaterThan($monthEnd)) {
+                return 0.0;
+            }
+
+            if ($hireDate->year === $monthStart->year && $hireDate->month === $monthStart->month) {
+                $serviceStartDay = (int) $hireDate->day;
+            }
+        }
+
+        // Business rule requested: start on day 10 => charge fees for 20 days.
+        $eligibleDays = $serviceStartDay <= 1
+            ? $daysInMonth
+            : max(0, $daysInMonth - $serviceStartDay);
+        $absenceDays = max(0, (int) ($this->absence_days ?? 0));
+        $payableDays = max(0, $eligibleDays - $absenceDays);
+
+        return round(($fees / $daysInMonth) * $payableDays, 2);
     }
 
     /**
@@ -305,9 +377,24 @@ class Payroll extends Model
         $deductions = Deduction::where('employee_id', $employeeId)
             ->where('company_id', $companyId)
             ->where('payroll_month', $payrollMonth)
+            ->where('status', 'approved')
             ->get();
 
-        $payroll->other_deduction = $deductions->sum('amount');
+        $absenceFromDeductions = (float) $deductions
+            ->where('reason', DeductionReason::ABSENCE)
+            ->sum('amount');
+
+        $foodSubscriptionDeduction = (float) $deductions
+            ->where('reason', DeductionReason::FOOD_SUBSCRIPTION)
+            ->sum('amount');
+
+        $otherDeductions = (float) $deductions->sum('amount')
+            - $absenceFromDeductions
+            - $foodSubscriptionDeduction;
+
+        // Keep absence deduction from timesheet logic, only map food/other from deduction entries.
+        $payroll->food_subscription_deduction = round($foodSubscriptionDeduction, 2);
+        $payroll->other_deduction = round(max(0, $otherDeductions), 2);
 
         $payroll->save();
     }

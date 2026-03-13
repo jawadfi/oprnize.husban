@@ -468,7 +468,7 @@ class PayrollResource extends Resource
                     ->alignCenter()
                     ->toggleable()
                     ->width('120px'),
-                Tables\Columns\TextColumn::make('fees')
+                Tables\Columns\TextColumn::make('effective_fees')
                     ->label('Fees')
                     ->money('SAR')
                     ->sortable()
