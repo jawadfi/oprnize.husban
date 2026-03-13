@@ -301,12 +301,8 @@ class PendingHiring extends Page implements HasTable
                     ->html()
                     ->formatStateUsing(fn(EmployeeAssigned $record) => new HtmlString(
                         '<span class="inline-flex items-center justify-center rounded-md border border-gray-300 px-2 py-1 text-xs font-medium cursor-grab" '
-                        . 'draggable="true" '
-                        . 'onmousedown="window.pendingHiringPrimeDraggedAssignment(' . (int) $record->id . ');" '
-                        . 'ontouchstart="window.pendingHiringPrimeDraggedAssignment(' . (int) $record->id . ');" '
-                        . 'ondragstart="window.pendingHiringSetDraggedAssignment(' . (int) $record->id . ', event);" '
-                        . 'ondragend="window.pendingHiringClearDraggedAssignment();">'
-                        . 'Drag'
+                        . 'title="اسحب للتعيين">'
+                        . '⠿'
                         . '</span>'
                     ))
                     ->toggleable(),
@@ -316,19 +312,11 @@ class PendingHiring extends Page implements HasTable
                     ->sortable()
                     ->searchable()
                     ->weight('bold')
-                    ->html()
-                    ->formatStateUsing(fn($state, EmployeeAssigned $record) => new HtmlString(
-                        '<div class="inline-flex items-center rounded-md px-2 py-1 cursor-grab" '
-                        . 'data-assignment-id="' . (int) $record->id . '" '
-                        . 'draggable="true" '
-                        . 'title="اسحب الموظف وأسقطه على بطاقة الفرع" '
-                        . 'onmousedown="window.pendingHiringPrimeDraggedAssignment(' . (int) $record->id . ');" '
-                        . 'ontouchstart="window.pendingHiringPrimeDraggedAssignment(' . (int) $record->id . ');" '
-                        . 'ondragstart="window.pendingHiringSetDraggedAssignment(' . (int) $record->id . ', event);" '
-                        . 'ondragend="window.pendingHiringClearDraggedAssignment();">'
-                        . e((string) $state)
-                        . '</div>'
-                    )),
+                    ->title('اسحب الموظف وأسقطه على بطاقة الفرع')
+                    ->extraAttributes(fn(EmployeeAssigned $record): array => [
+                        'data-assignment-id' => (string) $record->id,
+                        'style' => 'cursor: grab',
+                    ]),
                 TextColumn::make('employee.emp_id')
                     ->label('الرقم الوظيفي / Emp ID')
                     ->sortable()
