@@ -1,7 +1,7 @@
 <x-filament-panels::page>
     <div
         x-data="{ draggingAssignmentId: null }"
-        x-init="window.pendingHiringDraggingAssignmentId = null"
+        x-init="window.pendingHiringDraggingAssignmentId = null; if (window.initPendingHiringRowDrag) { window.initPendingHiringRowDrag($el); }"
         x-on:pending-hiring-drag-start.window="draggingAssignmentId = $event.detail.assignmentId"
         x-on:dragend.window="draggingAssignmentId = null; window.pendingHiringDraggingAssignmentId = null"
     >
@@ -54,4 +54,52 @@
         {{ $this->table }}
         </div>
     </div>
+
+    <script>
+        if (!window.initPendingHiringRowDrag) {
+            window.initPendingHiringRowDrag = function (rootEl) {
+                const bindRows = () => {
+                    const rows = rootEl.querySelectorAll('tr.fi-ta-row, .fi-ta-row');
+
+                    rows.forEach((row) => {
+                        if (row.dataset.rowDragBound === '1') {
+                            return;
+                        }
+
+                        const assignmentNode = row.querySelector('[data-assignment-id]');
+                        if (!assignmentNode) {
+                            return;
+                        }
+
+                        const assignmentId = Number(assignmentNode.getAttribute('data-assignment-id'));
+                        if (!assignmentId) {
+                            return;
+                        }
+
+                        row.dataset.rowDragBound = '1';
+                        row.setAttribute('draggable', 'true');
+                        row.style.cursor = 'grab';
+
+                        row.addEventListener('dragstart', (event) => {
+                            event.dataTransfer.setData('text/plain', String(assignmentId));
+                            window.pendingHiringDraggingAssignmentId = assignmentId;
+                            window.dispatchEvent(new CustomEvent('pending-hiring-drag-start', {
+                                detail: { assignmentId },
+                            }));
+                        });
+
+                        row.addEventListener('dragend', () => {
+                            window.pendingHiringDraggingAssignmentId = null;
+                            window.dispatchEvent(new Event('dragend'));
+                        });
+                    });
+                };
+
+                bindRows();
+
+                const observer = new MutationObserver(() => bindRows());
+                observer.observe(rootEl, { childList: true, subtree: true });
+            };
+        }
+    </script>
 </x-filament-panels::page>

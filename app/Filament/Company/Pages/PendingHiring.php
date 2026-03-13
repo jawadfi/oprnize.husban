@@ -279,6 +279,7 @@ class PendingHiring extends Page implements HasTable
                     ->html()
                     ->formatStateUsing(fn($state, EmployeeAssigned $record) => new HtmlString(
                         '<div class="inline-flex items-center rounded-md px-2 py-1 cursor-grab" '
+                        . 'data-assignment-id="' . (int) $record->id . '" '
                         . 'draggable="true" '
                         . 'title="اسحب الموظف وأسقطه على بطاقة الفرع" '
                         . 'ondragstart="event.dataTransfer.setData(\'text/plain\',\'' . (int) $record->id . '\');window.pendingHiringDraggingAssignmentId=' . (int) $record->id . ';window.dispatchEvent(new CustomEvent(\'pending-hiring-drag-start\',{detail:{assignmentId:' . (int) $record->id . '}}));" '
