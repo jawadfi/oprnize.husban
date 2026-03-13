@@ -6,6 +6,8 @@ use App\Enums\CompanyTypes;
 use App\Enums\EmployeeAssignedStatus;
 use App\Models\Branch;
 use App\Models\EmployeeAssigned;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\HtmlString;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -24,6 +26,8 @@ class PendingHiring extends Page implements HasTable
     protected static string $view = 'filament.company.pages.pending-hiring';
 
     protected static ?string $navigationLabel = 'Pending Hiring';
+
+    public ?int $selectedBranchId = null;
 
     public function mount(): void
     {
@@ -55,7 +59,7 @@ class PendingHiring extends Page implements HasTable
     /**
      * Determine if current user is on the CLIENT side (the one who approves with branch)
      */
-    private function isClientSide(): bool
+    public function isClientSide(): bool
     {
         $user = Filament::auth()->user();
 
@@ -88,18 +92,148 @@ class PendingHiring extends Page implements HasTable
             ->toArray();
     }
 
+    private function getCurrentCompanyId(): ?int
+    {
+        $user = Filament::auth()->user();
+
+        return $user instanceof \App\Models\Company
+            ? (int) $user->id
+            : ($user instanceof \App\Models\User ? (int) $user->company_id : null);
+    }
+
+    public function getBranchCards(): array
+    {
+        if (!$this->isClientSide()) {
+            return [];
+        }
+
+        $companyId = $this->getCurrentCompanyId();
+        if (!$companyId) {
+            return [];
+        }
+
+        $branches = Branch::query()
+            ->where('company_id', $companyId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $baseQuery = EmployeeAssigned::query()
+            ->where('company_id', $companyId)
+            ->where(function ($query) {
+                $query->where('status', EmployeeAssignedStatus::PENDING)
+                    ->orWhere('start_date', '>=', now()->toDateString());
+            });
+
+        $allCount = (clone $baseQuery)->count();
+        $unassignedCount = (clone $baseQuery)->whereNull('branch_id')->count();
+
+        $cards = [
+            [
+                'id' => null,
+                'name' => 'All / الكل',
+                'count' => $allCount,
+                'is_active' => $this->selectedBranchId === null,
+                'is_unassigned' => false,
+            ],
+            [
+                'id' => -1,
+                'name' => 'Unassigned / بدون فرع',
+                'count' => $unassignedCount,
+                'is_active' => $this->selectedBranchId === -1,
+                'is_unassigned' => true,
+            ],
+        ];
+
+        foreach ($branches as $branch) {
+            $cards[] = [
+                'id' => (int) $branch->id,
+                'name' => $branch->name,
+                'count' => (clone $baseQuery)->where('branch_id', $branch->id)->count(),
+                'is_active' => $this->selectedBranchId === (int) $branch->id,
+                'is_unassigned' => false,
+            ];
+        }
+
+        return $cards;
+    }
+
+    public function selectBranchFilter(?int $branchId = null): void
+    {
+        $this->selectedBranchId = $branchId;
+        $this->resetTable();
+    }
+
+    public function assignToBranch(int $assignmentId, int $branchId): void
+    {
+        if (!$this->isClientSide()) {
+            Notification::make()
+                ->title('هذه العملية متاحة للعميل فقط')
+                ->warning()
+                ->send();
+            return;
+        }
+
+        $companyId = $this->getCurrentCompanyId();
+        if (!$companyId) {
+            return;
+        }
+
+        $branch = Branch::query()
+            ->where('company_id', $companyId)
+            ->where('is_active', true)
+            ->whereKey($branchId)
+            ->first();
+
+        if (!$branch) {
+            Notification::make()
+                ->title('الفرع غير صالح')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        $assignment = EmployeeAssigned::query()
+            ->where('company_id', $companyId)
+            ->whereKey($assignmentId)
+            ->first();
+
+        if (!$assignment) {
+            Notification::make()
+                ->title('تعذر العثور على سجل الموظف')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        $assignment->update(['branch_id' => $branchId]);
+
+        $assignment->employee->branches()->syncWithoutDetaching([
+            $branchId => [
+                'start_date' => $assignment->start_date ?? now(),
+                'is_active' => true,
+            ],
+        ]);
+
+        Notification::make()
+            ->title('تم تعيين الموظف للفرع بنجاح')
+            ->success()
+            ->send();
+
+        $this->resetTable();
+    }
+
     public function table(Table $table): Table
     {
         return $table
             ->query(function() {
-                $user = Filament::auth()->user();
-                $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+                $companyId = $this->getCurrentCompanyId();
                 
                 if (!$companyId) {
                     return EmployeeAssigned::query()->whereRaw('1 = 0');
                 }
                 
-                return EmployeeAssigned::query()
+                $query = EmployeeAssigned::query()
                     ->with(['employee.currentPayroll', 'company', 'branch'])
                     ->where(function ($query) use ($companyId) {
                         $query->where('employee_assigned.company_id', $companyId)
@@ -111,8 +245,30 @@ class PendingHiring extends Page implements HasTable
                         $query->where('status', EmployeeAssignedStatus::PENDING)
                             ->orWhere('start_date', '>=', now()->toDateString());
                     });
+
+                if ($this->selectedBranchId !== null) {
+                    if ($this->selectedBranchId === -1) {
+                        $query->whereNull('employee_assigned.branch_id');
+                    } else {
+                        $query->where('employee_assigned.branch_id', $this->selectedBranchId);
+                    }
+                }
+
+                return $query;
             })
             ->columns([
+                TextColumn::make('drag_to_branch')
+                    ->label('Drag')
+                    ->alignCenter()
+                    ->html()
+                    ->formatStateUsing(fn(EmployeeAssigned $record) => new HtmlString(
+                        '<span class="inline-flex items-center justify-center rounded-md border border-gray-300 px-2 py-1 text-xs font-medium cursor-grab" '
+                        . 'draggable="true" '
+                        . 'ondragstart="window.dispatchEvent(new CustomEvent(\'pending-hiring-drag-start\',{detail:{assignmentId:' . (int) $record->id . '}}))">'
+                        . 'Drag'
+                        . '</span>'
+                    ))
+                    ->toggleable(),
                 // --- Employee Identity ---
                 TextColumn::make('employee.name')
                     ->label('اسم الموظف / Name')
