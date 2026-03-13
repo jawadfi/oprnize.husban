@@ -323,12 +323,12 @@
                     </button>
                 </div>
                 <p class="text-sm text-gray-500">
-                    يجب أن يحتوي الملف على الأعمدة التالية: <strong>emp_id</strong> أو <strong>identity_number</strong> + <strong>basic_salary</strong>
+                    التحقق صارم: الملف يجب أن يطابق قالب opernize Form.xlsx بنفس ترتيب الأعمدة.
                     <br>
-                    أعمدة اختيارية: housing_allowance, transportation_allowance, food_allowance, other_allowance, fees, work_days
+                    يتم استيراد بيانات الرواتب فقط: Emp.ID, Iqama No, Hiring Date, Basic Salary, Housing Allowance, Transportation Allowance, Food Allowance, Other Allowance, Fees.
                 </p>
                 <div class="flex items-center gap-4">
-                    <input type="file" wire:model="salaryFile" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                    <input type="file" wire:model="salaryFile" accept=".csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
                     <button type="button" wire:click="importSalaries" wire:loading.attr="disabled" class="oprnize-btn-calculate whitespace-nowrap" style="min-width: 120px;">
                         <span wire:loading.remove wire:target="importSalaries">رفع / Upload</span>
                         <span wire:loading wire:target="importSalaries">جاري الرفع...</span>

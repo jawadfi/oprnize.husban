@@ -7,6 +7,8 @@ use App\Filament\Company\Widgets\DeductionStatsWidget;
 use App\Filament\Company\Widgets\EmployeeStatsWidget;
 use App\Filament\Company\Widgets\LeaveRequestStatsWidget;
 use App\Filament\Company\Widgets\PayrollStatsWidget;
+use App\Enums\CompanyTypes;
+use App\Enums\EmployeeAssignedStatus;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\Payroll;
@@ -18,6 +20,7 @@ use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Url;
 use Livewire\WithFileUploads;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class ListPayrolls extends ListRecords
 {
@@ -809,7 +812,7 @@ class ListPayrolls extends ListRecords
     {
         if (!$this->salaryFile) {
             Notification::make()
-                ->title('يرجى رفع ملف CSV')
+                ->title('يرجى رفع ملف رواتب')
                 ->warning()
                 ->send();
             return;
@@ -817,138 +820,94 @@ class ListPayrolls extends ListRecords
 
         $user = Filament::auth()->user();
 
-        if ($user->type !== \App\Enums\CompanyTypes::PROVIDER) {
-            Notification::make()
-                ->title('فقط شركة المزود يمكنها رفع الرواتب')
-                ->danger()
-                ->send();
-            return;
-        }
-
         try {
+            $extension = strtolower((string) $this->salaryFile->getClientOriginalExtension());
+            if (!in_array($extension, ['csv', 'xlsx', 'xls'], true)) {
+                Notification::make()
+                    ->title('صيغة الملف غير مدعومة')
+                    ->body('الملفات المسموحة: CSV, XLSX, XLS')
+                    ->warning()
+                    ->send();
+                return;
+            }
+
             // Get file path from Livewire temporary upload
             $filePath = $this->salaryFile->getRealPath();
+            $parsed = $this->readSalarySpreadsheet($filePath);
+            $this->validateStrictPayrollHeaders($parsed['headers']);
+            $rows = $parsed['rows'];
 
-            $csv = \League\Csv\Reader::createFromPath($filePath, 'r');
-            $csv->setHeaderOffset(0);
-            $records = $csv->getRecords();
+            if (empty($rows)) {
+                Notification::make()
+                    ->title('الملف فارغ')
+                    ->warning()
+                    ->send();
+                return;
+            }
+
+            $employeeBaseQuery = $this->getImportEmployeesQuery();
 
             $updated = 0;
             $created = 0;
             $skipped = 0;
             $errors = [];
-            $rowNum = 1;
 
-            foreach ($records as $row) {
-                $rowNum++;
+            foreach ($rows as $rowNum => $normalized) {
 
                 try {
-                    // Normalize column names
-                    $normalized = [];
-                    foreach ($row as $key => $value) {
-                        $clean = strtolower(trim($key));
-                        $normalized[$clean] = is_string($value) ? trim($value) : $value;
-                        $underscored = str_replace(' ', '_', $clean);
-                        if ($underscored !== $clean) {
-                            $normalized[$underscored] = is_string($value) ? trim($value) : $value;
-                        }
-                        $nospace = str_replace(['_', ' '], '', $clean);
-                        if ($nospace !== $clean && $nospace !== $underscored) {
-                            $normalized[$nospace] = is_string($value) ? trim($value) : $value;
-                        }
-                    }
-
-                    // Find employee by emp_id or identity_number
+                    // Strict template mapping: Emp.ID and Iqama No
                     $empId = $this->getSalaryField($normalized, [
-                        'emp_id', 'empid', 'employee_id', 'employeeid', 'emp_no', 'empno',
-                        'employee_number', 'employeenumber', 'emp_number', 'empnumber',
-                        'الرقم الوظيفي', 'الرقم_الوظيفي', 'رقم الموظف', 'رقم_الموظف',
-                    ]);
-
-                    $identityNumber = $this->getSalaryField($normalized, [
-                        'identity_number', 'identitynumber', 'identity', 'id_number', 'idnumber',
-                        'رقم الهوية', 'رقم_الهوية', 'الهوية',
+                        'emp.id',
                     ]);
 
                     $iqamaNo = $this->getSalaryField($normalized, [
-                        'iqama_no', 'iqamano', 'iqama', 'iqama_number', 'iqamanumber',
-                        'رقم الإقامة', 'رقم_الإقامة', 'رقم الاقامة', 'رقم_الاقامة', 'الاقامة', 'الإقامة',
+                        'iqama no',
                     ]);
 
                     $employee = null;
 
                     if ($empId) {
-                        $employee = Employee::where('company_id', $user->id)
+                        $employee = (clone $employeeBaseQuery)
                             ->where('emp_id', $empId)
                             ->first();
                     }
 
-                    if (!$employee && $identityNumber) {
-                        $employee = Employee::where('company_id', $user->id)
-                            ->where('identity_number', $identityNumber)
-                            ->first();
-                    }
-
                     if (!$employee && $iqamaNo) {
-                        $employee = Employee::where('company_id', $user->id)
+                        $employee = (clone $employeeBaseQuery)
                             ->where('iqama_no', $iqamaNo)
                             ->first();
                     }
 
                     if (!$employee) {
-                        $identifier = $empId ?: ($identityNumber ?: ($iqamaNo ?: "Row {$rowNum}"));
+                        $identifier = $empId ?: ($iqamaNo ?: "Row {$rowNum}");
                         $errors[] = "Row {$rowNum}: Employee not found ({$identifier})";
                         $skipped++;
                         continue;
                     }
 
-                    // Get salary fields
-                    $basicSalary = $this->getSalaryField($normalized, [
-                        'basic_salary', 'basicsalary', 'basic', 'salary', 'base_salary', 'basesalary',
-                        'الراتب الأساسي', 'الراتب_الأساسي', 'الراتب الاساسي', 'الراتب_الاساسي', 'الراتب',
-                    ]);
-
-                    $housingAllowance = $this->getSalaryField($normalized, [
-                        'housing_allowance', 'housingallowance', 'housing', 'بدل السكن', 'بدل_السكن', 'السكن',
-                    ]);
-
-                    $transportationAllowance = $this->getSalaryField($normalized, [
-                        'transportation_allowance', 'transportationallowance', 'transportation',
-                        'transport_allowance', 'transportallowance', 'transport',
-                        'بدل النقل', 'بدل_النقل', 'النقل', 'بدل المواصلات', 'بدل_المواصلات',
-                    ]);
-
-                    $foodAllowance = $this->getSalaryField($normalized, [
-                        'food_allowance', 'foodallowance', 'food', 'بدل الطعام', 'بدل_الطعام', 'الطعام',
-                    ]);
-
-                    $otherAllowance = $this->getSalaryField($normalized, [
-                        'other_allowance', 'otherallowance', 'other', 'بدلات أخرى', 'بدلات_أخرى', 'بدلات اخرى',
-                    ]);
-
-                    $fees = $this->getSalaryField($normalized, [
-                        'fees', 'fee', 'الرسوم', 'رسوم',
-                    ]);
-
-                    $workDays = $this->getSalaryField($normalized, [
-                        'work_days', 'workdays', 'days', 'أيام العمل', 'أيام_العمل', 'ايام العمل',
-                    ]);
+                    // Payroll fields from strict template columns only.
+                    $basicSalary = $this->getStrictSalaryNumericField($normalized, 'basic salary');
+                    $housingAllowance = $this->getStrictSalaryNumericField($normalized, 'housing allowance');
+                    $transportationAllowance = $this->getStrictSalaryNumericField($normalized, 'transportation allowance');
+                    $foodAllowance = $this->getStrictSalaryNumericField($normalized, 'food allowance');
+                    $otherAllowance = $this->getStrictSalaryNumericField($normalized, 'other allowance');
+                    $fees = $this->getStrictSalaryNumericField($normalized, 'fees');
 
                     if (!$basicSalary || (float) $basicSalary <= 0) {
-                        $errors[] = "Row {$rowNum}: Missing or zero basic_salary for {$employee->name}";
+                        $errors[] = "Row {$rowNum}: Missing or zero Basic Salary for {$employee->name}";
                         $skipped++;
                         continue;
                     }
 
                     // Build salary data
                     $salaryData = [
-                        'basic_salary' => (float) $basicSalary,
+                        'basic_salary' => (float) ($basicSalary ?? 0),
                         'housing_allowance' => (float) ($housingAllowance ?? 0),
                         'transportation_allowance' => (float) ($transportationAllowance ?? 0),
                         'food_allowance' => (float) ($foodAllowance ?? 0),
                         'other_allowance' => (float) ($otherAllowance ?? 0),
                         'fees' => (float) ($fees ?? 0),
-                        'work_days' => (int) ($workDays ?? 30),
+                        'work_days' => 30,
                     ];
 
                     // Calculate total_package
@@ -985,6 +944,21 @@ class ListPayrolls extends ListRecords
                             'other_deduction' => 0,
                         ]));
                         $created++;
+                    }
+
+                    // Optional: update employee hiring date if provided in the import file.
+                    $hiringDate = $this->getSalaryField($normalized, [
+                        'hiring date',
+                    ]);
+
+                    if ($hiringDate) {
+                        try {
+                            $parsed = Carbon::parse((string) $hiringDate);
+                            $employee->hire_date = $parsed->format('Y-m-d');
+                            $employee->save();
+                        } catch (\Throwable $e) {
+                            // Ignore invalid date values from import file.
+                        }
                     }
                 } catch (\Exception $e) {
                     $errors[] = "Row {$rowNum}: " . $e->getMessage();
@@ -1025,5 +999,195 @@ class ListPayrolls extends ListRecords
                 ->danger()
                 ->send();
         }
+    }
+
+    /**
+     * Employees available for salary import, aligned with the current page filters.
+     */
+    protected function getImportEmployeesQuery(): Builder
+    {
+        $user = Filament::auth()->user();
+        $query = Employee::query();
+
+        if ($user->type === CompanyTypes::PROVIDER) {
+            $query->where('company_id', $user->id);
+
+            if ($this->clientCompany && $this->clientCompany !== 'all') {
+                if ($this->clientCompany === 'in_house') {
+                    $query->whereDoesntHave('assigned', fn($sq) =>
+                        $sq->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+                    );
+                } elseif ($this->clientCompany !== 'no_payroll') {
+                    $clientId = (int) $this->clientCompany;
+                    $query->whereHas('assigned', fn($sq) =>
+                        $sq->where('employee_assigned.company_id', $clientId)
+                           ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+                    );
+                }
+            }
+
+            return $query;
+        }
+
+        $query->whereHas('assigned', fn($sq) =>
+            $sq->where('employee_assigned.company_id', $user->id)
+               ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+        );
+
+        if ($this->providerCompany && $this->providerCompany !== 'all') {
+            $providerId = (int) $this->providerCompany;
+            $query->where('company_id', $providerId);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Strict template headers from opernize Form.xlsx.
+     */
+    protected function getStrictPayrollTemplateHeaders(): array
+    {
+        return [
+            'emp.id',
+            'name',
+            'nationality',
+            'iqama no',
+            'hiring date',
+            'title',
+            'department',
+            'basic salary',
+            'housing allowance',
+            'transportation allowance',
+            'food allowance',
+            'other allowance',
+            'fees',
+        ];
+    }
+
+    /**
+     * Fail import when uploaded headers differ from template headers.
+     */
+    protected function validateStrictPayrollHeaders(array $headers): void
+    {
+        $expected = $this->getStrictPayrollTemplateHeaders();
+
+        if ($headers !== $expected) {
+            throw new \RuntimeException(
+                'صيغة الأعمدة غير مطابقة للقالب opernize Form.xlsx. '
+                . 'الترتيب المطلوب: ' . implode(' | ', $expected)
+            );
+        }
+    }
+
+    /**
+     * Read CSV/XLSX salary file with header list and normalized row data.
+     */
+    protected function readSalarySpreadsheet(string $filePath): array
+    {
+        $spreadsheet = IOFactory::load($filePath);
+        $worksheet = $spreadsheet->getActiveSheet();
+
+        $headers = [];
+        $normalizedHeaders = [];
+        $rows = [];
+
+        foreach ($worksheet->getRowIterator() as $rowIndex => $row) {
+            $cellIterator = $row->getCellIterator();
+            $cellIterator->setIterateOnlyExistingCells(false);
+
+            $rowData = [];
+            $colIndex = 0;
+
+            foreach ($cellIterator as $cell) {
+                $value = $cell->getValue();
+
+                if ($rowIndex === 1) {
+                    $header = strtolower(trim((string) $value));
+                    $headers[$colIndex] = $header;
+                    $normalizedHeaders[] = $header;
+                } else {
+                    if (!isset($headers[$colIndex]) || $headers[$colIndex] === '') {
+                        $colIndex++;
+                        continue;
+                    }
+
+                    $key = $headers[$colIndex];
+                    $normalized = $this->normalizeHeaderKey($key);
+                    $stringValue = is_string($value) ? trim($value) : $value;
+
+                    foreach ($normalized as $variant) {
+                        $rowData[$variant] = $stringValue;
+                    }
+                }
+
+                $colIndex++;
+            }
+
+            if ($rowIndex > 1 && !empty(array_filter($rowData, fn($v) => $v !== null && $v !== ''))) {
+                $rows[$rowIndex] = $rowData;
+            }
+        }
+
+        return [
+            'headers' => $normalizedHeaders,
+            'rows' => $rows,
+        ];
+    }
+
+    /**
+     * Build common normalized variants for a header key.
+     */
+    protected function normalizeHeaderKey(string $header): array
+    {
+        $clean = strtolower(trim($header));
+        $variants = [$clean];
+
+        $underscored = str_replace(' ', '_', $clean);
+        $nospace = str_replace(['_', ' '], '', $clean);
+        $nodot = str_replace(['.', '_', ' '], '', $clean);
+
+        foreach ([$underscored, $nospace, $nodot] as $variant) {
+            if ($variant !== '') {
+                $variants[] = $variant;
+            }
+        }
+
+        return array_values(array_unique($variants));
+    }
+
+    /**
+     * Parse numeric salary values from spreadsheet cells.
+     */
+    protected function getSalaryNumericField(array $normalized, array $keys): ?float
+    {
+        $raw = $this->getSalaryField($normalized, $keys);
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        $cleaned = preg_replace('/[^\d.\-]/', '', (string) $raw);
+        if ($cleaned === null || $cleaned === '' || $cleaned === '-') {
+            return null;
+        }
+
+        return (float) $cleaned;
+    }
+
+    /**
+     * Strict numeric parser for template numeric columns.
+     */
+    protected function getStrictSalaryNumericField(array $normalized, string $key): ?float
+    {
+        $raw = $this->getSalaryField($normalized, [$key]);
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        $clean = str_replace([',', ' '], '', (string) $raw);
+        if (!is_numeric($clean)) {
+            throw new \InvalidArgumentException("Invalid numeric value in column '{$key}': {$raw}");
+        }
+
+        return (float) $clean;
     }
 }
