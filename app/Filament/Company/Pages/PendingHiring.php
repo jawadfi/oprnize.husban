@@ -264,7 +264,8 @@ class PendingHiring extends Page implements HasTable
                     ->formatStateUsing(fn(EmployeeAssigned $record) => new HtmlString(
                         '<span class="inline-flex items-center justify-center rounded-md border border-gray-300 px-2 py-1 text-xs font-medium cursor-grab" '
                         . 'draggable="true" '
-                        . 'ondragstart="window.dispatchEvent(new CustomEvent(\'pending-hiring-drag-start\',{detail:{assignmentId:' . (int) $record->id . '}}))">'
+                        . 'ondragstart="event.dataTransfer.setData(\'text/plain\',\'' . (int) $record->id . '\');window.pendingHiringDraggingAssignmentId=' . (int) $record->id . ';window.dispatchEvent(new CustomEvent(\'pending-hiring-drag-start\',{detail:{assignmentId:' . (int) $record->id . '}}));" '
+                        . 'ondragend="window.pendingHiringDraggingAssignmentId=null;window.dispatchEvent(new Event(\'dragend\'));">'
                         . 'Drag'
                         . '</span>'
                     ))
@@ -274,7 +275,17 @@ class PendingHiring extends Page implements HasTable
                     ->label('اسم الموظف / Name')
                     ->sortable()
                     ->searchable()
-                    ->weight('bold'),
+                    ->weight('bold')
+                    ->html()
+                    ->formatStateUsing(fn($state, EmployeeAssigned $record) => new HtmlString(
+                        '<div class="inline-flex items-center rounded-md px-2 py-1 cursor-grab" '
+                        . 'draggable="true" '
+                        . 'title="اسحب الموظف وأسقطه على بطاقة الفرع" '
+                        . 'ondragstart="event.dataTransfer.setData(\'text/plain\',\'' . (int) $record->id . '\');window.pendingHiringDraggingAssignmentId=' . (int) $record->id . ';window.dispatchEvent(new CustomEvent(\'pending-hiring-drag-start\',{detail:{assignmentId:' . (int) $record->id . '}}));" '
+                        . 'ondragend="window.pendingHiringDraggingAssignmentId=null;window.dispatchEvent(new Event(\'dragend\'));">'
+                        . e((string) $state)
+                        . '</div>'
+                    )),
                 TextColumn::make('employee.emp_id')
                     ->label('الرقم الوظيفي / Emp ID')
                     ->sortable()

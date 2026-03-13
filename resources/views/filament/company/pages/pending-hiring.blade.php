@@ -1,8 +1,9 @@
 <x-filament-panels::page>
     <div
         x-data="{ draggingAssignmentId: null }"
+        x-init="window.pendingHiringDraggingAssignmentId = null"
         x-on:pending-hiring-drag-start.window="draggingAssignmentId = $event.detail.assignmentId"
-        x-on:dragend.window="draggingAssignmentId = null"
+        x-on:dragend.window="draggingAssignmentId = null; window.pendingHiringDraggingAssignmentId = null"
     >
         @if ($this->isClientSide())
             <div class="mb-4">
@@ -23,9 +24,11 @@
                             x-on:dragleave.prevent="$el.classList.remove('ring-2','ring-sky-400')"
                             x-on:drop.prevent="
                                 $el.classList.remove('ring-2','ring-sky-400');
-                                if (!draggingAssignmentId || {{ $isDropTarget ? 'false' : 'true' }}) return;
-                                $wire.assignToBranch(draggingAssignmentId, {{ (int) ($branch['id'] ?? 0) }});
+                                const droppedId = draggingAssignmentId || Number($event.dataTransfer.getData('text/plain')) || window.pendingHiringDraggingAssignmentId;
+                                if (!droppedId || {{ $isDropTarget ? 'false' : 'true' }}) return;
+                                $wire.assignToBranch(droppedId, {{ (int) ($branch['id'] ?? 0) }});
                                 draggingAssignmentId = null;
+                                window.pendingHiringDraggingAssignmentId = null;
                             "
                         >
                             <div class="flex items-center justify-between gap-2">
@@ -44,7 +47,7 @@
         @endif
 
         <div class="mb-3 text-xs text-gray-500">
-            Tip: اسحب من عمود Drag وأفلت فوق بطاقة الفرع للتعيين السريع.
+            Tip: تقدر تسحب الموظف من الاسم أو من عمود Drag ثم تفلته فوق بطاقة الفرع.
         </div>
 
         <div>
