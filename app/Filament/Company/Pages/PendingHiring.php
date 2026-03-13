@@ -7,6 +7,7 @@ use App\Enums\EmployeeAssignedStatus;
 use App\Models\Branch;
 use App\Models\EmployeeAssigned;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\HtmlString;
 use Filament\Facades\Filament;
 use Filament\Forms;
@@ -166,7 +167,20 @@ class PendingHiring extends Page implements HasTable
 
     public function assignToBranch(int $assignmentId, int $branchId): void
     {
+        Log::info('PendingHiring.assignToBranch.start', [
+            'assignment_id' => $assignmentId,
+            'branch_id' => $branchId,
+            'selected_branch_filter' => $this->selectedBranchId,
+            'user_id' => Filament::auth()->id(),
+        ]);
+
         if (!$this->isClientSide()) {
+            Log::warning('PendingHiring.assignToBranch.denied_not_client_side', [
+                'assignment_id' => $assignmentId,
+                'branch_id' => $branchId,
+                'user_id' => Filament::auth()->id(),
+            ]);
+
             Notification::make()
                 ->title('هذه العملية متاحة للعميل فقط')
                 ->warning()
@@ -176,6 +190,11 @@ class PendingHiring extends Page implements HasTable
 
         $companyId = $this->getCurrentCompanyId();
         if (!$companyId) {
+            Log::warning('PendingHiring.assignToBranch.missing_company_id', [
+                'assignment_id' => $assignmentId,
+                'branch_id' => $branchId,
+                'user_id' => Filament::auth()->id(),
+            ]);
             return;
         }
 
@@ -186,6 +205,12 @@ class PendingHiring extends Page implements HasTable
             ->first();
 
         if (!$branch) {
+            Log::warning('PendingHiring.assignToBranch.invalid_branch', [
+                'assignment_id' => $assignmentId,
+                'branch_id' => $branchId,
+                'company_id' => $companyId,
+            ]);
+
             Notification::make()
                 ->title('الفرع غير صالح')
                 ->danger()
@@ -199,6 +224,12 @@ class PendingHiring extends Page implements HasTable
             ->first();
 
         if (!$assignment) {
+            Log::warning('PendingHiring.assignToBranch.assignment_not_found', [
+                'assignment_id' => $assignmentId,
+                'branch_id' => $branchId,
+                'company_id' => $companyId,
+            ]);
+
             Notification::make()
                 ->title('تعذر العثور على سجل الموظف')
                 ->danger()
@@ -213,6 +244,13 @@ class PendingHiring extends Page implements HasTable
                 'start_date' => $assignment->start_date ?? now(),
                 'is_active' => true,
             ],
+        ]);
+
+        Log::info('PendingHiring.assignToBranch.success', [
+            'assignment_id' => $assignmentId,
+            'employee_id' => $assignment->employee_id,
+            'branch_id' => $branchId,
+            'company_id' => $companyId,
         ]);
 
         Notification::make()

@@ -32,9 +32,12 @@
                             x-on:drop.prevent="
                                 $el.classList.remove('ring-2','ring-sky-400');
                                 const droppedId = window.pendingHiringGetDraggedAssignment($event) || draggingAssignmentId;
+                                console.log('[PendingHiring][DROP] droppedId=', droppedId, 'branchId=', Number({{ (int) ($branch['id'] ?? 0) }}), 'isDropTarget=', {{ $isDropTarget ? 'true' : 'false' }});
                                 if (!droppedId || {{ $isDropTarget ? 'false' : 'true' }}) return;
                                 dropMessage = 'جاري تعيين الموظف...';
-                                $wire.call('assignToBranch', Number(droppedId), Number({{ (int) ($branch['id'] ?? 0) }}));
+                                $wire.call('assignToBranch', Number(droppedId), Number({{ (int) ($branch['id'] ?? 0) }}))
+                                    .then(() => console.log('[PendingHiring][DROP] assignToBranch call completed'))
+                                    .catch((e) => console.error('[PendingHiring][DROP] assignToBranch call failed', e));
                                 draggingAssignmentId = null;
                                 dragOverBranchId = null;
                                 window.pendingHiringClearDraggedAssignment();
@@ -80,6 +83,8 @@
                 const id = Number(assignmentId) || null;
                 window.pendingHiringDraggingAssignmentId = id;
 
+                console.log('[PendingHiring][DRAG_START] assignmentId=', id);
+
                 if (event && event.dataTransfer && id) {
                     event.dataTransfer.effectAllowed = 'move';
                     event.dataTransfer.setData('text/plain', String(id));
@@ -97,12 +102,15 @@
                     ? Number(event.dataTransfer.getData('text/plain'))
                     : null;
 
+                console.log('[PendingHiring][DRAG_READ] fromEvent=', fromEvent, 'fromWindow=', window.pendingHiringDraggingAssignmentId);
+
                 return fromEvent || window.pendingHiringDraggingAssignmentId || null;
             };
         }
 
         if (!window.pendingHiringClearDraggedAssignment) {
             window.pendingHiringClearDraggedAssignment = function () {
+                console.log('[PendingHiring][DRAG_END] clearing drag state');
                 window.pendingHiringDraggingAssignmentId = null;
                 window.dispatchEvent(new Event('dragend'));
             };
