@@ -312,7 +312,6 @@ class PendingHiring extends Page implements HasTable
                     ->sortable()
                     ->searchable()
                     ->weight('bold')
-                    ->title('اسحب الموظف وأسقطه على بطاقة الفرع')
                     ->extraAttributes(fn(EmployeeAssigned $record): array => [
                         'data-assignment-id' => (string) $record->id,
                         'style' => 'cursor: grab',
