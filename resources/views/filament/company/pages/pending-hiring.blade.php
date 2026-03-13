@@ -1,6 +1,6 @@
 <x-filament-panels::page>
     <div
-        x-data="{ draggingAssignmentId: null }"
+        x-data="{ draggingAssignmentId: null, justDropped: false }"
         x-init="window.pendingHiringDraggingAssignmentId = null; if (window.initPendingHiringRowDrag) { window.initPendingHiringRowDrag($el); }"
         x-on:pending-hiring-drag-start.window="draggingAssignmentId = $event.detail.assignmentId"
         x-on:dragend.window="draggingAssignmentId = null; window.pendingHiringDraggingAssignmentId = null"
@@ -19,7 +19,13 @@
                                 'border-sky-500 bg-sky-50' => $branch['is_active'],
                                 'border-gray-200 bg-white' => !$branch['is_active'],
                             ])
-                            wire:click="selectBranchFilter({{ $branch['id'] === null ? 'null' : $branch['id'] }})"
+                            x-on:click="
+                                if (justDropped) {
+                                    justDropped = false;
+                                    return;
+                                }
+                                $wire.selectBranchFilter({{ $branch['id'] === null ? 'null' : $branch['id'] }});
+                            "
                             x-on:dragover.prevent="if (draggingAssignmentId && {{ $isDropTarget ? 'true' : 'false' }}) $el.classList.add('ring-2','ring-sky-400')"
                             x-on:dragleave.prevent="$el.classList.remove('ring-2','ring-sky-400')"
                             x-on:drop.prevent="
@@ -29,6 +35,8 @@
                                 $wire.assignToBranch(droppedId, {{ (int) ($branch['id'] ?? 0) }});
                                 draggingAssignmentId = null;
                                 window.pendingHiringDraggingAssignmentId = null;
+                                justDropped = true;
+                                setTimeout(() => justDropped = false, 250);
                             "
                         >
                             <div class="flex items-center justify-between gap-2">
