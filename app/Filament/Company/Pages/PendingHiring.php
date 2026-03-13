@@ -302,6 +302,8 @@ class PendingHiring extends Page implements HasTable
                     ->formatStateUsing(fn(EmployeeAssigned $record) => new HtmlString(
                         '<span class="inline-flex items-center justify-center rounded-md border border-gray-300 px-2 py-1 text-xs font-medium cursor-grab" '
                         . 'draggable="true" '
+                        . 'onmousedown="window.pendingHiringPrimeDraggedAssignment(' . (int) $record->id . ');" '
+                        . 'ontouchstart="window.pendingHiringPrimeDraggedAssignment(' . (int) $record->id . ');" '
                         . 'ondragstart="window.pendingHiringSetDraggedAssignment(' . (int) $record->id . ', event);" '
                         . 'ondragend="window.pendingHiringClearDraggedAssignment();">'
                         . 'Drag'
@@ -320,6 +322,8 @@ class PendingHiring extends Page implements HasTable
                         . 'data-assignment-id="' . (int) $record->id . '" '
                         . 'draggable="true" '
                         . 'title="اسحب الموظف وأسقطه على بطاقة الفرع" '
+                        . 'onmousedown="window.pendingHiringPrimeDraggedAssignment(' . (int) $record->id . ');" '
+                        . 'ontouchstart="window.pendingHiringPrimeDraggedAssignment(' . (int) $record->id . ');" '
                         . 'ondragstart="window.pendingHiringSetDraggedAssignment(' . (int) $record->id . ', event);" '
                         . 'ondragend="window.pendingHiringClearDraggedAssignment();">'
                         . e((string) $state)

@@ -78,6 +78,14 @@
     </div>
 
     <script>
+        if (!window.pendingHiringPrimeDraggedAssignment) {
+            window.pendingHiringPrimeDraggedAssignment = function (assignmentId) {
+                const id = Number(assignmentId) || null;
+                window.pendingHiringDraggingAssignmentId = id;
+                console.log('[PendingHiring][DRAG_PRIME] assignmentId=', id);
+            };
+        }
+
         if (!window.pendingHiringSetDraggedAssignment) {
             window.pendingHiringSetDraggedAssignment = function (assignmentId, event) {
                 const id = Number(assignmentId) || null;
@@ -98,8 +106,13 @@
 
         if (!window.pendingHiringGetDraggedAssignment) {
             window.pendingHiringGetDraggedAssignment = function (event) {
-                const fromEvent = event && event.dataTransfer
-                    ? Number(event.dataTransfer.getData('text/plain'))
+                const rawFromEvent = event && event.dataTransfer
+                    ? event.dataTransfer.getData('text/plain')
+                    : '';
+
+                const parsedFromEvent = Number(rawFromEvent);
+                const fromEvent = Number.isFinite(parsedFromEvent) && parsedFromEvent > 0
+                    ? parsedFromEvent
                     : null;
 
                 console.log('[PendingHiring][DRAG_READ] fromEvent=', fromEvent, 'fromWindow=', window.pendingHiringDraggingAssignmentId);
