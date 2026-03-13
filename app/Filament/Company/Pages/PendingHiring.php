@@ -264,8 +264,8 @@ class PendingHiring extends Page implements HasTable
                     ->formatStateUsing(fn(EmployeeAssigned $record) => new HtmlString(
                         '<span class="inline-flex items-center justify-center rounded-md border border-gray-300 px-2 py-1 text-xs font-medium cursor-grab" '
                         . 'draggable="true" '
-                        . 'ondragstart="event.dataTransfer.setData(\'text/plain\',\'' . (int) $record->id . '\');window.pendingHiringDraggingAssignmentId=' . (int) $record->id . ';window.dispatchEvent(new CustomEvent(\'pending-hiring-drag-start\',{detail:{assignmentId:' . (int) $record->id . '}}));" '
-                        . 'ondragend="window.pendingHiringDraggingAssignmentId=null;window.dispatchEvent(new Event(\'dragend\'));">'
+                        . 'ondragstart="window.pendingHiringSetDraggedAssignment(' . (int) $record->id . ', event);" '
+                        . 'ondragend="window.pendingHiringClearDraggedAssignment();">'
                         . 'Drag'
                         . '</span>'
                     ))
@@ -282,8 +282,8 @@ class PendingHiring extends Page implements HasTable
                         . 'data-assignment-id="' . (int) $record->id . '" '
                         . 'draggable="true" '
                         . 'title="اسحب الموظف وأسقطه على بطاقة الفرع" '
-                        . 'ondragstart="event.dataTransfer.setData(\'text/plain\',\'' . (int) $record->id . '\');window.pendingHiringDraggingAssignmentId=' . (int) $record->id . ';window.dispatchEvent(new CustomEvent(\'pending-hiring-drag-start\',{detail:{assignmentId:' . (int) $record->id . '}}));" '
-                        . 'ondragend="window.pendingHiringDraggingAssignmentId=null;window.dispatchEvent(new Event(\'dragend\'));">'
+                        . 'ondragstart="window.pendingHiringSetDraggedAssignment(' . (int) $record->id . ', event);" '
+                        . 'ondragend="window.pendingHiringClearDraggedAssignment();">'
                         . e((string) $state)
                         . '</div>'
                     )),

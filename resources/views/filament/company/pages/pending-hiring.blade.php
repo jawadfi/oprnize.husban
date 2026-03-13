@@ -30,11 +30,11 @@
                             x-on:dragleave.prevent="$el.classList.remove('ring-2','ring-sky-400')"
                             x-on:drop.prevent="
                                 $el.classList.remove('ring-2','ring-sky-400');
-                                const droppedId = draggingAssignmentId || Number($event.dataTransfer.getData('text/plain')) || window.pendingHiringDraggingAssignmentId;
+                                const droppedId = window.pendingHiringGetDraggedAssignment($event) || draggingAssignmentId;
                                 if (!droppedId || {{ $isDropTarget ? 'false' : 'true' }}) return;
                                 $wire.assignToBranch(droppedId, {{ (int) ($branch['id'] ?? 0) }});
                                 draggingAssignmentId = null;
-                                window.pendingHiringDraggingAssignmentId = null;
+                                window.pendingHiringClearDraggedAssignment();
                                 justDropped = true;
                                 setTimeout(() => justDropped = false, 250);
                             "
@@ -64,6 +64,39 @@
     </div>
 
     <script>
+        if (!window.pendingHiringSetDraggedAssignment) {
+            window.pendingHiringSetDraggedAssignment = function (assignmentId, event) {
+                const id = Number(assignmentId) || null;
+                window.pendingHiringDraggingAssignmentId = id;
+
+                if (event && event.dataTransfer && id) {
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', String(id));
+                }
+
+                window.dispatchEvent(new CustomEvent('pending-hiring-drag-start', {
+                    detail: { assignmentId: id },
+                }));
+            };
+        }
+
+        if (!window.pendingHiringGetDraggedAssignment) {
+            window.pendingHiringGetDraggedAssignment = function (event) {
+                const fromEvent = event && event.dataTransfer
+                    ? Number(event.dataTransfer.getData('text/plain'))
+                    : null;
+
+                return fromEvent || window.pendingHiringDraggingAssignmentId || null;
+            };
+        }
+
+        if (!window.pendingHiringClearDraggedAssignment) {
+            window.pendingHiringClearDraggedAssignment = function () {
+                window.pendingHiringDraggingAssignmentId = null;
+                window.dispatchEvent(new Event('dragend'));
+            };
+        }
+
         if (!window.initPendingHiringRowDrag) {
             window.initPendingHiringRowDrag = function (rootEl) {
                 const bindRows = () => {
@@ -89,16 +122,11 @@
                         row.style.cursor = 'grab';
 
                         row.addEventListener('dragstart', (event) => {
-                            event.dataTransfer.setData('text/plain', String(assignmentId));
-                            window.pendingHiringDraggingAssignmentId = assignmentId;
-                            window.dispatchEvent(new CustomEvent('pending-hiring-drag-start', {
-                                detail: { assignmentId },
-                            }));
+                            window.pendingHiringSetDraggedAssignment(assignmentId, event);
                         });
 
                         row.addEventListener('dragend', () => {
-                            window.pendingHiringDraggingAssignmentId = null;
-                            window.dispatchEvent(new Event('dragend'));
+                            window.pendingHiringClearDraggedAssignment();
                         });
                     });
                 };
