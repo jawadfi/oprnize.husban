@@ -810,6 +810,14 @@ class ListPayrolls extends ListRecords
 
     public function importSalaries(): void
     {
+        if ($this->payrollCategory !== 'contracted') {
+            Notification::make()
+                ->title('الاستيراد متاح فقط في Contracted Payroll')
+                ->warning()
+                ->send();
+            return;
+        }
+
         if (!$this->salaryFile) {
             Notification::make()
                 ->title('يرجى رفع ملف رواتب')
