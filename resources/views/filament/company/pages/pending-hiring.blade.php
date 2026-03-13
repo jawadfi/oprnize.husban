@@ -132,7 +132,9 @@
         if (!window.initPendingHiringRowDrag) {
             window.initPendingHiringRowDrag = function (rootEl) {
                 const bindRows = () => {
-                    const rows = rootEl.querySelectorAll('tr.fi-ta-row, .fi-ta-row');
+                    const rows = rootEl.querySelectorAll('tbody tr');
+
+                    console.log('[PendingHiring][BIND] rows found=', rows.length);
 
                     rows.forEach((row) => {
                         if (row.dataset.rowDragBound === '1') {
@@ -146,12 +148,18 @@
 
                         const assignmentId = Number(assignmentNode.getAttribute('data-assignment-id'));
                         if (!assignmentId) {
+                            console.log('[PendingHiring][BIND] row skipped: no assignment id');
                             return;
                         }
 
                         row.dataset.rowDragBound = '1';
                         row.setAttribute('draggable', 'true');
                         row.style.cursor = 'grab';
+
+                        const primeDrag = () => window.pendingHiringPrimeDraggedAssignment(assignmentId);
+
+                        row.addEventListener('mousedown', primeDrag);
+                        row.addEventListener('touchstart', primeDrag, { passive: true });
 
                         row.addEventListener('dragstart', (event) => {
                             window.pendingHiringSetDraggedAssignment(assignmentId, event);
