@@ -1,7 +1,7 @@
 <x-filament-panels::page>
     <div
         x-data="{ draggingAssignmentId: null, justDropped: false, dragOverBranchId: null, dropMessage: '' }"
-        x-init="window.pendingHiringDraggingAssignmentId = null; if (window.initPendingHiringRowDrag) { window.initPendingHiringRowDrag($el); }"
+        x-init="window.pendingHiringDraggingAssignmentId = null"
         x-on:pending-hiring-drag-start.window="draggingAssignmentId = $event.detail.assignmentId"
         x-on:dragend.window="draggingAssignmentId = null; dragOverBranchId = null; window.pendingHiringDraggingAssignmentId = null"
     >
@@ -40,7 +40,7 @@
                                     .catch((e) => console.error('[PendingHiring][DROP] assignToBranch call failed', e));
                                 draggingAssignmentId = null;
                                 dragOverBranchId = null;
-                                window.pendingHiringClearDraggedAssignment();
+                                window.pendingHiringDraggingAssignmentId = null;
                                 dropMessage = 'تم التعيين بنجاح';
                                 setTimeout(() => dropMessage = '', 1800);
                                 justDropped = true;
@@ -78,104 +78,93 @@
     </div>
 
     <script>
-        if (!window.pendingHiringPrimeDraggedAssignment) {
-            window.pendingHiringPrimeDraggedAssignment = function (assignmentId) {
-                const id = Number(assignmentId) || null;
-                window.pendingHiringDraggingAssignmentId = id;
-                console.log('[PendingHiring][DRAG_PRIME] assignmentId=', id);
-            };
+        // ── Pending Hiring drag-drop ─────────────────────────────────────────
+        // Uses document-level event delegation so bindings survive Livewire
+        // DOM morphing.  The _phDragListening flag prevents duplicate listeners
+        // on SPA navigation while always keeping rows draggable.
+
+        window.pendingHiringDraggingAssignmentId = null;
+
+        function _phFindAssignmentNode(target) {
+            if (!target || !target.closest) return null;
+            var node = target.closest('[data-assignment-id]');
+            if (!node) {
+                var row = target.closest('tr');
+                if (row) node = row.querySelector('[data-assignment-id]');
+            }
+            return node || null;
         }
 
-        if (!window.pendingHiringSetDraggedAssignment) {
-            window.pendingHiringSetDraggedAssignment = function (assignmentId, event) {
-                const id = Number(assignmentId) || null;
-                window.pendingHiringDraggingAssignmentId = id;
-
-                console.log('[PendingHiring][DRAG_START] assignmentId=', id);
-
-                if (event && event.dataTransfer && id) {
-                    event.dataTransfer.effectAllowed = 'move';
-                    event.dataTransfer.setData('text/plain', String(id));
+        function _phMakeRowsDraggable() {
+            document.querySelectorAll('[data-assignment-id]').forEach(function (node) {
+                var row = node.closest('tr');
+                if (row && row.getAttribute('draggable') !== 'true') {
+                    row.setAttribute('draggable', 'true');
+                    row.style.cursor = 'grab';
                 }
-
-                window.dispatchEvent(new CustomEvent('pending-hiring-drag-start', {
-                    detail: { assignmentId: id },
-                }));
-            };
+            });
         }
 
-        if (!window.pendingHiringGetDraggedAssignment) {
-            window.pendingHiringGetDraggedAssignment = function (event) {
-                const rawFromEvent = event && event.dataTransfer
-                    ? event.dataTransfer.getData('text/plain')
-                    : '';
+        if (!window._phDragListening) {
+            window._phDragListening = true;
 
-                const parsedFromEvent = Number(rawFromEvent);
-                const fromEvent = Number.isFinite(parsedFromEvent) && parsedFromEvent > 0
-                    ? parsedFromEvent
-                    : null;
+            document.addEventListener('mousedown', function (e) {
+                var node = _phFindAssignmentNode(e.target);
+                if (node) {
+                    var id = parseInt(node.getAttribute('data-assignment-id'), 10);
+                    if (id > 0) {
+                        window.pendingHiringDraggingAssignmentId = id;
+                        console.log('[PendingHiring][DRAG_PRIME] id=', id);
+                    }
+                }
+            });
 
-                console.log('[PendingHiring][DRAG_READ] fromEvent=', fromEvent, 'fromWindow=', window.pendingHiringDraggingAssignmentId);
+            document.addEventListener('dragstart', function (e) {
+                var node = _phFindAssignmentNode(e.target);
+                if (node) {
+                    var id = parseInt(node.getAttribute('data-assignment-id'), 10);
+                    if (id > 0) {
+                        window.pendingHiringDraggingAssignmentId = id;
+                        try {
+                            e.dataTransfer.effectAllowed = 'move';
+                            e.dataTransfer.setData('text/plain', String(id));
+                        } catch (err) {}
+                        console.log('[PendingHiring][DRAG_START] id=', id);
+                        document.dispatchEvent(new CustomEvent('pending-hiring-drag-start', {
+                            detail: { assignmentId: id },
+                            bubbles: true
+                        }));
+                    }
+                } else {
+                    console.log('[PendingHiring][DRAG_START] no assignment node found, target tag=', e.target && e.target.tagName);
+                }
+            });
 
-                return fromEvent || window.pendingHiringDraggingAssignmentId || null;
-            };
-        }
-
-        if (!window.pendingHiringClearDraggedAssignment) {
-            window.pendingHiringClearDraggedAssignment = function () {
-                console.log('[PendingHiring][DRAG_END] clearing drag state');
+            document.addEventListener('dragend', function () {
                 window.pendingHiringDraggingAssignmentId = null;
-                window.dispatchEvent(new Event('dragend'));
-            };
+                console.log('[PendingHiring][DRAG_END]');
+            });
+
+            // Keep rows draggable through Livewire DOM morphing
+            new MutationObserver(_phMakeRowsDraggable)
+                .observe(document.body, { childList: true, subtree: true });
         }
 
-        if (!window.initPendingHiringRowDrag) {
-            window.initPendingHiringRowDrag = function (rootEl) {
-                const bindRows = () => {
-                    const rows = rootEl.querySelectorAll('tbody tr');
+        // Make rows draggable immediately (also runs after each Livewire render
+        // via the MutationObserver above)
+        _phMakeRowsDraggable();
 
-                    console.log('[PendingHiring][BIND] rows found=', rows.length);
-
-                    rows.forEach((row) => {
-                        if (row.dataset.rowDragBound === '1') {
-                            return;
-                        }
-
-                        const assignmentNode = row.querySelector('[data-assignment-id]');
-                        if (!assignmentNode) {
-                            return;
-                        }
-
-                        const assignmentId = Number(assignmentNode.getAttribute('data-assignment-id'));
-                        if (!assignmentId) {
-                            console.log('[PendingHiring][BIND] row skipped: no assignment id');
-                            return;
-                        }
-
-                        row.dataset.rowDragBound = '1';
-                        row.setAttribute('draggable', 'true');
-                        row.style.cursor = 'grab';
-
-                        const primeDrag = () => window.pendingHiringPrimeDraggedAssignment(assignmentId);
-
-                        row.addEventListener('mousedown', primeDrag);
-                        row.addEventListener('touchstart', primeDrag, { passive: true });
-
-                        row.addEventListener('dragstart', (event) => {
-                            window.pendingHiringSetDraggedAssignment(assignmentId, event);
-                        });
-
-                        row.addEventListener('dragend', () => {
-                            window.pendingHiringClearDraggedAssignment();
-                        });
-                    });
-                };
-
-                bindRows();
-
-                const observer = new MutationObserver(() => bindRows());
-                observer.observe(rootEl, { childList: true, subtree: true });
-            };
-        }
+        // Always overwrite so it reflects latest code on every render
+        window.pendingHiringGetDraggedAssignment = function (event) {
+            var fromEvent = null;
+            if (event && event.dataTransfer) {
+                var raw = event.dataTransfer.getData('text/plain');
+                var parsed = parseInt(raw, 10);
+                if (parsed > 0) fromEvent = parsed;
+            }
+            console.log('[PendingHiring][DRAG_READ] fromEvent=', fromEvent,
+                'fromWindow=', window.pendingHiringDraggingAssignmentId);
+            return fromEvent || window.pendingHiringDraggingAssignmentId || null;
+        };
     </script>
 </x-filament-panels::page>
