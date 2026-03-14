@@ -81,13 +81,19 @@ class PayrollResource extends Resource
     public static function form(Form $form): Form
     {
         $user = Filament::auth()->user();
+        $companyType = $user instanceof Company
+            ? $user->type
+            : ($user instanceof User ? $user->company?->type : null);
+        $companyId = $user instanceof Company
+            ? $user->id
+            : ($user instanceof User ? $user->company_id : null);
         
         // Get employees based on company type
-        if ($user->type === CompanyTypes::PROVIDER) {
-            $employees = Employee::where('company_id', $user->id)->get();
+        if ($companyType === CompanyTypes::PROVIDER) {
+            $employees = Employee::where('company_id', $companyId)->get();
         } else {
             $employees = Employee::whereHas('assigned', fn($q) => 
-                $q->where('employee_assigned.company_id', $user->id)
+                $q->where('employee_assigned.company_id', $companyId)
                   ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
             )->get();
         }

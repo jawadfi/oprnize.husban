@@ -13,6 +13,7 @@ use App\Enums\PayrollStatus;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\Payroll;
+use App\Models\User;
 use Carbon\Carbon;
 use Filament\Actions;
 use Filament\Facades\Filament;
@@ -91,6 +92,36 @@ class ListPayrolls extends ListRecords
         }
     }
 
+    protected function getCurrentCompanyId(): ?int
+    {
+        $auth = Filament::auth()->user();
+
+        if ($auth instanceof Company) {
+            return $auth->id;
+        }
+
+        if ($auth instanceof User) {
+            return $auth->company_id;
+        }
+
+        return null;
+    }
+
+    protected function getCurrentCompanyType(): ?string
+    {
+        $auth = Filament::auth()->user();
+
+        if ($auth instanceof Company) {
+            return $auth->type;
+        }
+
+        if ($auth instanceof User) {
+            return $auth->company?->type;
+        }
+
+        return null;
+    }
+
     public function getTitle(): string
     {
         $date = Carbon::parse($this->selectedMonth . '-01');
@@ -115,10 +146,10 @@ class ListPayrolls extends ListRecords
             return [];
         }
 
-        $user = Filament::auth()->user();
+        $companyType = $this->getCurrentCompanyType();
 
         if ($this->payrollCategory === 'review') {
-            if ($user->type !== CompanyTypes::PROVIDER) {
+            if ($companyType !== CompanyTypes::PROVIDER) {
                 return [];
             }
 
@@ -337,14 +368,20 @@ class ListPayrolls extends ListRecords
     {
         $query = parent::getTableQuery();
         $user = Filament::auth()->user();
+        $companyType = $this->getCurrentCompanyType();
+        $companyId = $this->getCurrentCompanyId();
+
+        if (! $companyId) {
+            return $query->whereKey(-1);
+        }
 
         // Contracted payroll for CLIENT should read the provider-side payroll data
         // so both parties can see the same contractual salary list.
-        if ($this->payrollCategory === 'contracted' && $user->type === CompanyTypes::CLIENT) {
+        if ($this->payrollCategory === 'contracted' && $companyType === CompanyTypes::CLIENT) {
             $query = Payroll::query()
                 ->whereHas('company', fn($q) => $q->where('type', CompanyTypes::PROVIDER))
                 ->whereHas('employee.assigned', fn($q) =>
-                    $q->where('employee_assigned.company_id', $user->id)
+                    $q->where('employee_assigned.company_id', $companyId)
                         ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
                 );
         }
@@ -412,7 +449,7 @@ class ListPayrolls extends ListRecords
                 PayrollStatus::REBACK,
             ];
 
-            if ($user->type === CompanyTypes::CLIENT) {
+            if ($companyType === CompanyTypes::CLIENT) {
                 $reviewStatuses = [
                     PayrollStatus::SUBMITTED_TO_CLIENT,
                     PayrollStatus::FINALIZED,
@@ -548,10 +585,15 @@ class ListPayrolls extends ListRecords
         $previousMonth = $date->copy()->subMonth();
         
         $query = PayrollResource::getEloquentQuery();
-        $user = Filament::auth()->user();
+        $companyType = $this->getCurrentCompanyType();
+        $companyId = $this->getCurrentCompanyId();
+
+        if (! $companyId) {
+            return 0;
+        }
         
-        if ($user->type === \App\Enums\CompanyTypes::PROVIDER) {
-            $query->whereHas('employee', fn($q) => $q->where('company_id', $user->id));
+        if ($companyType === \App\Enums\CompanyTypes::PROVIDER) {
+            $query->whereHas('employee', fn($q) => $q->where('company_id', $companyId));
             
             // Apply client company filter
             if ($this->clientCompany && $this->clientCompany !== 'all') {
@@ -573,7 +615,7 @@ class ListPayrolls extends ListRecords
             }
         } else {
             $query->whereHas('employee.assigned', fn($q) => 
-                $q->where('employee_assigned.company_id', $user->id)
+                                $q->where('employee_assigned.company_id', $companyId)
                   ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
             );
             
@@ -601,10 +643,15 @@ class ListPayrolls extends ListRecords
         $previousMonth = $date->copy()->subMonth();
         
         $query = PayrollResource::getEloquentQuery();
-        $user = Filament::auth()->user();
+        $companyType = $this->getCurrentCompanyType();
+        $companyId = $this->getCurrentCompanyId();
+
+        if (! $companyId) {
+            return 0.0;
+        }
         
-        if ($user->type === \App\Enums\CompanyTypes::PROVIDER) {
-            $query->whereHas('employee', fn($q) => $q->where('company_id', $user->id));
+        if ($companyType === \App\Enums\CompanyTypes::PROVIDER) {
+            $query->whereHas('employee', fn($q) => $q->where('company_id', $companyId));
             
             if ($this->clientCompany && $this->clientCompany !== 'all') {
                 if ($this->clientCompany === 'in_house') {
@@ -625,7 +672,7 @@ class ListPayrolls extends ListRecords
             }
         } else {
             $query->whereHas('employee.assigned', fn($q) => 
-                $q->where('employee_assigned.company_id', $user->id)
+                                $q->where('employee_assigned.company_id', $companyId)
                   ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
             );
             
@@ -652,10 +699,15 @@ class ListPayrolls extends ListRecords
         $previousMonth = $date->copy()->subMonth();
         
         $query = PayrollResource::getEloquentQuery();
-        $user = Filament::auth()->user();
+        $companyType = $this->getCurrentCompanyType();
+        $companyId = $this->getCurrentCompanyId();
+
+        if (! $companyId) {
+            return 0.0;
+        }
         
-        if ($user->type === \App\Enums\CompanyTypes::PROVIDER) {
-            $query->whereHas('employee', fn($q) => $q->where('company_id', $user->id));
+        if ($companyType === \App\Enums\CompanyTypes::PROVIDER) {
+            $query->whereHas('employee', fn($q) => $q->where('company_id', $companyId));
             
             if ($this->clientCompany && $this->clientCompany !== 'all') {
                 if ($this->clientCompany === 'in_house') {
@@ -676,7 +728,7 @@ class ListPayrolls extends ListRecords
             }
         } else {
             $query->whereHas('employee.assigned', fn($q) => 
-                $q->where('employee_assigned.company_id', $user->id)
+                                $q->where('employee_assigned.company_id', $companyId)
                   ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
             );
             
@@ -708,10 +760,15 @@ class ListPayrolls extends ListRecords
         $previousMonth = $date->copy()->subMonth();
         
         $query = PayrollResource::getEloquentQuery();
-        $user = Filament::auth()->user();
+        $companyType = $this->getCurrentCompanyType();
+        $companyId = $this->getCurrentCompanyId();
+
+        if (! $companyId) {
+            return 0.0;
+        }
         
-        if ($user->type === \App\Enums\CompanyTypes::PROVIDER) {
-            $query->whereHas('employee', fn($q) => $q->where('company_id', $user->id));
+        if ($companyType === \App\Enums\CompanyTypes::PROVIDER) {
+            $query->whereHas('employee', fn($q) => $q->where('company_id', $companyId));
             
             if ($this->clientCompany && $this->clientCompany !== 'all') {
                 if ($this->clientCompany === 'in_house') {
@@ -732,7 +789,7 @@ class ListPayrolls extends ListRecords
             }
         } else {
             $query->whereHas('employee.assigned', fn($q) => 
-                $q->where('employee_assigned.company_id', $user->id)
+                                $q->where('employee_assigned.company_id', $companyId)
                   ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
             );
             
@@ -766,12 +823,21 @@ class ListPayrolls extends ListRecords
 
     public function calculatePayroll(): void
     {
-        $user = Filament::auth()->user();
+        $companyType = $this->getCurrentCompanyType();
+        $companyId = $this->getCurrentCompanyId();
         $date = Carbon::parse($this->selectedMonth . '-01');
+
+        if (! $companyId || ! $companyType) {
+            Notification::make()
+                ->title('تعذر تحديد الشركة الحالية')
+                ->danger()
+                ->send();
+            return;
+        }
         
         // Get employees based on company type and selected client company
-        if ($user->type === \App\Enums\CompanyTypes::PROVIDER) {
-            $employeesQuery = \App\Models\Employee::where('company_id', $user->id);
+        if ($companyType === \App\Enums\CompanyTypes::PROVIDER) {
+            $employeesQuery = \App\Models\Employee::where('company_id', $companyId);
             
             // If a specific client company is selected, only get employees assigned to that company
             if ($this->clientCompany && $this->clientCompany !== 'all') {
@@ -797,7 +863,7 @@ class ListPayrolls extends ListRecords
             $employees = $employeesQuery->get();
         } else {
             $employeesQuery = \App\Models\Employee::whereHas('assigned', fn($q) => 
-                $q->where('employee_assigned.company_id', $user->id)
+                                $q->where('employee_assigned.company_id', $companyId)
                   ->where('employee_assigned.status', \App\Enums\EmployeeAssignedStatus::APPROVED)
             );
             
@@ -826,20 +892,20 @@ class ListPayrolls extends ListRecords
         foreach ($employees as $employee) {
             // Check if payroll already exists for this employee and month (own records only)
             $existingPayroll = Payroll::where('employee_id', $employee->id)
-                ->where('company_id', $user->id)
+                ->where('company_id', $companyId)
                 ->where('payroll_month', $this->selectedMonth)
                 ->first();
             
             // Check if employee has a template payroll (any month) with filled data
             // First check own records, then fallback to provider's records (for CLIENT)
             $templatePayroll = Payroll::where('employee_id', $employee->id)
-                ->where('company_id', $user->id)
+                ->where('company_id', $companyId)
                 ->where('basic_salary', '>', 0)
                 ->latest()
                 ->first();
             
             // CLIENT fallback: if no own template, use PROVIDER's payroll as template
-            if (!$templatePayroll && $user->type === \App\Enums\CompanyTypes::CLIENT) {
+            if (!$templatePayroll && $companyType === \App\Enums\CompanyTypes::CLIENT) {
                 $templatePayroll = Payroll::where('employee_id', $employee->id)
                     ->where('company_id', $employee->company_id) // PROVIDER owns the employee
                     ->where('basic_salary', '>', 0)
@@ -884,7 +950,7 @@ class ListPayrolls extends ListRecords
                     'other_deduction' => $totalDeductionAmount - ($deductions->where('reason', 'absence')->sum('amount') ?? 0) - ($deductions->where('reason', 'food_subscription')->sum('amount') ?? 0),
                 ]);
                 
-                $deductions->each(fn($d) => $d->update(['payroll_id' => $existingPayroll->id]));
+                $deductions->each(fn(\App\Models\Deduction $d) => $d->update(['payroll_id' => $existingPayroll->id]));
                 $updated++;
                 continue;
             }
@@ -893,7 +959,7 @@ class ListPayrolls extends ListRecords
                 // No template found - create empty DRAFT payroll so provider can fill manually
                 $payroll = Payroll::create([
                     'employee_id' => $employee->id,
-                    'company_id' => $user->id,
+                    'company_id' => $companyId,
                     'payroll_month' => $this->selectedMonth,
                     'status' => \App\Enums\PayrollStatus::DRAFT,
                     'basic_salary' => 0,
@@ -931,7 +997,7 @@ class ListPayrolls extends ListRecords
             // Create new payroll using template data
             $payroll = Payroll::create([
                 'employee_id' => $employee->id,
-                'company_id' => $user->id,
+                'company_id' => $companyId,
                 'payroll_month' => $this->selectedMonth,
                 'status' => \App\Enums\PayrollStatus::DRAFT,
                 'basic_salary' => $templatePayroll->basic_salary,
@@ -956,7 +1022,7 @@ class ListPayrolls extends ListRecords
             ]);
             
             // Link deductions to this payroll
-            $deductions->each(fn($d) => $d->update(['payroll_id' => $payroll->id]));
+            $deductions->each(fn(\App\Models\Deduction $d) => $d->update(['payroll_id' => $payroll->id]));
             
             $created++;
         }
@@ -1031,7 +1097,15 @@ class ListPayrolls extends ListRecords
             return;
         }
 
-        $user = Filament::auth()->user();
+        $companyId = $this->getCurrentCompanyId();
+
+        if (! $companyId) {
+            Notification::make()
+                ->title('تعذر تحديد الشركة الحالية')
+                ->danger()
+                ->send();
+            return;
+        }
 
         try {
             $extension = strtolower((string) $this->salaryFile->getClientOriginalExtension());
@@ -1133,7 +1207,7 @@ class ListPayrolls extends ListRecords
 
                     // Find or create payroll for this employee + month
                     $payroll = Payroll::where('employee_id', $employee->id)
-                        ->where('company_id', $user->id)
+                        ->where('company_id', $companyId)
                         ->where('payroll_month', $this->selectedMonth)
                         ->first();
 
@@ -1143,7 +1217,7 @@ class ListPayrolls extends ListRecords
                     } else {
                         Payroll::create(array_merge($salaryData, [
                             'employee_id' => $employee->id,
-                            'company_id' => $user->id,
+                            'company_id' => $companyId,
                             'payroll_month' => $this->selectedMonth,
                             'status' => \App\Enums\PayrollStatus::DRAFT,
                             'added_days' => 0,
@@ -1219,11 +1293,16 @@ class ListPayrolls extends ListRecords
      */
     protected function getImportEmployeesQuery(): Builder
     {
-        $user = Filament::auth()->user();
+        $companyType = $this->getCurrentCompanyType();
+        $companyId = $this->getCurrentCompanyId();
         $query = Employee::query();
 
-        if ($user->type === CompanyTypes::PROVIDER) {
-            $query->where('company_id', $user->id);
+        if (! $companyId) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($companyType === CompanyTypes::PROVIDER) {
+            $query->where('company_id', $companyId);
 
             if ($this->clientCompany && $this->clientCompany !== 'all') {
                 if ($this->clientCompany === 'in_house') {
@@ -1243,7 +1322,7 @@ class ListPayrolls extends ListRecords
         }
 
         $query->whereHas('assigned', fn($sq) =>
-            $sq->where('employee_assigned.company_id', $user->id)
+            $sq->where('employee_assigned.company_id', $companyId)
                ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
         );
 
