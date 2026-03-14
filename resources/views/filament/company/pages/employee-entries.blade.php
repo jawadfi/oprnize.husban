@@ -160,6 +160,27 @@
         @endif
     </div>
 
+    <div class="search-bar" style="margin-top: 8px; margin-bottom: 16px; align-items: flex-end;">
+        <div class="form-group" style="flex: 0 0 260px;">
+            <label>القسم المراد حجبه / Section</label>
+            <select wire:model="entryLockSection">
+                @foreach($this->getEntrySectionOptions() as $key => $label)
+                    <option value="{{ $key }}">{{ $label }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="form-group" style="flex: 0 0 220px;">
+            <label>تاريخ ووقت التنفيذ / Lock At</label>
+            <input type="datetime-local" wire:model="entryLockAt">
+        </div>
+        <button class="btn-primary" wire:click="saveEntryCutoff" style="height: 38px; background: #b91c1c;">
+            حجب / Lock
+        </button>
+        <div style="font-size: 12px; color: #6b7280;">
+            بعد وقت الحجب، أي إدخال جديد في هذا القسم سيتم حفظه تلقائياً في الشهر القادم.
+        </div>
+    </div>
+
     {{-- Salary Data Import (Excel) - Always visible --}}
     <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center;">
         <button class="btn-primary" wire:click="toggleSalaryUpload" style="background: {{ $showSalaryUpload ? '#dc2626' : '#059669' }}; padding: 12px 24px;">

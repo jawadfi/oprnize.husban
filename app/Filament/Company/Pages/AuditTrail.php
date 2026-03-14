@@ -30,6 +30,11 @@ class AuditTrail extends Page implements HasTable
 
     protected static string $view = 'filament.company.pages.audit-trail';
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function canAccess(): bool
     {
         $user = Filament::auth()->user();

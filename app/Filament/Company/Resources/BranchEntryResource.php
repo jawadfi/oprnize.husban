@@ -51,7 +51,7 @@ class BranchEntryResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return static::canAccess();
+        return false;
     }
 
     /**

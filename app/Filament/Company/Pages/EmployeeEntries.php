@@ -13,6 +13,7 @@ use App\Models\Employee;
 use App\Models\EmployeeAddition;
 use App\Models\EmployeeOvertime;
 use App\Models\EmployeeTimesheet;
+use App\Models\EntryCutoff;
 use App\Models\Payroll;
 use Filament\Facades\Filament;
 use Filament\Forms;
@@ -91,6 +92,10 @@ class EmployeeEntries extends Page implements HasForms
     public array $importErrors  = [];   // rows that failed with reason
     public bool  $showImportResults = false;
 
+    // Entry cutoff controls
+    public string $entryLockSection = 'overtime';
+    public ?string $entryLockAt = null;
+
     // Existing entries lists
     public array $existingOvertimes = [];
     public array $existingAdditions = [];
@@ -104,7 +109,7 @@ class EmployeeEntries extends Page implements HasForms
         }
         if ($user instanceof \App\Models\User) {
             if ($user->isBranchManager()) {
-                return false;
+                return true;
             }
 
             return $user->can('view_any_payroll') || $user->can('view_any_employee');
@@ -115,7 +120,105 @@ class EmployeeEntries extends Page implements HasForms
     public function mount(): void
     {
         $this->selectedMonth = now()->format('Y-m');
+        $this->entryLockSection = 'overtime';
+        $this->entryLockAt = now()->addDay()->format('Y-m-d\\TH:i');
         $this->loadAllTimesheetData();
+    }
+
+    public function updatedActiveTab(string $value): void
+    {
+        if ($value === 'deductions' && $this->isProvider()) {
+            return;
+        }
+
+        if (array_key_exists($value, $this->getEntrySectionOptions())) {
+            $this->entryLockSection = $value;
+        }
+    }
+
+    public function getEntrySectionOptions(): array
+    {
+        $options = [
+            'overtime' => 'ساعات إضافية / Overtime',
+            'additions' => 'إضافات / Additions',
+            'timesheet' => 'تايم شيت / Timesheet',
+        ];
+
+        if (! $this->isProvider()) {
+            $options['deductions'] = 'خصومات / Deductions';
+        }
+
+        return $options;
+    }
+
+    public function saveEntryCutoff(): void
+    {
+        $company = $this->getCompanyUser();
+        if (! $company) {
+            return;
+        }
+
+        if (! $this->entryLockAt) {
+            Notification::make()->title('حدد تاريخ ووقت الحجب')->warning()->send();
+            return;
+        }
+
+        if ($this->isProvider() && $this->entryLockSection === 'deductions') {
+            Notification::make()->title('القسم غير متاح')->warning()->send();
+            return;
+        }
+
+        $lockAt = Carbon::parse($this->entryLockAt);
+        $user = Filament::auth()->user();
+
+        EntryCutoff::updateOrCreate(
+            [
+                'company_id' => $company->id,
+                'section' => $this->entryLockSection,
+                'payroll_month' => $this->selectedMonth,
+            ],
+            [
+                'lock_at' => $lockAt,
+                'created_by_user_id' => $user instanceof \App\Models\User ? $user->id : null,
+            ]
+        );
+
+        Notification::make()
+            ->title('تم حفظ الحجب')
+            ->body('بعد تاريخ/وقت الحجب سيتم ترحيل الإدخالات تلقائياً للشهر القادم.')
+            ->success()
+            ->send();
+    }
+
+    protected function resolveEntryMonth(string $section, string $requestedMonth): string
+    {
+        $company = $this->getCompanyUser();
+        if (! $company) {
+            return $requestedMonth;
+        }
+
+        $cutoff = EntryCutoff::where('company_id', $company->id)
+            ->where('section', $section)
+            ->where('payroll_month', $requestedMonth)
+            ->first();
+
+        if (! $cutoff || ! $cutoff->lock_at) {
+            return $requestedMonth;
+        }
+
+        if (now()->lte($cutoff->lock_at)) {
+            return $requestedMonth;
+        }
+
+        $nextMonth = Carbon::createFromFormat('Y-m', $requestedMonth)->addMonth()->format('Y-m');
+
+        Notification::make()
+            ->title('هذا القسم محجوب لهذا الشهر')
+            ->body("تم ترحيل الإدخال تلقائياً إلى {$nextMonth}")
+            ->warning()
+            ->send();
+
+        return $nextMonth;
     }
 
     public function getCompanyUser()
@@ -429,7 +532,8 @@ class EmployeeEntries extends Page implements HasForms
         $company = $this->getCompanyUser();
         if (!$company) return;
 
-        $parts = explode('-', $this->selectedMonth);
+        $targetMonth = $this->resolveEntryMonth('timesheet', $this->selectedMonth);
+        $parts = explode('-', $targetMonth);
         $year = (int) $parts[0];
         $month = (int) $parts[1];
 
@@ -448,7 +552,7 @@ class EmployeeEntries extends Page implements HasForms
             $timesheet->recalculateTotals();
             $timesheet->save();
 
-            Payroll::syncFromEntries($employeeId, $company->id, $this->selectedMonth);
+            Payroll::syncFromEntries($employeeId, $company->id, $targetMonth);
         }
 
         Notification::make()->title('تم حفظ جميع التايم شيتات بنجاح / All timesheets saved')->success()->send();
@@ -497,6 +601,7 @@ class EmployeeEntries extends Page implements HasForms
         }
 
         $company = $this->getCompanyUser();
+        $targetMonth = $this->resolveEntryMonth('overtime', $this->selectedMonth);
 
         $calc = $this->calculateOvertimeAmountByFormula($this->overtimeHours);
         $ratePerHour = $calc['rate_per_hour'];
@@ -505,7 +610,7 @@ class EmployeeEntries extends Page implements HasForms
         EmployeeOvertime::create([
             'employee_id' => $this->selectedEmployeeId,
             'company_id' => $company->id,
-            'payroll_month' => $this->selectedMonth,
+            'payroll_month' => $targetMonth,
             'hours' => $this->overtimeHours,
             'rate_per_hour' => $ratePerHour,
             'amount' => $amount ?? 0,
@@ -517,7 +622,7 @@ class EmployeeEntries extends Page implements HasForms
 
         $this->resetOvertimeForm();
         $this->loadExistingEntries();
-        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $this->selectedMonth);
+        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $targetMonth);
         Notification::make()->title('تم إضافة ساعات العمل الإضافي بنجاح')->success()->send();
     }
 
@@ -556,11 +661,12 @@ class EmployeeEntries extends Page implements HasForms
         }
 
         $company = $this->getCompanyUser();
+        $targetMonth = $this->resolveEntryMonth('additions', $this->selectedMonth);
 
         EmployeeAddition::create([
             'employee_id' => $this->selectedEmployeeId,
             'company_id' => $company->id,
-            'payroll_month' => $this->selectedMonth,
+            'payroll_month' => $targetMonth,
             'amount' => $this->additionAmount,
             'reason' => $this->additionReason,
             'description' => $this->additionDescription,
@@ -571,7 +677,7 @@ class EmployeeEntries extends Page implements HasForms
 
         $this->resetAdditionForm();
         $this->loadExistingEntries();
-        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $this->selectedMonth);
+        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $targetMonth);
         Notification::make()->title('تم إضافة المبلغ الإضافي بنجاح')->success()->send();
     }
 
@@ -614,11 +720,12 @@ class EmployeeEntries extends Page implements HasForms
         }
 
         $company = $this->getCompanyUser();
+        $targetMonth = $this->resolveEntryMonth('deductions', $this->selectedMonth);
 
         Deduction::create([
             'employee_id' => $this->selectedEmployeeId,
             'company_id' => $company->id,
-            'payroll_month' => $this->selectedMonth,
+            'payroll_month' => $targetMonth,
             'type' => $this->deductionType ?? 'fixed',
             'reason' => $this->deductionReason ?? 'other',
             'description' => $this->deductionDescription,
@@ -632,7 +739,7 @@ class EmployeeEntries extends Page implements HasForms
 
         $this->resetDeductionForm();
         $this->loadExistingEntries();
-        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $this->selectedMonth);
+        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $targetMonth);
         Notification::make()->title('تم إضافة الخصم بنجاح')->success()->send();
     }
 
@@ -668,7 +775,8 @@ class EmployeeEntries extends Page implements HasForms
         }
 
         $company = $this->getCompanyUser();
-        $parts = explode('-', $this->selectedMonth);
+        $targetMonth = $this->resolveEntryMonth('timesheet', $this->selectedMonth);
+        $parts = explode('-', $targetMonth);
         $year = (int) $parts[0];
         $month = (int) $parts[1];
 
@@ -689,7 +797,7 @@ class EmployeeEntries extends Page implements HasForms
         $timesheet->save();
 
         // Sync to payroll
-        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $this->selectedMonth);
+        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $targetMonth);
 
         Notification::make()->title('تم حفظ التايم شيت بنجاح')->success()->send();
     }
@@ -873,6 +981,8 @@ class EmployeeEntries extends Page implements HasForms
                     if (!$employee) { $errors[] = "Row {$rowNum}: Employee {$empId} not found"; continue; }
 
                     $month = $normalized['month'] ?? $normalized['الشهر'] ?? $this->selectedMonth;
+                    $section = $this->activeTab;
+                    $month = $this->resolveEntryMonth($section, $month);
 
                     if ($this->activeTab === 'overtime') {
                         $hours = floatval($normalized['hours'] ?? $normalized['الساعات'] ?? 0);
