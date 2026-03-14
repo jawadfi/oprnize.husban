@@ -300,7 +300,76 @@ class EmployeeEntries extends Page implements HasForms
             $this->loadExistingEntries();
             $this->loadTimesheetData();
         }
+        $this->recalculateOvertimeFromHours();
         $this->loadAllTimesheetData();
+    }
+
+    public function updatedSelectedEmployeeId(): void
+    {
+        $this->recalculateOvertimeFromHours();
+    }
+
+    public function updatedOvertimeHours(): void
+    {
+        $this->recalculateOvertimeFromHours();
+    }
+
+    /**
+     * Overtime formula:
+     * (total_salary / 240 * hours) + (basic_salary / 480 * hours)
+     */
+    protected function calculateOvertimeAmountByFormula(?float $hours = null): array
+    {
+        $hours = (float) ($hours ?? $this->overtimeHours ?? 0);
+
+        if ($hours <= 0 || !$this->selectedEmployeeId || !$this->selectedMonth) {
+            return [
+                'rate_per_hour' => 0.0,
+                'amount' => 0.0,
+            ];
+        }
+
+        $company = $this->getCompanyUser();
+        if (!$company) {
+            return [
+                'rate_per_hour' => 0.0,
+                'amount' => 0.0,
+            ];
+        }
+
+        $payroll = Payroll::where('employee_id', $this->selectedEmployeeId)
+            ->where('company_id', $company->id)
+            ->where('payroll_month', $this->selectedMonth)
+            ->first();
+
+        if (!$payroll) {
+            return [
+                'rate_per_hour' => 0.0,
+                'amount' => 0.0,
+            ];
+        }
+
+        $totalSalary = (float) $payroll->basic_salary
+            + (float) $payroll->housing_allowance
+            + (float) $payroll->transportation_allowance
+            + (float) $payroll->food_allowance
+            + (float) $payroll->other_allowance;
+        $basicSalary = (float) $payroll->basic_salary;
+
+        $ratePerHour = ($totalSalary / 240) + ($basicSalary / 480);
+        $amount = $ratePerHour * $hours;
+
+        return [
+            'rate_per_hour' => round($ratePerHour, 4),
+            'amount' => round($amount, 2),
+        ];
+    }
+
+    protected function recalculateOvertimeFromHours(): void
+    {
+        $calc = $this->calculateOvertimeAmountByFormula();
+        $this->overtimeRate = $calc['rate_per_hour'];
+        $this->overtimeAmount = $calc['amount'];
     }
 
     /**
@@ -429,17 +498,16 @@ class EmployeeEntries extends Page implements HasForms
 
         $company = $this->getCompanyUser();
 
-        $amount = $this->overtimeAmount;
-        if (!$amount && $this->overtimeHours && $this->overtimeRate) {
-            $amount = $this->overtimeHours * $this->overtimeRate;
-        }
+        $calc = $this->calculateOvertimeAmountByFormula($this->overtimeHours);
+        $ratePerHour = $calc['rate_per_hour'];
+        $amount = $calc['amount'];
 
         EmployeeOvertime::create([
             'employee_id' => $this->selectedEmployeeId,
             'company_id' => $company->id,
             'payroll_month' => $this->selectedMonth,
             'hours' => $this->overtimeHours,
-            'rate_per_hour' => $this->overtimeRate ?? 0,
+            'rate_per_hour' => $ratePerHour,
             'amount' => $amount ?? 0,
             'notes' => $this->overtimeNotes,
             'is_recurring' => $this->overtimeRecurring,
@@ -808,9 +876,23 @@ class EmployeeEntries extends Page implements HasForms
 
                     if ($this->activeTab === 'overtime') {
                         $hours = floatval($normalized['hours'] ?? $normalized['الساعات'] ?? 0);
-                        $rate = floatval($normalized['rate'] ?? $normalized['السعر'] ?? 0);
-                        $amount = floatval($normalized['amount'] ?? $normalized['المبلغ'] ?? ($hours * $rate));
-                        if ($hours <= 0 && $amount <= 0) { $skipped++; continue; }
+                        if ($hours <= 0) { $skipped++; continue; }
+
+                        $payroll = Payroll::where('employee_id', $employee->id)
+                            ->where('company_id', $company->id)
+                            ->where('payroll_month', $month)
+                            ->first();
+
+                        $totalSalary = $payroll
+                            ? ((float) $payroll->basic_salary
+                                + (float) $payroll->housing_allowance
+                                + (float) $payroll->transportation_allowance
+                                + (float) $payroll->food_allowance
+                                + (float) $payroll->other_allowance)
+                            : 0.0;
+                        $basicSalary = $payroll ? (float) $payroll->basic_salary : 0.0;
+                        $rate = round(($totalSalary / 240) + ($basicSalary / 480), 4);
+                        $amount = round($rate * $hours, 2);
 
                         EmployeeOvertime::create([
                             'employee_id' => $employee->id,
