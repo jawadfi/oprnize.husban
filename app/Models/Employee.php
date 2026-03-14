@@ -58,7 +58,7 @@ class Employee extends Authenticatable implements FilamentUser
     public function assigned()
     {
         return $this->belongsToMany(Company::class, 'employee_assigned')
-            ->withPivot(['status', 'start_date'])
+            ->withPivot(['status', 'start_date', 'branch_id'])
             ->withTimestamps();
     }
     public function company()

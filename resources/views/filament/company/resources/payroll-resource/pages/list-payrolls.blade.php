@@ -130,7 +130,7 @@
 
     <div class="space-y-6">
         {{-- Back to Companies button (for Provider with selected company) --}}
-        @if ($this->clientCompany || $this->providerCompany)
+        @if ($this->payrollCategory)
             <div class="flex items-center gap-3">
                 <a href="{{ \App\Filament\Company\Resources\PayrollResource::getUrl('index') }}"
                    class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors">

@@ -9,6 +9,7 @@ use App\Filament\Company\Widgets\LeaveRequestStatsWidget;
 use App\Filament\Company\Widgets\PayrollStatsWidget;
 use App\Enums\CompanyTypes;
 use App\Enums\EmployeeAssignedStatus;
+use App\Enums\PayrollStatus;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\Payroll;
@@ -71,6 +72,17 @@ class ListPayrolls extends ListRecords
         if ($this->providerCompany && $this->providerCompany !== 'all') {
             $company = Company::find($this->providerCompany);
             $this->providerCompanyName = $company?->name;
+        }
+
+        if ($this->payrollCategory === 'review' && ! $this->hasReviewEligiblePayrolls()) {
+            Notification::make()
+                ->title('صفحة المراجعة غير متاحة')
+                ->body('تظهر صفحة مراجعة الرواتب فقط بعد إجراء تشغيل الرواتب لهذا الشهر.')
+                ->warning()
+                ->send();
+
+            $this->redirect(PayrollResource::getUrl('index'));
+            return;
         }
     }
 
@@ -186,6 +198,18 @@ class ListPayrolls extends ListRecords
     protected function getTableQuery(): Builder
     {
         $query = parent::getTableQuery();
+        $user = Filament::auth()->user();
+
+        // Contracted payroll for CLIENT should read the provider-side payroll data
+        // so both parties can see the same contractual salary list.
+        if ($this->payrollCategory === 'contracted' && $user->type === CompanyTypes::CLIENT) {
+            $query = Payroll::query()
+                ->whereHas('company', fn($q) => $q->where('type', CompanyTypes::PROVIDER))
+                ->whereHas('employee.assigned', fn($q) =>
+                    $q->where('employee_assigned.company_id', $user->id)
+                        ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+                );
+        }
         
         // Filter by selected client company (for PROVIDER)
         if ($this->clientCompany && $this->clientCompany !== 'all') {
@@ -243,6 +267,21 @@ class ListPayrolls extends ListRecords
         }
         
         return $query;
+    }
+
+    protected function hasReviewEligiblePayrolls(): bool
+    {
+        $reviewStatuses = [
+            PayrollStatus::SUBMITTED_TO_PROVIDER,
+            PayrollStatus::CALCULATED,
+            PayrollStatus::SUBMITTED_TO_CLIENT,
+            PayrollStatus::REBACK,
+            PayrollStatus::FINALIZED,
+        ];
+
+        return $this->getTableQuery()
+            ->whereIn('status', $reviewStatuses)
+            ->exists();
     }
 
     public function getSelectedMonthYear(): string

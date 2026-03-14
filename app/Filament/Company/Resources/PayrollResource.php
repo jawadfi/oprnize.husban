@@ -377,6 +377,7 @@ class PayrollResource extends Resource
 
         // Get payroll category from URL query parameter
         $payrollCategory = request()->query('payrollCategory', 'run');
+        $isContracted = $payrollCategory === 'contracted';
 
         return $table
             ->columns([
@@ -401,6 +402,7 @@ class PayrollResource extends Resource
                 Tables\Columns\TextColumn::make('payroll_month')
                     ->label('Month')
                     ->sortable()
+                    ->visible(! $isContracted)
                     ->alignCenter()
                     ->width('90px'),
                 Tables\Columns\TextColumn::make('status')
@@ -408,6 +410,7 @@ class PayrollResource extends Resource
                     ->formatStateUsing(fn($state) => PayrollStatus::getTranslatedEnum()[$state] ?? $state)
                     ->badge()
                     ->color(fn($state) => PayrollStatus::getColors()[$state] ?? 'gray')
+                    ->visible(! $isContracted)
                     ->alignCenter()
                     ->width('110px'),
                 Tables\Columns\IconColumn::make('is_modified')
@@ -417,10 +420,11 @@ class PayrollResource extends Resource
                     ->trueColor('warning')
                     ->falseIcon('heroicon-o-check-circle')
                     ->falseColor('success')
+                    ->visible(! $isContracted)
                     ->alignCenter()
                     ->width('70px'),
                 Tables\Columns\TextColumn::make('basic_salary')
-                    ->label('Basic')
+                    ->label('Basic After Increment')
                     ->money('SAR')
                     ->sortable()
                     ->alignCenter()
@@ -485,6 +489,7 @@ class PayrollResource extends Resource
                 Tables\Columns\TextColumn::make('overtime_hours')
                     ->label('OT Hours')
                     ->sortable()
+                    ->visible(! $isContracted)
                     ->alignCenter()
                     ->toggleable()
                     ->width('90px'),
@@ -492,6 +497,7 @@ class PayrollResource extends Resource
                     ->label('Total Overtime')
                     ->money('SAR')
                     ->sortable()
+                    ->visible(! $isContracted)
                     ->alignCenter()
                     ->toggleable()
                     ->width('120px'),
@@ -499,6 +505,7 @@ class PayrollResource extends Resource
                     ->label('Other Additions')
                     ->money('SAR')
                     ->sortable()
+                    ->visible(! $isContracted)
                     ->alignCenter()
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->width('120px'),
@@ -506,6 +513,7 @@ class PayrollResource extends Resource
                     ->label('Net Payment')
                     ->money('SAR')
                     ->sortable()
+                    ->visible(! $isContracted)
                     ->alignCenter()
                     ->toggleable()
                     ->weight('bold')
@@ -514,6 +522,7 @@ class PayrollResource extends Resource
                     ->label('Without OT')
                     ->money('SAR')
                     ->sortable()
+                    ->visible(! $isContracted)
                     ->alignCenter()
                     ->toggleable()
                     ->width('120px'),
@@ -521,6 +530,7 @@ class PayrollResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
                     ->label('الحالة')
+                    ->visible(! $isContracted)
                     ->options(PayrollStatus::getTranslatedEnum()),
             ])
             ->headerActions([

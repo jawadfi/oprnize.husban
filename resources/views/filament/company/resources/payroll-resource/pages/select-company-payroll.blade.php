@@ -312,7 +312,11 @@
             <p class="section-title">اختر نوع كشف الرواتب / Select Payroll Category</p>
             <p class="section-desc">اختر نوع عملية كشف الرواتب التي تريد الوصول إليها</p>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
+            @php
+                $showReviewCategory = $this->canShowReviewCategory();
+            @endphp
+
+            <div class="grid grid-cols-1 md:grid-cols-{{ $showReviewCategory ? 3 : 2 }} gap-8 mt-8">
                 {{-- Contracted Payroll --}}
                 <div wire:click="selectCategory('contracted')" class="category-card category-card-contracted">
                     <div class="category-card-icon" style="background: #EEF2FF;">
@@ -374,6 +378,7 @@
                 </div>
 
                 {{-- Review --}}
+                @if ($showReviewCategory)
                 <div wire:click="selectCategory('review')" class="category-card category-card-review">
                     <div class="category-card-icon" style="background: #ECFDF5;">
                         <svg class="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -402,6 +407,7 @@
                         </span>
                     </div>
                 </div>
+                @endif
             </div>
         @endif
     </div>

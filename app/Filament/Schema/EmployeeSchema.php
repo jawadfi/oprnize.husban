@@ -2,8 +2,10 @@
 
 namespace App\Filament\Schema;
 
+use App\Enums\EmployeeAssignedStatus;
 use App\Enums\EmployeeStatusStatus;
 use App\Helpers\Helpers;
+use App\Models\EmployeeAssigned;
 use Filament\Forms;
 use Filament\Tables;
 class EmployeeSchema
@@ -39,16 +41,52 @@ class EmployeeSchema
     public static function getTableColumns($withCompanyAssigned=true,$path=''): array
     {
         return [
-            Tables\Columns\TextColumn::make($path.'id')->weight('bold')->prefix('#')->label('ID')->sortable()->searchable(),
-            Tables\Columns\TextColumn::make($path.'emp_id')->label('رقم الموظف / Emp ID')->sortable()->searchable()->placeholder('-'),
-            Tables\Columns\TextColumn::make($path.'name')->label('Employee Name')->sortable()->searchable(),
-            Tables\Columns\TextColumn::make($path.'nationality')->sortable()->searchable(),
-            Tables\Columns\TextColumn::make($path.'iqama_no')->toggleable()->sortable()->searchable(),
-            Tables\Columns\TextColumn::make($path.'location')->toggleable()->sortable()->searchable(),
-            Tables\Columns\TextColumn::make($path.'hire_date')->date('Y-m-d')->toggleable()->toggledHiddenByDefault()->sortable()->searchable(),
-            Tables\Columns\TextColumn::make($path.'job_title')->sortable()->searchable(),
-            Tables\Columns\TextColumn::make($path.'department')->toggleable()->sortable()->searchable(),
-            Tables\Columns\TextColumn::make($path.'identity_number')->toggleable()->label('ID Number')->sortable()->searchable(),
+            Tables\Columns\TextColumn::make('row_index')
+                ->label('#')
+                ->rowIndex(),
+            Tables\Columns\TextColumn::make($path.'id')->weight('bold')->label('Nova Emp ID.')->sortable()->searchable(),
+            Tables\Columns\TextColumn::make($path.'emp_id')->label('Emp.ID')->sortable()->searchable()->placeholder('-'),
+            Tables\Columns\TextColumn::make($path.'name')->label('Name')->sortable()->searchable(),
+            Tables\Columns\TextColumn::make($path.'nationality')->label('Nationality')->sortable()->searchable(),
+            Tables\Columns\TextColumn::make($path.'iqama_no')->label('Iqama No')->toggleable()->sortable()->searchable(),
+            Tables\Columns\TextColumn::make($path.'location')
+                ->label('Location')
+                ->state(function ($record) use ($path) {
+                    $state = data_get($record, $path . 'location');
+
+                    if (filled($state)) {
+                        return $state;
+                    }
+
+                    $employeeId = null;
+
+                    if ($path === 'employee.') {
+                        $employeeId = data_get($record, 'employee_id') ?: data_get($record, 'employee.id');
+                    } else {
+                        $employeeId = data_get($record, 'id');
+                    }
+
+                    if (! $employeeId) {
+                        return '-';
+                    }
+
+                    $assignment = EmployeeAssigned::query()
+                        ->with('branch:id,name,location')
+                        ->where('employee_id', $employeeId)
+                        ->where('status', EmployeeAssignedStatus::APPROVED)
+                        ->latest('start_date')
+                        ->first();
+
+                    return $assignment?->branch?->location
+                        ?? $assignment?->branch?->name
+                        ?? '-';
+                })
+                ->toggleable()
+                ->sortable()
+                ->searchable(),
+            Tables\Columns\TextColumn::make($path.'hire_date')->label('Hiring Date')->date('Y-m-d')->toggleable()->sortable()->searchable(),
+            Tables\Columns\TextColumn::make($path.'job_title')->label('Title')->sortable()->searchable(),
+            Tables\Columns\TextColumn::make($path.'department')->label('Department')->toggleable()->sortable()->searchable(),
             Tables\Columns\TextColumn::make($path.'currentCompanyAssigned.name')
                 ->label('Company Assigned')
                 ->badge()

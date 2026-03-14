@@ -4,10 +4,13 @@ namespace App\Filament\Company\Resources\PayrollResource\Pages;
 
 use App\Enums\CompanyTypes;
 use App\Enums\EmployeeAssignedStatus;
+use App\Enums\PayrollStatus;
 use App\Filament\Company\Resources\PayrollResource;
 use App\Models\Company;
 use App\Models\Employee;
+use App\Models\Payroll;
 use Filament\Facades\Filament;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Illuminate\Support\Facades\DB;
 
@@ -45,6 +48,16 @@ class SelectCompanyPayroll extends Page
 
     public function selectCategory(string $category): void
     {
+        if ($category === 'review' && ! $this->canShowReviewCategory()) {
+            Notification::make()
+                ->title('صفحة المراجعة غير متاحة')
+                ->body('تظهر صفحة مراجعة الرواتب فقط بعد إجراء تشغيل الرواتب لهذا الشهر.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
         $this->payrollCategory = $category;
 
         if (!$this->selectedCompanyId) {
@@ -67,6 +80,60 @@ class SelectCompanyPayroll extends Page
         }
 
         $this->redirect(PayrollResource::getUrl('list', $params));
+    }
+
+    public function canShowReviewCategory(): bool
+    {
+        if (! $this->selectedCompanyId) {
+            return false;
+        }
+
+        $user = Filament::auth()->user();
+        $currentMonth = now()->format('Y-m');
+
+        $query = Payroll::query()
+            ->where('payroll_month', $currentMonth)
+            ->whereIn('status', [
+                PayrollStatus::SUBMITTED_TO_PROVIDER,
+                PayrollStatus::CALCULATED,
+                PayrollStatus::SUBMITTED_TO_CLIENT,
+                PayrollStatus::REBACK,
+                PayrollStatus::FINALIZED,
+            ]);
+
+        if ($user->type === CompanyTypes::CLIENT) {
+            $query->where('company_id', $user->id);
+
+            if ($this->selectedCompanyId !== 'all') {
+                $providerId = (int) $this->selectedCompanyId;
+                $query->whereHas('employee', fn($q) => $q->where('company_id', $providerId));
+            }
+
+            return $query->exists();
+        }
+
+        // PROVIDER
+        if ($this->selectedCompanyId === 'no_payroll') {
+            return false;
+        }
+
+        $query->where('company_id', $user->id);
+
+        if ($this->selectedCompanyId === 'in_house') {
+            $query->whereHas('employee', fn($q) =>
+                $q->whereDoesntHave('assigned', fn($sq) =>
+                    $sq->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+                )
+            );
+        } elseif ($this->selectedCompanyId !== 'all') {
+            $clientId = (int) $this->selectedCompanyId;
+            $query->whereHas('employee.assigned', fn($q) =>
+                $q->where('employee_assigned.company_id', $clientId)
+                    ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+            );
+        }
+
+        return $query->exists();
     }
 
     public function resetCompany(): void
