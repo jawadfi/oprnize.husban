@@ -147,7 +147,10 @@ class ListPayrolls extends ListRecords
                     ->modalHeading('اعتماد الرواتب')
                     ->modalDescription('سيتم اعتماد جميع رواتب المراجعة الظاهرة في هذه الصفحة للشركة المختارة.')
                     ->action(function (): void {
-                        $count = $this->getReviewActionQuery()->update([
+                        $reviewQuery = $this->getReviewActionQuery();
+                        $firstPayroll = (clone $reviewQuery)->first();
+
+                        $count = $reviewQuery->update([
                             'status' => PayrollStatus::SUBMITTED_TO_CLIENT,
                             'calculated_at' => now(),
                             'is_modified' => false,
@@ -163,6 +166,23 @@ class ListPayrolls extends ListRecords
 
                         $this->reviewApprovalCode = (string) random_int(1000, 9999);
                         $this->resetTable();
+
+                        $user = Filament::auth()->user();
+
+                        if ($firstPayroll) {
+                            activity('payroll')
+                                ->causedBy($user)
+                                ->performedOn($firstPayroll)
+                                ->event('updated')
+                                ->withProperties([
+                                    'action' => 'provider_review_approved',
+                                    'payroll_category' => $this->payrollCategory,
+                                    'selected_month' => $this->selectedMonth,
+                                    'client_company' => $this->clientCompany,
+                                    'affected_count' => $count,
+                                ])
+                                ->log('اعتماد رواتب المراجعة / Review payroll approved');
+                        }
 
                         Notification::make()
                             ->title('تم اعتماد الرواتب')
@@ -185,7 +205,10 @@ class ListPayrolls extends ListRecords
                     ->modalHeading('إعادة الرواتب للتعديل')
                     ->modalDescription('سيتم إعادة جميع الرواتب الظاهرة للشركة للتعديل.')
                     ->action(function (array $data): void {
-                        $count = $this->getReviewActionQuery()->update([
+                        $reviewQuery = $this->getReviewActionQuery();
+                        $firstPayroll = (clone $reviewQuery)->first();
+
+                        $count = $reviewQuery->update([
                             'status' => PayrollStatus::REBACK,
                             'reback_reason' => $data['reback_reason'],
                             'is_modified' => true,
@@ -200,6 +223,24 @@ class ListPayrolls extends ListRecords
                         }
 
                         $this->resetTable();
+
+                        $user = Filament::auth()->user();
+
+                        if ($firstPayroll) {
+                            activity('payroll')
+                                ->causedBy($user)
+                                ->performedOn($firstPayroll)
+                                ->event('updated')
+                                ->withProperties([
+                                    'action' => 'provider_review_returned',
+                                    'payroll_category' => $this->payrollCategory,
+                                    'selected_month' => $this->selectedMonth,
+                                    'client_company' => $this->clientCompany,
+                                    'affected_count' => $count,
+                                    'reback_reason' => $data['reback_reason'],
+                                ])
+                                ->log('إعادة رواتب المراجعة للتعديل / Review payroll returned for edit');
+                        }
 
                         Notification::make()
                             ->title('تمت إعادة الرواتب')
