@@ -44,6 +44,7 @@ class ListPayrolls extends ListRecords
 
     public ?string $clientCompanyName = null;
     public ?string $providerCompanyName = null;
+    public ?string $reviewApprovalCode = null;
 
     public $salaryFile = null;
     public bool $showSalaryImport = false;
@@ -54,6 +55,10 @@ class ListPayrolls extends ListRecords
         
         if (!$this->selectedMonth) {
             $this->selectedMonth = now()->format('Y-m');
+        }
+
+        if ($this->payrollCategory === 'review') {
+            $this->reviewApprovalCode = (string) random_int(1000, 9999);
         }
 
         // Load client company name for display (PROVIDER view)
@@ -106,8 +111,103 @@ class ListPayrolls extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        if (in_array($this->payrollCategory, ['contracted', 'review'])) {
+        if ($this->payrollCategory === 'contracted') {
             return [];
+        }
+
+        $user = Filament::auth()->user();
+
+        if ($this->payrollCategory === 'review') {
+            if ($user->type !== CompanyTypes::PROVIDER) {
+                return [];
+            }
+
+            return [
+                Actions\Action::make('approve_review')
+                    ->label('اعتماد')
+                    ->icon('heroicon-o-check-badge')
+                    ->color('success')
+                    ->form([
+                        \Filament\Forms\Components\Placeholder::make('approval_code_hint')
+                            ->label('رمز التأكيد')
+                            ->content(fn() => 'اكتب رقم التأكيد التالي لإتمام الاعتماد: ' . $this->reviewApprovalCode),
+                        \Filament\Forms\Components\TextInput::make('confirmation_code')
+                            ->label('رقم التأكيد')
+                            ->required()
+                            ->maxLength(4)
+                            ->rule(function () {
+                                return function (string $attribute, $value, \Closure $fail): void {
+                                    if ((string) $value !== (string) $this->reviewApprovalCode) {
+                                        $fail('رقم التأكيد غير صحيح.');
+                                    }
+                                };
+                            }),
+                    ])
+                    ->requiresConfirmation()
+                    ->modalHeading('اعتماد الرواتب')
+                    ->modalDescription('سيتم اعتماد جميع رواتب المراجعة الظاهرة في هذه الصفحة للشركة المختارة.')
+                    ->action(function (): void {
+                        $count = $this->getReviewActionQuery()->update([
+                            'status' => PayrollStatus::SUBMITTED_TO_CLIENT,
+                            'calculated_at' => now(),
+                            'is_modified' => false,
+                        ]);
+
+                        if ($count === 0) {
+                            Notification::make()
+                                ->title('لا توجد رواتب لاعتمادها')
+                                ->warning()
+                                ->send();
+                            return;
+                        }
+
+                        $this->reviewApprovalCode = (string) random_int(1000, 9999);
+                        $this->resetTable();
+
+                        Notification::make()
+                            ->title('تم اعتماد الرواتب')
+                            ->body("تم اعتماد {$count} كشف راتب وإرسالها للعميل")
+                            ->success()
+                            ->send();
+                    }),
+
+                Actions\Action::make('return_review')
+                    ->label('إعادة الرواتب')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('danger')
+                    ->form([
+                        \Filament\Forms\Components\Textarea::make('reback_reason')
+                            ->label('سبب الإعادة')
+                            ->required()
+                            ->rows(3),
+                    ])
+                    ->requiresConfirmation()
+                    ->modalHeading('إعادة الرواتب للتعديل')
+                    ->modalDescription('سيتم إعادة جميع الرواتب الظاهرة للشركة للتعديل.')
+                    ->action(function (array $data): void {
+                        $count = $this->getReviewActionQuery()->update([
+                            'status' => PayrollStatus::REBACK,
+                            'reback_reason' => $data['reback_reason'],
+                            'is_modified' => true,
+                        ]);
+
+                        if ($count === 0) {
+                            Notification::make()
+                                ->title('لا توجد رواتب لإعادتها')
+                                ->warning()
+                                ->send();
+                            return;
+                        }
+
+                        $this->resetTable();
+
+                        Notification::make()
+                            ->title('تمت إعادة الرواتب')
+                            ->body("تمت إعادة {$count} كشف راتب للشركة للتعديل")
+                            ->warning()
+                            ->send();
+                    }),
+            ];
         }
 
         return [
@@ -117,12 +217,9 @@ class ListPayrolls extends ListRecords
 
     protected function getHeaderWidgets(): array
     {
-        return [
-            EmployeeStatsWidget::class,
-            PayrollStatsWidget::class,
-            DeductionStatsWidget::class,
-            LeaveRequestStatsWidget::class,
-        ];
+        // Keep only the custom cards in the page view, because these are built
+        // from the current selected company/month/category context.
+        return [];
     }
 
     public function exportPayroll()
@@ -265,8 +362,36 @@ class ListPayrolls extends ListRecords
                 });
             });
         }
+
+        // In review mode, show only payrolls that are in a reviewable state.
+        if ($this->payrollCategory === 'review') {
+            $reviewStatuses = [
+                PayrollStatus::SUBMITTED_TO_PROVIDER,
+                PayrollStatus::CALCULATED,
+                PayrollStatus::REBACK,
+            ];
+
+            if ($user->type === CompanyTypes::CLIENT) {
+                $reviewStatuses = [
+                    PayrollStatus::SUBMITTED_TO_CLIENT,
+                    PayrollStatus::FINALIZED,
+                    PayrollStatus::REBACK,
+                ];
+            }
+
+            $query->whereIn('status', $reviewStatuses);
+        }
         
         return $query;
+    }
+
+    protected function getReviewActionQuery()
+    {
+        return $this->getTableQuery()->whereIn('status', [
+            PayrollStatus::SUBMITTED_TO_PROVIDER,
+            PayrollStatus::CALCULATED,
+            PayrollStatus::REBACK,
+        ]);
     }
 
     protected function hasReviewEligiblePayrolls(): bool

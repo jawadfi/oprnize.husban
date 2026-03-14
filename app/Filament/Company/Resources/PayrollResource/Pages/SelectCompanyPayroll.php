@@ -48,6 +48,18 @@ class SelectCompanyPayroll extends Page
 
     public function selectCategory(string $category): void
     {
+        $user = Filament::auth()->user();
+
+        if ($category === 'run' && $user->type === CompanyTypes::PROVIDER) {
+            Notification::make()
+                ->title('تشغيل الرواتب غير متاح')
+                ->body('في صفحة الشركات المزودة للخدمة، المتاح هو المراجعة فقط.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
         if ($category === 'review' && ! $this->canShowReviewCategory()) {
             Notification::make()
                 ->title('صفحة المراجعة غير متاحة')
@@ -63,8 +75,6 @@ class SelectCompanyPayroll extends Page
         if (!$this->selectedCompanyId) {
             return;
         }
-
-        $user = Filament::auth()->user();
 
         // For 'no_payroll', auto-create empty DRAFT payrolls
         if ($this->selectedCompanyId === 'no_payroll' && $user->type === CompanyTypes::PROVIDER) {
