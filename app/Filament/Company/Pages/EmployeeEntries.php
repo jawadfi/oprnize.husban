@@ -103,6 +103,10 @@ class EmployeeEntries extends Page implements HasForms
             return true;
         }
         if ($user instanceof \App\Models\User) {
+            if ($user->isBranchManager()) {
+                return false;
+            }
+
             return $user->can('view_any_payroll') || $user->can('view_any_employee');
         }
         return false;

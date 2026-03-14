@@ -43,6 +43,10 @@ class DeductionResource extends Resource
         }
 
         if ($user instanceof User) {
+            if ($user->isBranchManager()) {
+                return false;
+            }
+
             return $user->can('view_any_deduction');
         }
 
