@@ -155,7 +155,7 @@ class ListPayrolls extends ListRecords
 
             return [
                 Actions\Action::make('approve_review')
-                    ->label('اعتماد')
+                    ->label('قبول')
                     ->icon('heroicon-o-check-badge')
                     ->color('success')
                     ->form([
@@ -175,17 +175,32 @@ class ListPayrolls extends ListRecords
                             }),
                     ])
                     ->requiresConfirmation()
-                    ->modalHeading('اعتماد الرواتب')
-                    ->modalDescription('سيتم اعتماد جميع رواتب المراجعة الظاهرة في هذه الصفحة للشركة المختارة.')
+                    ->modalHeading('قبول الرواتب')
+                    ->modalDescription('سيتم قبول جميع رواتب المراجعة الظاهرة وإنشاء الفاتورة الضريبية تلقائياً.')
                     ->action(function (): void {
                         $reviewQuery = $this->getReviewActionQuery();
                         $firstPayroll = (clone $reviewQuery)->first();
 
-                        $count = $reviewQuery->update([
-                            'status' => PayrollStatus::SUBMITTED_TO_CLIENT,
-                            'calculated_at' => now(),
-                            'is_modified' => false,
-                        ]);
+                        $payrollIds = (clone $reviewQuery)->pluck('id');
+                        $count = $payrollIds->count();
+
+                        $payrolls = Payroll::query()->whereIn('id', $payrollIds)->get();
+
+                        foreach ($payrolls as $payroll) {
+                            /** @var Payroll $payroll */
+                            $payroll->update([
+                                'status' => PayrollStatus::FINALIZED,
+                                'is_modified' => false,
+                                'reback_reason' => null,
+                                'provider_review_status' => 'accepted',
+                                'provider_reviewed_at' => now(),
+                                'provider_rejection_reason' => null,
+                                'tax_invoice_number' => $payroll->tax_invoice_number ?: $this->generateTaxInvoiceNumber($payroll),
+                                'tax_invoice_issued_at' => now(),
+                                'tax_invoice_amount' => $payroll->monthly_cost,
+                                'finalized_at' => now(),
+                            ]);
+                        }
 
                         if ($count === 0) {
                             Notification::make()
@@ -211,30 +226,31 @@ class ListPayrolls extends ListRecords
                                     'selected_month' => $this->selectedMonth,
                                     'client_company' => $this->clientCompany,
                                     'affected_count' => $count,
+                                    'tax_invoice_created' => true,
                                 ])
-                                ->log('اعتماد رواتب المراجعة / Review payroll approved');
+                                ->log('قبول رواتب المراجعة وإنشاء فاتورة ضريبية تلقائياً / Review payroll accepted with automatic tax invoice');
                         }
 
                         Notification::make()
-                            ->title('تم اعتماد الرواتب')
-                            ->body("تم اعتماد {$count} كشف راتب وإرسالها للعميل")
+                            ->title('تم قبول الرواتب')
+                            ->body("تم قبول {$count} كشف راتب وإنشاء الفاتورة الضريبية تلقائياً")
                             ->success()
                             ->send();
                     }),
 
                 Actions\Action::make('return_review')
-                    ->label('إعادة الرواتب')
+                    ->label('رفض')
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->color('danger')
                     ->form([
                         \Filament\Forms\Components\Textarea::make('reback_reason')
-                            ->label('سبب الإعادة')
+                            ->label('سبب الرفض')
                             ->required()
                             ->rows(3),
                     ])
                     ->requiresConfirmation()
-                    ->modalHeading('إعادة الرواتب للتعديل')
-                    ->modalDescription('سيتم إعادة جميع الرواتب الظاهرة للشركة للتعديل.')
+                    ->modalHeading('رفض الرواتب')
+                    ->modalDescription('سيتم رفض جميع الرواتب الظاهرة، ولن يتم إصدار أي فاتورة حتى تتم المعالجة.')
                     ->action(function (array $data): void {
                         $reviewQuery = $this->getReviewActionQuery();
                         $firstPayroll = (clone $reviewQuery)->first();
@@ -243,6 +259,12 @@ class ListPayrolls extends ListRecords
                             'status' => PayrollStatus::REBACK,
                             'reback_reason' => $data['reback_reason'],
                             'is_modified' => true,
+                            'provider_review_status' => 'rejected',
+                            'provider_reviewed_at' => now(),
+                            'provider_rejection_reason' => $data['reback_reason'],
+                            'tax_invoice_number' => null,
+                            'tax_invoice_issued_at' => null,
+                            'tax_invoice_amount' => null,
                         ]);
 
                         if ($count === 0) {
@@ -269,13 +291,14 @@ class ListPayrolls extends ListRecords
                                     'client_company' => $this->clientCompany,
                                     'affected_count' => $count,
                                     'reback_reason' => $data['reback_reason'],
+                                    'tax_invoice_created' => false,
                                 ])
-                                ->log('إعادة رواتب المراجعة للتعديل / Review payroll returned for edit');
+                                ->log('رفض رواتب المراجعة ولن تصدر فاتورة / Review payroll rejected without invoice');
                         }
 
                         Notification::make()
-                            ->title('تمت إعادة الرواتب')
-                            ->body("تمت إعادة {$count} كشف راتب للشركة للتعديل")
+                            ->title('تم رفض الرواتب')
+                            ->body("تم رفض {$count} كشف راتب ولن تصدر أي فاتورة")
                             ->warning()
                             ->send();
                     }),
@@ -470,6 +493,12 @@ class ListPayrolls extends ListRecords
             PayrollStatus::CALCULATED,
             PayrollStatus::REBACK,
         ]);
+    }
+
+    protected function generateTaxInvoiceNumber(Payroll $payroll): string
+    {
+        $monthPart = str_replace('-', '', $payroll->payroll_month ?: now()->format('Y-m'));
+        return 'TINV-' . $monthPart . '-' . str_pad((string) $payroll->id, 6, '0', STR_PAD_LEFT);
     }
 
     protected function hasReviewEligiblePayrolls(): bool
