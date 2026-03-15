@@ -286,6 +286,46 @@ class Payroll extends Model
         );
 
         // Pre-calculate salary totals used in formulas
+        // If current month payroll has empty salary basis, fallback to template/latest payroll basis.
+        $hasSalaryBasis = (
+            (float) ($payroll->basic_salary ?? 0) > 0 ||
+            (float) ($payroll->housing_allowance ?? 0) > 0 ||
+            (float) ($payroll->transportation_allowance ?? 0) > 0 ||
+            (float) ($payroll->food_allowance ?? 0) > 0 ||
+            (float) ($payroll->other_allowance ?? 0) > 0 ||
+            (float) ($payroll->fees ?? 0) > 0
+        );
+
+        if (!$hasSalaryBasis) {
+            $fallbackPayroll = static::query()
+                ->where('employee_id', $employeeId)
+                ->where('company_id', $companyId)
+                ->where(function ($query) use ($payrollMonth) {
+                    $query->whereNull('payroll_month')
+                        ->orWhere('payroll_month', '!=', $payrollMonth);
+                })
+                ->where(function ($query) {
+                    $query->where('basic_salary', '>', 0)
+                        ->orWhere('housing_allowance', '>', 0)
+                        ->orWhere('transportation_allowance', '>', 0)
+                        ->orWhere('food_allowance', '>', 0)
+                        ->orWhere('other_allowance', '>', 0)
+                        ->orWhere('fees', '>', 0);
+                })
+                ->orderByRaw('CASE WHEN payroll_month IS NULL THEN 0 ELSE 1 END')
+                ->orderByDesc('payroll_month')
+                ->first();
+
+            if ($fallbackPayroll) {
+                $payroll->basic_salary = (float) ($fallbackPayroll->basic_salary ?? 0);
+                $payroll->housing_allowance = (float) ($fallbackPayroll->housing_allowance ?? 0);
+                $payroll->transportation_allowance = (float) ($fallbackPayroll->transportation_allowance ?? 0);
+                $payroll->food_allowance = (float) ($fallbackPayroll->food_allowance ?? 0);
+                $payroll->other_allowance = (float) ($fallbackPayroll->other_allowance ?? 0);
+                $payroll->fees = (float) ($fallbackPayroll->fees ?? 0);
+            }
+        }
+
         $totalSalary = (float) $payroll->basic_salary
             + (float) $payroll->housing_allowance
             + (float) $payroll->transportation_allowance

@@ -82,8 +82,11 @@ class ViewPayroll extends ViewRecord
                         Infolists\Components\TextEntry::make('total_package')
                             ->label('Total Package')
                             ->money('SAR'),
+                        Infolists\Components\TextEntry::make('effective_fees')
+                            ->label('Effective Monthly Fees')
+                            ->money('SAR'),
                         Infolists\Components\TextEntry::make('fees')
-                            ->label('Monthly Fees')
+                            ->label('Configured Monthly Fees')
                             ->money('SAR'),
                         Infolists\Components\TextEntry::make('work_days')
                             ->label('Work Days'),

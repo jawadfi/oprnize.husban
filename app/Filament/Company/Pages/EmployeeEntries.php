@@ -445,6 +445,40 @@ class EmployeeEntries extends Page implements HasForms
             ->where('payroll_month', $this->selectedMonth)
             ->first();
 
+        // If month payroll exists but has no salary basis yet, fallback to a template/latest payroll.
+        if ($payroll) {
+            $hasSalaryBasis = (
+                (float) ($payroll->basic_salary ?? 0) > 0 ||
+                (float) ($payroll->housing_allowance ?? 0) > 0 ||
+                (float) ($payroll->transportation_allowance ?? 0) > 0 ||
+                (float) ($payroll->food_allowance ?? 0) > 0 ||
+                (float) ($payroll->other_allowance ?? 0) > 0
+            );
+
+            if (!$hasSalaryBasis) {
+                $fallbackPayroll = Payroll::where('employee_id', $this->selectedEmployeeId)
+                    ->where('company_id', $company->id)
+                    ->where(function ($query) {
+                        $query->whereNull('payroll_month')
+                            ->orWhere('payroll_month', '!=', $this->selectedMonth);
+                    })
+                    ->where(function ($query) {
+                        $query->where('basic_salary', '>', 0)
+                            ->orWhere('housing_allowance', '>', 0)
+                            ->orWhere('transportation_allowance', '>', 0)
+                            ->orWhere('food_allowance', '>', 0)
+                            ->orWhere('other_allowance', '>', 0);
+                    })
+                    ->orderByRaw('CASE WHEN payroll_month IS NULL THEN 0 ELSE 1 END')
+                    ->orderByDesc('payroll_month')
+                    ->first();
+
+                if ($fallbackPayroll) {
+                    $payroll = $fallbackPayroll;
+                }
+            }
+        }
+
         if (!$payroll) {
             return [
                 'rate_per_hour' => 0.0,
