@@ -56,7 +56,41 @@ class ListEmployees extends ListRecords
         return [
             Actions\CreateAction::make(),
             $this->getCustomImportAction(),
+            $this->getLocationHireImportAction(),
         ];
+    }
+
+    protected function getLocationHireImportAction(): Actions\Action
+    {
+        return Actions\Action::make('importEmployeeLocationHireDate')
+            ->label('رفع المواقع وتاريخ التعيين')
+            ->icon('heroicon-o-map-pin')
+            ->color('warning')
+            ->form([
+                Forms\Components\Actions::make([
+                    Forms\Components\Actions\Action::make('downloadLocationHireTemplate')
+                        ->label('⬇️ تحميل نموذج المواقع والتعيين')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->color('success')
+                        ->action(fn () => $this->downloadLocationHireDemo()),
+                ]),
+                Forms\Components\FileUpload::make('file')
+                    ->label('CSV / Excel / ملف CSV أو Excel')
+                    ->required()
+                    ->acceptedFileTypes([
+                        'text/csv',
+                        'application/vnd.ms-excel',
+                        'text/plain',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        'application/octet-stream',
+                    ])
+                    ->disk('local')
+                    ->directory('imports')
+                    ->helperText('Required: Emp.ID or Iqama No. Optional: Location, Hiring Date'),
+            ])
+            ->action(function (array $data): void {
+                $this->processLocationHireImport($data['file']);
+            });
     }
 
     protected function getCustomImportAction(): Actions\Action
@@ -123,6 +157,260 @@ class ListEmployees extends ListRecords
         }, 'employee-import-template.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    public function downloadLocationHireDemo(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        return response()->streamDownload(function () {
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet()->setTitle('Location Hire Date Update');
+            $sheet->fromArray([
+                ['Emp.ID', 'Iqama No', 'Location', 'Hiring Date'],
+                ['30100', '2464871595', 'Apple - Riyadh Branch', '2021-05-25'],
+                ['60459', '2496901741', 'Apple - Jeddah Branch', '2021-06-04'],
+            ]);
+            $sheet->getStyle('A1:D1')->getFont()->setBold(true);
+            foreach (range('A', 'D') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+            (new XlsxWriter($spreadsheet))->save('php://output');
+        }, 'employee-location-hiredate-template.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    protected function processLocationHireImport(string $filePath): void
+    {
+        $user = Filament::auth()->user();
+        $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+
+        if (! $companyId) {
+            Notification::make()
+                ->title('خطأ / Error')
+                ->body('Could not determine company. Please re-login.')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        $disk = Storage::disk('local');
+
+        if (! $disk->exists($filePath)) {
+            Notification::make()
+                ->title('خطأ / Error')
+                ->body('Could not read the uploaded file. Please try again.')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        $fullPath = $disk->path($filePath);
+
+        try {
+            $updated = 0;
+            $failed = 0;
+            $errors = [];
+
+            $extension = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+
+            if (in_array($extension, ['xlsx', 'xls'])) {
+                $spreadsheet = IOFactory::load($fullPath);
+                $sheet = $spreadsheet->getActiveSheet();
+                $allRows = $sheet->toArray(null, true, true, false);
+
+                if (empty($allRows)) {
+                    Notification::make()->title('الملف فارغ / Empty file')->danger()->send();
+                    return;
+                }
+
+                $headers = array_map(fn ($h) => trim((string) ($h ?? '')), $allRows[0]);
+
+                foreach (array_slice($allRows, 1) as $rowIndex => $row) {
+                    if (empty(array_filter($row, fn ($v) => $v !== null && $v !== ''))) {
+                        continue;
+                    }
+
+                    $associative = array_combine($headers, array_pad($row, count($headers), null));
+
+                    try {
+                        $didUpdate = $this->processLocationHireRow($associative, $companyId);
+                        if ($didUpdate) {
+                            $updated++;
+                        }
+                    } catch (\Throwable $e) {
+                        $failed++;
+                        if (count($errors) < 10) {
+                            $errors[] = 'Row ' . ($rowIndex + 2) . ': ' . $e->getMessage();
+                        }
+                    }
+                }
+            } else {
+                $csv = Reader::createFromPath($fullPath, 'r');
+                $csv->setHeaderOffset(null);
+                $allRows = iterator_to_array($csv->getRecords());
+
+                if (empty($allRows)) {
+                    Notification::make()->title('الملف فارغ / Empty file')->danger()->send();
+                    return;
+                }
+
+                $rawHeaders = array_values($allRows[0]);
+                $headers = [];
+                $seen = [];
+
+                foreach ($rawHeaders as $h) {
+                    $key = strtolower(trim((string) $h));
+                    if ($key === '') {
+                        $key = '_empty';
+                    }
+                    if (isset($seen[$key])) {
+                        $seen[$key]++;
+                        $key .= '_' . $seen[$key];
+                    } else {
+                        $seen[$key] = 0;
+                    }
+                    $headers[] = $key;
+                }
+
+                foreach (array_slice($allRows, 1) as $offset => $row) {
+                    $row = array_values($row);
+                    $associative = array_combine($headers, array_pad($row, count($headers), null));
+
+                    try {
+                        $didUpdate = $this->processLocationHireRow($associative, $companyId);
+                        if ($didUpdate) {
+                            $updated++;
+                        }
+                    } catch (\Throwable $e) {
+                        $failed++;
+                        if (count($errors) < 10) {
+                            $errors[] = 'Row ' . ($offset + 2) . ': ' . $e->getMessage();
+                        }
+                    }
+                }
+            }
+
+            $body = "تم تحديث {$updated} موظف";
+            if ($failed > 0) {
+                $body .= "، فشل {$failed} صف";
+                if (! empty($errors)) {
+                    $body .= "\n" . implode("\n", $errors);
+                }
+            }
+
+            Notification::make()
+                ->title($failed === 0 ? 'تم تحديث المواقع وتاريخ التعيين ✓' : 'اكتمل التحديث مع أخطاء')
+                ->body($body)
+                ->when($failed === 0, fn ($n) => $n->success())
+                ->when($failed > 0 && $updated > 0, fn ($n) => $n->warning())
+                ->when($failed > 0 && $updated === 0, fn ($n) => $n->danger())
+                ->persistent()
+                ->send();
+        } catch (\Throwable $e) {
+            Log::error('Employee location/hire date import error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            Notification::make()
+                ->title('خطأ في التحديث / Update Error')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        } finally {
+            try {
+                $disk->delete($filePath);
+            } catch (\Throwable $e) {
+                // Ignore cleanup errors
+            }
+        }
+    }
+
+    protected function processLocationHireRow(array $row, int $companyId): bool
+    {
+        $normalized = [];
+
+        foreach ($row as $key => $value) {
+            $clean = strtolower(trim((string) $key));
+            $val = is_string($value) ? trim($value) : $value;
+
+            $normalized[$clean] = $val;
+
+            $underscored = str_replace(' ', '_', $clean);
+            if ($underscored !== $clean) {
+                $normalized[$underscored] = $val;
+            }
+
+            $nospace = str_replace(['_', ' '], '', $clean);
+            if ($nospace !== $clean && $nospace !== $underscored) {
+                $normalized[$nospace] = $val;
+            }
+
+            $nodot = str_replace(['.', '_', ' '], '', $clean);
+            if ($nodot !== $clean && $nodot !== $underscored && $nodot !== $nospace) {
+                $normalized[$nodot] = $val;
+            }
+        }
+
+        $empId = $this->getField($normalized, [
+            'emp_id', 'empid', 'emp.id', 'employee_id', 'employeeid',
+            'nova emp id', 'nova_emp_id', 'novaempid',
+            'الرقم الوظيفي', 'الرقم_الوظيفي', 'رقم الموظف', 'رقم_الموظف',
+        ]);
+
+        $iqamaNo = $this->getField($normalized, [
+            'iqama no', 'iqama_no', 'iqamano', 'iqama_number', 'iqamanumber',
+            'رقم الإقامة', 'رقم_الإقامة', 'رقم الاقامة', 'رقم_الاقامة',
+        ]);
+
+        if (empty($empId) && empty($iqamaNo)) {
+            throw new \Exception('Missing Emp.ID or Iqama No');
+        }
+
+        $employeeQuery = Employee::query()->where('company_id', $companyId);
+
+        $employee = null;
+        if (! empty($empId)) {
+            $employee = (clone $employeeQuery)->where('emp_id', $empId)->first();
+        }
+        if (! $employee && ! empty($iqamaNo)) {
+            $employee = (clone $employeeQuery)->where('iqama_no', $iqamaNo)->first();
+        }
+
+        if (! $employee) {
+            throw new \Exception('Employee not found in current company');
+        }
+
+        $location = $this->getField($normalized, [
+            'location', 'الموقع', 'work location', 'work_location', 'site',
+        ]);
+
+        $hiringDate = $this->getField($normalized, [
+            'hiring date', 'hiring_date', 'hire_date', 'hiredate',
+            'تاريخ التعيين', 'تاريخ_التعيين',
+        ]);
+
+        $dirty = false;
+
+        if (is_string($location) && $location !== '') {
+            $employee->location = $location;
+            $dirty = true;
+        }
+
+        if (! empty($hiringDate)) {
+            try {
+                $employee->hire_date = Carbon::make($hiringDate)?->format('Y-m-d');
+                $dirty = true;
+            } catch (\Throwable $e) {
+                throw new \Exception('Invalid Hiring Date');
+            }
+        }
+
+        if ($dirty) {
+            $employee->save();
+        }
+
+        return $dirty;
     }
 
     protected function processImport(string $filePath): void
