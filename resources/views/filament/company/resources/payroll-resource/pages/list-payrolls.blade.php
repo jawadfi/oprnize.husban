@@ -325,7 +325,8 @@
                 <p class="text-sm text-gray-500">
                     التحقق صارم: الملف يجب أن يطابق قالب opernize Form.xlsx بنفس ترتيب الأعمدة.
                     <br>
-                    يتم استيراد بيانات الرواتب فقط: Emp.ID, Iqama No, Hiring Date, Basic Salary, Housing Allowance, Transportation Allowance, Food Allowance, Other Allowance, Fees.
+                    يتم استيراد بيانات الرواتب: Emp.ID, Iqama No, Hiring Date, Basic Salary, Housing Allowance, Transportation Allowance, Food Allowance, Other Allowance, Fees.
+                    ويمكن أيضًا تحديث موقع الموظف دفعة واحدة إذا كان عمود Location موجودًا في الملف.
                 </p>
                 <div class="flex items-center gap-4">
                     <input type="file" wire:model="salaryFile" accept=".csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />

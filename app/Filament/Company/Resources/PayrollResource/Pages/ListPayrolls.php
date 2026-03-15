@@ -1197,13 +1197,12 @@ class ListPayrolls extends ListRecords
                         'work_days' => 30,
                     ];
 
-                    // Calculate total_package
+                    // Calculate total_package (salary package only, without monthly fees)
                     $salaryData['total_package'] = $salaryData['basic_salary']
                         + $salaryData['housing_allowance']
                         + $salaryData['transportation_allowance']
                         + $salaryData['food_allowance']
-                        + $salaryData['other_allowance']
-                        + $salaryData['fees'];
+                        + $salaryData['other_allowance'];
 
                     // Find or create payroll for this employee + month
                     $payroll = Payroll::where('employee_id', $employee->id)
@@ -1233,19 +1232,36 @@ class ListPayrolls extends ListRecords
                         $created++;
                     }
 
-                    // Optional: update employee hiring date if provided in the import file.
+                    // Optional: update employee hiring date/location if provided in the import file.
                     $hiringDate = $this->getSalaryField($normalized, [
                         'hiring date',
                     ]);
+
+                    $location = $this->getSalaryField($normalized, [
+                        'location',
+                        'work location',
+                        'site',
+                    ]);
+
+                    $shouldSaveEmployee = false;
 
                     if ($hiringDate) {
                         try {
                             $parsed = Carbon::parse((string) $hiringDate);
                             $employee->hire_date = $parsed->format('Y-m-d');
-                            $employee->save();
+                            $shouldSaveEmployee = true;
                         } catch (\Throwable $e) {
                             // Ignore invalid date values from import file.
                         }
+                    }
+
+                    if (is_string($location) && trim($location) !== '') {
+                        $employee->location = trim($location);
+                        $shouldSaveEmployee = true;
+                    }
+
+                    if ($shouldSaveEmployee) {
+                        $employee->save();
                     }
                 } catch (\Exception $e) {
                     $errors[] = "Row {$rowNum}: " . $e->getMessage();
@@ -1356,19 +1372,47 @@ class ListPayrolls extends ListRecords
         ];
     }
 
+    protected function getStrictPayrollTemplateHeadersWithLocation(): array
+    {
+        return [
+            'emp.id',
+            'name',
+            'nationality',
+            'iqama no',
+            'hiring date',
+            'title',
+            'department',
+            'location',
+            'basic salary',
+            'housing allowance',
+            'transportation allowance',
+            'food allowance',
+            'other allowance',
+            'fees',
+        ];
+    }
+
     /**
      * Fail import when uploaded headers differ from template headers.
      */
     protected function validateStrictPayrollHeaders(array $headers): void
     {
-        $expected = $this->getStrictPayrollTemplateHeaders();
+        $acceptedTemplates = [
+            $this->getStrictPayrollTemplateHeaders(),
+            $this->getStrictPayrollTemplateHeadersWithLocation(),
+        ];
 
-        if ($headers !== $expected) {
-            throw new \RuntimeException(
-                'صيغة الأعمدة غير مطابقة للقالب opernize Form.xlsx. '
-                . 'الترتيب المطلوب: ' . implode(' | ', $expected)
-            );
+        foreach ($acceptedTemplates as $template) {
+            if ($headers === $template) {
+                return;
+            }
         }
+
+        throw new \RuntimeException(
+            'صيغة الأعمدة غير مطابقة للقالب opernize Form.xlsx. '
+            . 'الترتيب المطلوب (بدون موقع): ' . implode(' | ', $this->getStrictPayrollTemplateHeaders())
+            . ' || أو (مع موقع): ' . implode(' | ', $this->getStrictPayrollTemplateHeadersWithLocation())
+        );
     }
 
     /**
