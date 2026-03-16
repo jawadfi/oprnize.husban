@@ -159,10 +159,64 @@ class Payroll extends Model
         );
     }
 
+    public function getEffectiveTotalPackageAttribute(): float
+    {
+        $totalPackage = (float) ($this->total_package ?? 0);
+        if ($totalPackage <= 0) {
+            return 0.0;
+        }
+
+        if (empty($this->payroll_month)) {
+            return round($totalPackage, 2);
+        }
+
+        $monthStart = Carbon::createFromFormat('Y-m-d', $this->payroll_month . '-01')->startOfDay();
+        $monthEnd = $monthStart->copy()->endOfMonth();
+        $daysInMonth = (int) $monthStart->daysInMonth;
+
+        $serviceStartDay = 1;
+
+        $assignmentStart = EmployeeAssigned::query()
+            ->where('employee_id', $this->employee_id)
+            ->where('company_id', $this->company_id)
+            ->where('status', EmployeeAssignedStatus::APPROVED)
+            ->orderByDesc('start_date')
+            ->value('start_date');
+
+        if ($assignmentStart) {
+            $start = Carbon::parse($assignmentStart);
+
+            if ($start->greaterThan($monthEnd)) {
+                return 0.0;
+            }
+
+            if ($start->year === $monthStart->year && $start->month === $monthStart->month) {
+                $serviceStartDay = (int) $start->day;
+            }
+        } elseif ($this->employee && $this->employee->hire_date) {
+            $hireDate = Carbon::parse($this->employee->hire_date);
+
+            if ($hireDate->greaterThan($monthEnd)) {
+                return 0.0;
+            }
+
+            if ($hireDate->year === $monthStart->year && $hireDate->month === $monthStart->month) {
+                $serviceStartDay = (int) $hireDate->day;
+            }
+        }
+
+        // Inclusive calculation: start on day 3 in 31-day month => 29 payable days.
+        $payableDays = $serviceStartDay <= 1
+            ? $daysInMonth
+            : max(0, ($daysInMonth - $serviceStartDay) + 1);
+
+        return round(($totalPackage / $daysInMonth) * $payableDays, 2);
+    }
+
     public function getTotalEarningAttribute(): float
     {
         return (float) (
-            ($this->total_package ?? 0) +
+            $this->effective_total_package +
             $this->effective_fees +
             $this->total_additions
         );
@@ -250,7 +304,7 @@ class Payroll extends Model
         // Otherwise, fallback to old proration logic
         $eligibleDays = $serviceStartDay <= 1
             ? $daysInMonth
-            : max(0, $daysInMonth - $serviceStartDay);
+            : max(0, ($daysInMonth - $serviceStartDay) + 1);
         $absenceDays = max(0, (int) ($this->absence_days ?? 0));
         $payableDays = max(0, $eligibleDays - $absenceDays);
 

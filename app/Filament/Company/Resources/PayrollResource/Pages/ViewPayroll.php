@@ -79,8 +79,11 @@ class ViewPayroll extends ViewRecord
 
                 Infolists\Components\Section::make('Earnings')
                     ->schema([
+                        Infolists\Components\TextEntry::make('effective_total_package')
+                            ->label('Effective Total Package')
+                            ->money('SAR'),
                         Infolists\Components\TextEntry::make('total_package')
-                            ->label('Total Package')
+                            ->label('Configured Total Package')
                             ->money('SAR'),
                         Infolists\Components\TextEntry::make('effective_fees')
                             ->label('Effective Monthly Fees')
