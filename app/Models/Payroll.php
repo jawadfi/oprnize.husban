@@ -211,12 +211,13 @@ class Payroll extends Model
         }
 
         // Inclusive: hired on day 3 of a 31-day month => 29 payable days.
+        // Note: absence days do NOT reduce effective_work_days used for fees.
+        // Absence deduction is handled separately via absence_unpaid_leave_deduction.
         $payableDays = $serviceStartDay <= 1
             ? $daysInMonth
             : max(0, ($daysInMonth - $serviceStartDay) + 1);
 
-        $absenceDays = max(0, (int) ($this->absence_days ?? 0));
-        return max(0, $payableDays - $absenceDays);
+        return $payableDays;
     }
 
     public function getEffectiveTotalPackageAttribute(): float
@@ -411,18 +412,51 @@ class Payroll extends Model
             ->first();
 
         if ($timesheet) {
-            $payroll->work_days = $timesheet->work_days;
-            $payroll->absence_days = $timesheet->absent_days;
+            // If the payroll month is the CURRENT month (not yet finished),
+            // only count days up to today — future days must NOT be treated as absence.
+            $today = Carbon::today();
+            $isCurrentMonth = ($today->year === $year && $today->month === $month);
 
-            $absentDays = (int) $timesheet->absent_days;          // A status
-            $leaveDays  = (int) ($timesheet->leave_days ?? 0);    // L status
-            $offDays    = (int) ($timesheet->day_off_count ?? 0); // O status
-            $excludedDays = (int) ($timesheet->unpaid_leave_days ?? 0); // X status
+            if ($isCurrentMonth) {
+                // Re-count from raw attendance_data, ignoring days after today.
+                $attendanceData = $timesheet->attendance_data ?? [];
+                $absentDays    = 0;
+                $leaveDays     = 0;
+                $offDays       = 0;
+                $excludedDays  = 0;
+                $workDays      = 0;
 
-            $salaryOnlyDeduction = 0;
+                foreach ($attendanceData as $day => $status) {
+                    if ((int) $day > $today->day) {
+                        continue; // Skip future days that haven't happened yet
+                    }
+                    match ($status) {
+                        'P' => $workDays++,
+                        'A' => $absentDays++,
+                        'L' => $leaveDays++,
+                        'O' => $offDays++,
+                        'X' => $excludedDays++,
+                        default => null,
+                    };
+                }
+
+                $payroll->work_days    = $workDays;
+                $payroll->absence_days = $absentDays;
+            } else {
+                // Month is complete — use pre-computed totals from timesheet.
+                $payroll->work_days    = $timesheet->work_days;
+                $payroll->absence_days = $timesheet->absent_days;
+
+                $absentDays   = (int) $timesheet->absent_days;
+                $leaveDays    = (int) ($timesheet->leave_days ?? 0);
+                $offDays      = (int) ($timesheet->day_off_count ?? 0);
+                $excludedDays = (int) ($timesheet->unpaid_leave_days ?? 0);
+            }
+
+            $salaryOnlyDeduction    = 0;
             $salaryAndFeesDeduction = 0;
 
-            // A (Absent): deduct from salary only — no fees
+            // A (Absent): deduct from salary ONLY — absence does NOT affect fees
             if ($absentDays > 0 && $totalSalary > 0) {
                 $salaryOnlyDeduction = $absentDays * ($totalSalary / 30);
             }
