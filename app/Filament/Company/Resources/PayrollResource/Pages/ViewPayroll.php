@@ -91,8 +91,10 @@ class ViewPayroll extends ViewRecord
                         Infolists\Components\TextEntry::make('fees')
                             ->label('Configured Monthly Fees')
                             ->money('SAR'),
+                        Infolists\Components\TextEntry::make('effective_work_days')
+                            ->label('Work Days (Effective)'),
                         Infolists\Components\TextEntry::make('work_days')
-                            ->label('Work Days'),
+                            ->label('Work Days (Saved)'),
                         Infolists\Components\TextEntry::make('added_days')
                             ->label('Added Days'),
                         Infolists\Components\TextEntry::make('overtime_hours')

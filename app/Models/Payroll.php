@@ -159,15 +159,23 @@ class Payroll extends Model
         );
     }
 
-    public function getEffectiveTotalPackageAttribute(): float
+    /**
+     * Compute the number of payable work days for this payroll record.
+     * Priority:
+     *  1. work_days saved in DB (from timesheet sync) — if > 0, use it directly.
+     *  2. Infer from hire date / assignment start date (inclusive, from start day to end of month).
+     *  3. If none of the above, full month days.
+     */
+    public function getEffectiveWorkDaysAttribute(): int
     {
-        $totalPackage = (float) ($this->total_package ?? 0);
-        if ($totalPackage <= 0) {
-            return 0.0;
+        // If timesheet has been synced and work_days is set, use it.
+        if (!is_null($this->work_days) && $this->work_days > 0) {
+            return (int) $this->work_days;
         }
 
         if (empty($this->payroll_month)) {
-            return round($totalPackage, 2);
+            $daysInMonth = (int) now()->daysInMonth;
+            return $daysInMonth;
         }
 
         $monthStart = Carbon::createFromFormat('Y-m-d', $this->payroll_month . '-01')->startOfDay();
@@ -176,6 +184,7 @@ class Payroll extends Model
 
         $serviceStartDay = 1;
 
+        // Check approved assignment first
         $assignmentStart = EmployeeAssigned::query()
             ->where('employee_id', $this->employee_id)
             ->where('company_id', $this->company_id)
@@ -185,32 +194,46 @@ class Payroll extends Model
 
         if ($assignmentStart) {
             $start = Carbon::parse($assignmentStart);
-
             if ($start->greaterThan($monthEnd)) {
-                return 0.0;
+                return 0;
             }
-
             if ($start->year === $monthStart->year && $start->month === $monthStart->month) {
                 $serviceStartDay = (int) $start->day;
             }
         } elseif ($this->employee && $this->employee->hire_date) {
             $hireDate = Carbon::parse($this->employee->hire_date);
-
             if ($hireDate->greaterThan($monthEnd)) {
-                return 0.0;
+                return 0;
             }
-
             if ($hireDate->year === $monthStart->year && $hireDate->month === $monthStart->month) {
                 $serviceStartDay = (int) $hireDate->day;
             }
         }
 
-        // Inclusive calculation: start on day 3 in 31-day month => 29 payable days.
+        // Inclusive: hired on day 3 of a 31-day month => 29 payable days.
         $payableDays = $serviceStartDay <= 1
             ? $daysInMonth
             : max(0, ($daysInMonth - $serviceStartDay) + 1);
 
-        return round(($totalPackage / $daysInMonth) * $payableDays, 2);
+        $absenceDays = max(0, (int) ($this->absence_days ?? 0));
+        return max(0, $payableDays - $absenceDays);
+    }
+
+    public function getEffectiveTotalPackageAttribute(): float
+    {
+        $totalPackage = (float) ($this->total_package ?? 0);
+        if ($totalPackage <= 0 || empty($this->payroll_month)) {
+            return round($totalPackage, 2);
+        }
+
+        $effectiveDays = $this->effective_work_days;
+        if ($effectiveDays <= 0) {
+            return 0.0;
+        }
+
+        $daysInMonth = (int) Carbon::createFromFormat('Y-m-d', $this->payroll_month . '-01')->daysInMonth;
+
+        return round(($totalPackage / $daysInMonth) * $effectiveDays, 2);
     }
 
     public function getTotalEarningAttribute(): float
@@ -245,10 +268,7 @@ class Payroll extends Model
     }
 
     /**
-     * Effective monthly fees after start-day proration and absence deduction.
-     * Rules:
-     * - If employee starts on day 10, fees apply from day 10 to month end.
-     * - Absent days are excluded from fee charge.
+     * Effective monthly fees = (fees / days_in_month) * effective_work_days
      */
     public function getEffectiveFeesAttribute(): float
     {
@@ -261,54 +281,14 @@ class Payroll extends Model
             return round($fees, 2);
         }
 
-        $monthStart = Carbon::createFromFormat('Y-m-d', $this->payroll_month . '-01')->startOfDay();
-        $monthEnd = $monthStart->copy()->endOfMonth();
-        $daysInMonth = (int) $monthStart->daysInMonth;
-
-        $serviceStartDay = 1;
-
-        $assignmentStart = EmployeeAssigned::query()
-            ->where('employee_id', $this->employee_id)
-            ->where('company_id', $this->company_id)
-            ->where('status', EmployeeAssignedStatus::APPROVED)
-            ->orderByDesc('start_date')
-            ->value('start_date');
-
-        if ($assignmentStart) {
-            $start = Carbon::parse($assignmentStart);
-
-            if ($start->greaterThan($monthEnd)) {
-                return 0.0;
-            }
-
-            if ($start->year === $monthStart->year && $start->month === $monthStart->month) {
-                $serviceStartDay = (int) $start->day;
-            }
-        } elseif ($this->employee && $this->employee->hire_date) {
-            $hireDate = Carbon::parse($this->employee->hire_date);
-
-            if ($hireDate->greaterThan($monthEnd)) {
-                return 0.0;
-            }
-
-            if ($hireDate->year === $monthStart->year && $hireDate->month === $monthStart->month) {
-                $serviceStartDay = (int) $hireDate->day;
-            }
+        $effectiveDays = $this->effective_work_days;
+        if ($effectiveDays <= 0) {
+            return 0.0;
         }
 
-        // If work_days is set, use it directly for fee proration (fees/30*work_days)
-        if (!is_null($this->work_days) && $this->work_days > 0) {
-            return round(($fees / 30) * $this->work_days, 2);
-        }
+        $daysInMonth = (int) Carbon::createFromFormat('Y-m-d', $this->payroll_month . '-01')->daysInMonth;
 
-        // Otherwise, fallback to old proration logic
-        $eligibleDays = $serviceStartDay <= 1
-            ? $daysInMonth
-            : max(0, ($daysInMonth - $serviceStartDay) + 1);
-        $absenceDays = max(0, (int) ($this->absence_days ?? 0));
-        $payableDays = max(0, $eligibleDays - $absenceDays);
-
-        return round(($fees / $daysInMonth) * $payableDays, 2);
+        return round(($fees / $daysInMonth) * $effectiveDays, 2);
     }
 
     /**
