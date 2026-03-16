@@ -242,7 +242,12 @@ class Payroll extends Model
             }
         }
 
-        // Business rule requested: start on day 10 => charge fees for 20 days.
+        // If work_days is set, use it directly for fee proration (fees/30*work_days)
+        if (!is_null($this->work_days) && $this->work_days > 0) {
+            return round(($fees / 30) * $this->work_days, 2);
+        }
+
+        // Otherwise, fallback to old proration logic
         $eligibleDays = $serviceStartDay <= 1
             ? $daysInMonth
             : max(0, $daysInMonth - $serviceStartDay);
