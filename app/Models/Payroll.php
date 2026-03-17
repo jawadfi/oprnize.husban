@@ -472,28 +472,9 @@ class Payroll extends Model
             $payroll->absence_unpaid_leave_deduction = 0;
         }
 
-        // Proration for new employees: if hired in the middle of the payroll month,
-        // deduct for the days before the hire date (from first day of month to hire day - 1).
-        // Formula: pre_hire_days * ((totalSalary + fees) / daysInMonth)
-        $employee = Employee::find($employeeId);
-        if ($employee && $employee->hire_date) {
-            $hireDate = Carbon::parse($employee->hire_date);
-            $daysInMonth = Carbon::createFromDate($year, $month, 1)->daysInMonth;
-
-            if ($hireDate->year === $year && $hireDate->month === $month && $hireDate->day > 1) {
-                $preHireDays = $hireDate->day - 1;
-                $dailyRate = ($totalSalary + $fees) / $daysInMonth;
-                $hireProratedDeduction = round($preHireDays * $dailyRate, 2);
-                $payroll->absence_unpaid_leave_deduction = round(
-                    ($payroll->absence_unpaid_leave_deduction ?? 0) + $hireProratedDeduction,
-                    2
-                );
-            }
-        }
-
-        // Note: For terminated employees (ended service before month end), the proration
-        // (first day of month to last working day) requires a service_end_date field which
-        // can be set directly via the payroll's work_days and timesheet data.
+        // NOTE: Hire-date proration is handled automatically by the effective_total_package
+        // and effective_fees accessors (fees/days * effective_work_days).
+        // We do NOT add it here to avoid double-deduction.
 
         // 4. Deductions → other_deduction
         $deductions = Deduction::where('employee_id', $employeeId)
