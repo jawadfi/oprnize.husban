@@ -269,27 +269,12 @@ class Payroll extends Model
     }
 
     /**
-     * Effective monthly fees = (fees / days_in_month) * effective_work_days
+     * Effective monthly fees are fixed and equal to configured monthly fees.
+     * No proration by hire date, work days, or absence.
      */
     public function getEffectiveFeesAttribute(): float
     {
-        $fees = (float) ($this->fees ?? 0);
-        if ($fees <= 0) {
-            return 0.0;
-        }
-
-        if (empty($this->payroll_month)) {
-            return round($fees, 2);
-        }
-
-        $effectiveDays = $this->effective_work_days;
-        if ($effectiveDays <= 0) {
-            return 0.0;
-        }
-
-        $daysInMonth = (int) Carbon::createFromFormat('Y-m-d', $this->payroll_month . '-01')->daysInMonth;
-
-        return round(($fees / $daysInMonth) * $effectiveDays, 2);
+        return round((float) ($this->fees ?? 0), 2);
     }
 
     /**
