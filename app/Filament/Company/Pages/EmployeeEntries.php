@@ -291,6 +291,7 @@ class EmployeeEntries extends Page implements HasForms
 
         $this->loadExistingEntries();
         $this->loadTimesheetData();
+        $this->recalculateOvertimeFromHours();
 
         Notification::make()->title('تم العثور على الموظف')->body($this->selectedEmployeeName)->success()->send();
     }

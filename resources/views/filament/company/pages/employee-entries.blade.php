@@ -392,11 +392,23 @@
                 </div>
                 <div class="form-group">
                     <label>سعر الساعة / Rate/Hour</label>
-                    <input type="number" step="0.01" min="0" wire:model="overtimeRate" placeholder="SAR">
+                    <input
+                        type="text"
+                        value="{{ $overtimeRate !== null ? number_format((float) $overtimeRate, 2) : '' }}"
+                        placeholder="SAR (auto)"
+                        readonly
+                        style="background:#f9fafb; cursor:not-allowed;"
+                    >
                 </div>
                 <div class="form-group">
                     <label>المبلغ الإجمالي / Amount</label>
-                    <input type="number" step="0.01" min="0" wire:model="overtimeAmount" placeholder="SAR (auto)">
+                    <input
+                        type="text"
+                        value="{{ $overtimeAmount !== null ? number_format((float) $overtimeAmount, 2) : '' }}"
+                        placeholder="SAR (auto)"
+                        readonly
+                        style="background:#f9fafb; cursor:not-allowed;"
+                    >
                 </div>
                 <div class="form-group" style="grid-column: span 2;">
                     <label>ملاحظات / Notes</label>
