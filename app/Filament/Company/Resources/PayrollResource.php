@@ -539,6 +539,10 @@ class PayrollResource extends Resource
                         in_array($record->status, [PayrollStatus::DRAFT, PayrollStatus::REBACK])
                     )
                     ->action(function (Payroll $record) {
+                        // Re-sync values from current entries before sending to provider.
+                        Payroll::syncFromEntries($record->employee_id, $record->company_id, $record->payroll_month);
+                        $record->refresh();
+
                         $record->update([
                             'status' => PayrollStatus::SUBMITTED_TO_PROVIDER,
                             'submitted_at' => now(),
