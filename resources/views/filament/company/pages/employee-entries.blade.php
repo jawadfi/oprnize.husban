@@ -462,8 +462,14 @@
                         <td>{{ $ot['notes'] ?? '-' }}</td>
                         <td>
                             @if($ot['status'] === 'pending')
-                            <button class="btn-danger" wire:click="deleteOvertime({{ $ot['id'] }})"
-                                    wire:confirm="هل أنت متأكد من الحذف؟">🗑</button>
+                                @if($this->canApproveOvertimeEntries())
+                                <button class="btn-primary" wire:click="approveOvertime({{ $ot['id'] }})"
+                                        wire:confirm="هل أنت متأكد من اعتماد هذا السجل؟" style="margin-inline-end: 6px;">
+                                    ✅
+                                </button>
+                                @endif
+                                <button class="btn-danger" wire:click="deleteOvertime({{ $ot['id'] }})"
+                                        wire:confirm="هل أنت متأكد من الحذف؟">🗑</button>
                             @endif
                         </td>
                     </tr>

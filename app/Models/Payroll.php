@@ -222,11 +222,9 @@ class Payroll extends Model
 
     public function getEffectiveTotalPackageAttribute(): float
     {
-        // Use total_salary (basic + allowances) as the salary basis — this NEVER includes fees,
-        // so we avoid double-counting fees regardless of what total_package stores in the DB.
-        $totalSalary = $this->total_salary;
-        if ($totalSalary <= 0 || empty($this->payroll_month)) {
-            return round($totalSalary, 2);
+        $totalPackage = (float) ($this->total_package ?? 0);
+        if ($totalPackage <= 0 || empty($this->payroll_month)) {
+            return round($totalPackage, 2);
         }
 
         $effectiveDays = $this->effective_work_days;
@@ -236,12 +234,7 @@ class Payroll extends Model
 
         $daysInMonth = (int) Carbon::createFromFormat('Y-m-d', $this->payroll_month . '-01')->daysInMonth;
 
-        // Full month — no proration needed
-        if ($effectiveDays >= $daysInMonth) {
-            return round($totalSalary, 2);
-        }
-
-        return round(($totalSalary / $daysInMonth) * $effectiveDays, 2);
+        return round(($totalPackage / $daysInMonth) * $effectiveDays, 2);
     }
 
     public function getTotalEarningAttribute(): float
@@ -371,6 +364,7 @@ class Payroll extends Model
         $overtimes = EmployeeOvertime::where('employee_id', $employeeId)
             ->where('company_id', $companyId)
             ->where('payroll_month', $payrollMonth)
+            ->where('status', 'approved')
             ->get();
 
         $totalOvertimeHours = $overtimes->sum('hours');

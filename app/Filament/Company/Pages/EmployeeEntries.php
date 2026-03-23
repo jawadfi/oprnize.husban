@@ -233,6 +233,17 @@ class EmployeeEntries extends Page implements HasForms
         return null;
     }
 
+    public function canApproveOvertimeEntries(): bool
+    {
+        $user = Filament::auth()->user();
+
+        if ($user instanceof Company) {
+            return true;
+        }
+
+        return $user instanceof \App\Models\User && ! $user->isBranchManager();
+    }
+
     /**
      * Check if current user is a PROVIDER company
      */
@@ -641,6 +652,8 @@ class EmployeeEntries extends Page implements HasForms
         $calc = $this->calculateOvertimeAmountByFormula($this->overtimeHours);
         $ratePerHour = $calc['rate_per_hour'];
         $amount = $calc['amount'];
+        $user = Filament::auth()->user();
+        $status = ($user instanceof \App\Models\User && $user->isBranchManager()) ? 'pending' : 'approved';
 
         EmployeeOvertime::create([
             'employee_id' => $this->selectedEmployeeId,
@@ -651,22 +664,85 @@ class EmployeeEntries extends Page implements HasForms
             'amount' => $amount ?? 0,
             'notes' => $this->overtimeNotes,
             'is_recurring' => $this->overtimeRecurring,
-            'status' => 'pending',
+            'status' => $status,
             'created_by_company_id' => $company->id,
         ]);
 
         $this->resetOvertimeForm();
         $this->loadExistingEntries();
         Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $targetMonth);
-        Notification::make()->title('تم إضافة ساعات العمل الإضافي بنجاح')->success()->send();
+        Notification::make()
+            ->title($status === 'approved'
+                ? 'تم إضافة واعتماد ساعات العمل الإضافي بنجاح'
+                : 'تم إضافة ساعات العمل الإضافي بانتظار الاعتماد')
+            ->success()
+            ->send();
+    }
+
+    public function approveOvertime(int $id): void
+    {
+        if (! $this->canApproveOvertimeEntries()) {
+            Notification::make()->title('غير مصرح لك باعتماد الساعات الإضافية')->danger()->send();
+            return;
+        }
+
+        if (! $this->selectedEmployeeId) {
+            Notification::make()->title('اختر موظف أولاً')->warning()->send();
+            return;
+        }
+
+        $company = $this->getCompanyUser();
+        if (! $company) {
+            return;
+        }
+
+        $overtime = EmployeeOvertime::where('id', $id)
+            ->where('employee_id', $this->selectedEmployeeId)
+            ->where('company_id', $company->id)
+            ->where('status', 'pending')
+            ->first();
+
+        if (! $overtime) {
+            Notification::make()->title('السجل غير موجود أو تم اعتماده مسبقاً')->warning()->send();
+            return;
+        }
+
+        $overtime->update(['status' => 'approved']);
+
+        $this->loadExistingEntries();
+        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $overtime->payroll_month);
+
+        Notification::make()->title('تم اعتماد ساعات العمل الإضافي')->success()->send();
     }
 
     public function deleteOvertime(int $id): void
     {
-        EmployeeOvertime::where('id', $id)->where('status', 'pending')->delete();
-        $this->loadExistingEntries();
+        if (! $this->selectedEmployeeId) {
+            Notification::make()->title('اختر موظف أولاً')->warning()->send();
+            return;
+        }
+
         $company = $this->getCompanyUser();
-        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $this->selectedMonth);
+        if (! $company) {
+            return;
+        }
+
+        $overtime = EmployeeOvertime::where('id', $id)
+            ->where('employee_id', $this->selectedEmployeeId)
+            ->where('company_id', $company->id)
+            ->where('status', 'pending')
+            ->first();
+
+        if (! $overtime) {
+            Notification::make()->title('لا يمكن حذف هذا السجل')->warning()->send();
+            return;
+        }
+
+        $month = $overtime->payroll_month;
+        $overtime->delete();
+
+        $this->loadExistingEntries();
+        Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $month);
         Notification::make()->title('تم الحذف')->success()->send();
     }
 
