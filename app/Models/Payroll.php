@@ -161,18 +161,13 @@ class Payroll extends Model
 
     /**
      * Compute the number of payable work days for this payroll record.
-     * Priority:
-     *  1. work_days saved in DB (from timesheet sync) — if > 0, use it directly.
-     *  2. Infer from hire date / assignment start date (inclusive, from start day to end of month).
-     *  3. If none of the above, full month days.
+     * Derived from hire date / assignment start date only.
+     *
+     * Absence must not reduce payable work days. Absence is handled separately
+     * via absence deductions, not via effective work-day proration.
      */
     public function getEffectiveWorkDaysAttribute(): int
     {
-        // If timesheet has been synced and work_days is set, use it.
-        if (!is_null($this->work_days) && $this->work_days > 0) {
-            return (int) $this->work_days;
-        }
-
         if (empty($this->payroll_month)) {
             $daysInMonth = (int) now()->daysInMonth;
             return $daysInMonth;
