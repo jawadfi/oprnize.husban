@@ -256,11 +256,14 @@ class Payroll extends Model
     }
 
     /**
-     * Net Salary = Total Salary + Additions - Deductions
+     * Net Salary = Effective Salary Package + Additions - Deductions
+     *
+     * Use effective_total_package so Net Payment stays consistent with
+     * Total Earning and hire-date proration rules.
      */
     public function getNetSalaryAttribute(): float
     {
-        return (float) ($this->total_salary + $this->total_additions - $this->total_deductions);
+        return (float) ($this->effective_total_package + $this->total_additions - $this->total_deductions);
     }
 
     /**
