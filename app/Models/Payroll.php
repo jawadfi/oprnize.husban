@@ -356,8 +356,20 @@ class Payroll extends Model
 
         // 1. Overtime → overtime_hours & overtime_amount
         //    Formula: (total_salary / 240 * hours) + (basic_salary / 480 * hours)
+        // Collect all company IDs that may have entered OT/additions for this employee:
+        // the payroll's own company + any client companies that have this employee assigned.
+        $relatedCompanyIds = array_unique(array_merge(
+            [$companyId],
+            EmployeeAssigned::where('employee_id', $employeeId)
+                ->where('status', EmployeeAssignedStatus::APPROVED)
+                ->pluck('company_id')
+                ->toArray()
+        ));
+
+        // 1. Overtime → overtime_hours & overtime_amount
+        //    Formula: (total_salary / 240 * hours) + (basic_salary / 480 * hours)
         $overtimes = EmployeeOvertime::where('employee_id', $employeeId)
-            ->where('company_id', $companyId)
+            ->whereIn('company_id', $relatedCompanyIds)
             ->where('payroll_month', $payrollMonth)
             ->where('status', 'approved')
             ->get();
@@ -374,8 +386,9 @@ class Payroll extends Model
         }
 
         // 2. Additions → other_additions
+        // 2. Additions → other_additions
         $additions = EmployeeAddition::where('employee_id', $employeeId)
-            ->where('company_id', $companyId)
+            ->whereIn('company_id', $relatedCompanyIds)
             ->where('payroll_month', $payrollMonth)
             ->get();
 
