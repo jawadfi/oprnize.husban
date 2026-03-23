@@ -279,21 +279,20 @@ class PayrollResource extends Resource
                             ->prefix('SAR')
                             ->default(0)
                             ->step(0.01)
-                            ->live(onBlur: true),
+                            ->disabled()
+                            ->dehydrated(false),
                         Forms\Components\TextInput::make('food_subscription_deduction')
                             ->label('Food Subscription Deduction')
                             ->numeric()
                             ->prefix('SAR')
                             ->default(0)
-                            ->step(0.01)
-                            ->live(onBlur: true),
+                            ->step(0.01),
                         Forms\Components\TextInput::make('other_deduction')
                             ->label('Other Deduction')
                             ->numeric()
                             ->prefix('SAR')
                             ->default(0)
-                            ->step(0.01)
-                            ->live(onBlur: true),
+                            ->step(0.01),
                     ])->columns(2),
                 Forms\Components\Section::make('Calculated Totals')
                     ->schema([
@@ -539,10 +538,6 @@ class PayrollResource extends Resource
                         in_array($record->status, [PayrollStatus::DRAFT, PayrollStatus::REBACK])
                     )
                     ->action(function (Payroll $record) {
-                        // Re-sync values from current entries before sending to provider.
-                        Payroll::syncFromEntries($record->employee_id, $record->company_id, $record->payroll_month);
-                        $record->refresh();
-
                         $record->update([
                             'status' => PayrollStatus::SUBMITTED_TO_PROVIDER,
                             'submitted_at' => now(),
