@@ -50,16 +50,6 @@ class SelectCompanyPayroll extends Page
     {
         $user = Filament::auth()->user();
 
-        if ($category === 'run' && $user->type === CompanyTypes::PROVIDER) {
-            Notification::make()
-                ->title('تشغيل الرواتب غير متاح')
-                ->body('في صفحة الشركات المزودة للخدمة، المتاح هو المراجعة فقط.')
-                ->warning()
-                ->send();
-
-            return;
-        }
-
         if ($category === 'review' && ! $this->canShowReviewCategory()) {
             Notification::make()
                 ->title('صفحة المراجعة غير متاحة')

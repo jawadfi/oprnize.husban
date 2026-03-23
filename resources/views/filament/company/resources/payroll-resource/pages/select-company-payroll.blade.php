@@ -313,7 +313,7 @@
             <p class="section-desc">اختر نوع عملية كشف الرواتب التي تريد الوصول إليها</p>
 
             @php
-                $showRunCategory = $this->companyType !== 'provider';
+                $showRunCategory = true;
                 $showReviewCategory = $this->canShowReviewCategory();
                 $visibleCards = 1 + ($showRunCategory ? 1 : 0) + ($showReviewCategory ? 1 : 0);
             @endphp
