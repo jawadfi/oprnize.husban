@@ -957,13 +957,6 @@ class ListPayrolls extends ListRecords
                 }
                 
                 // Update existing empty payroll with template data
-                $deductions = \App\Models\Deduction::where('employee_id', $employee->id)
-                    ->where('payroll_month', $this->selectedMonth)
-                    ->where('status', \App\Enums\DeductionStatus::APPROVED)
-                    ->get();
-                
-                $totalDeductionAmount = $deductions->sum('amount');
-                
                 $existingPayroll->update([
                     'basic_salary' => $templatePayroll->basic_salary,
                     'housing_allowance' => $templatePayroll->housing_allowance,
@@ -972,21 +965,17 @@ class ListPayrolls extends ListRecords
                     'other_allowance' => $templatePayroll->other_allowance,
                     'fees' => $templatePayroll->fees,
                     'total_package' => $templatePayroll->total_package,
-                    'work_days' => $templatePayroll->work_days,
-                    'absence_days' => $deductions->where('reason', 'absence')->sum('days') ?? 0,
-                    'absence_unpaid_leave_deduction' => $deductions->where('reason', 'absence')->sum('amount') ?? 0,
-                    'food_subscription_deduction' => $deductions->where('reason', 'food_subscription')->sum('amount') ?? 0,
-                    'other_deduction' => $totalDeductionAmount - ($deductions->where('reason', 'absence')->sum('amount') ?? 0) - ($deductions->where('reason', 'food_subscription')->sum('amount') ?? 0),
                 ]);
-                
-                $deductions->each(fn(\App\Models\Deduction $d) => $d->update(['payroll_id' => $existingPayroll->id]));
+
+                // Sync OT, additions, timesheet, deductions from current entries
+                Payroll::syncFromEntries($employee->id, $companyId, $this->selectedMonth);
                 $updated++;
                 continue;
             }
             
             if (!$templatePayroll) {
                 // No template found - create empty DRAFT payroll so provider can fill manually
-                $payroll = Payroll::create([
+                Payroll::create([
                     'employee_id' => $employee->id,
                     'company_id' => $companyId,
                     'payroll_month' => $this->selectedMonth,
@@ -1011,17 +1000,11 @@ class ListPayrolls extends ListRecords
                     'created_at' => $date,
                     'updated_at' => now(),
                 ]);
+                // Even with no salary basis, sync any existing OT/additions entries
+                Payroll::syncFromEntries($employee->id, $companyId, $this->selectedMonth);
                 $created++;
                 continue;
             }
-            
-            // Get approved deductions for this employee and month
-            $deductions = \App\Models\Deduction::where('employee_id', $employee->id)
-                ->where('payroll_month', $this->selectedMonth)
-                ->where('status', \App\Enums\DeductionStatus::APPROVED)
-                ->get();
-            
-            $totalDeductionAmount = $deductions->sum('amount');
             
             // Create new payroll using template data
             $payroll = Payroll::create([
@@ -1036,23 +1019,15 @@ class ListPayrolls extends ListRecords
                 'other_allowance' => $templatePayroll->other_allowance,
                 'fees' => $templatePayroll->fees,
                 'total_package' => $templatePayroll->total_package,
-                'work_days' => $templatePayroll->work_days,
                 'added_days' => 0,
-                'overtime_hours' => 0,
-                'overtime_amount' => 0,
                 'added_days_amount' => 0,
-                'other_additions' => 0,
-                'absence_days' => $deductions->where('reason', 'absence')->sum('days') ?? 0,
-                'absence_unpaid_leave_deduction' => $deductions->where('reason', 'absence')->sum('amount') ?? 0,
-                'food_subscription_deduction' => $deductions->where('reason', 'food_subscription')->sum('amount') ?? 0,
-                'other_deduction' => $totalDeductionAmount - ($deductions->where('reason', 'absence')->sum('amount') ?? 0) - ($deductions->where('reason', 'food_subscription')->sum('amount') ?? 0),
                 'created_at' => $date,
                 'updated_at' => now(),
             ]);
-            
-            // Link deductions to this payroll
-            $deductions->each(fn(\App\Models\Deduction $d) => $d->update(['payroll_id' => $payroll->id]));
-            
+
+            // Sync OT, additions, timesheet, deductions from current entries
+            Payroll::syncFromEntries($employee->id, $companyId, $this->selectedMonth);
+
             $created++;
         }
         

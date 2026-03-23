@@ -562,7 +562,7 @@ class PayrollResource extends Resource
                     ->visible(fn(Payroll $record) =>
                         $payrollCategory === 'run' &&
                         $companyType === CompanyTypes::PROVIDER &&
-                        in_array($record->status, [PayrollStatus::SUBMITTED_TO_PROVIDER, PayrollStatus::REBACK])
+                        in_array($record->status, [PayrollStatus::DRAFT, PayrollStatus::SUBMITTED_TO_PROVIDER, PayrollStatus::REBACK, PayrollStatus::CALCULATED])
                     )
                     ->action(function (Payroll $record) {
                         // Sync from employee entries before calculating
