@@ -17,6 +17,20 @@ class EditPayroll extends EditRecord
         ];
     }
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        // Recalculate total_package from individual salary components
+        // This ensures old records that may have had fees included are corrected on load
+        $data['total_package'] =
+            (float)($data['basic_salary'] ?? 0) +
+            (float)($data['housing_allowance'] ?? 0) +
+            (float)($data['transportation_allowance'] ?? 0) +
+            (float)($data['food_allowance'] ?? 0) +
+            (float)($data['other_allowance'] ?? 0);
+
+        return $data;
+    }
+
     protected function mutateFormDataBeforeSave(array $data): array
     {
         // Convert empty numeric fields to 0 to prevent null constraint violations
