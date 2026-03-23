@@ -8,6 +8,7 @@ use App\Enums\DeductionType;
 use App\Filament\Company\Resources\DeductionResource;
 use App\Models\Deduction;
 use App\Models\Employee;
+use Carbon\Carbon;
 use Filament\Actions;
 use Filament\Facades\Filament;
 use Filament\Forms;
@@ -161,7 +162,7 @@ class ListDeductions extends ListRecords
 
             $payroll = $employee->payrolls()->where('basic_salary', '>', 0)->latest()->first();
             if ($payroll) {
-                $dailyRate = round($payroll->basic_salary / 30, 2);
+                $dailyRate = round($payroll->basic_salary / Carbon::createFromFormat('Y-m', $payrollMonth)->daysInMonth, 2);
                 $amount = $dailyRate * $days;
             }
         }

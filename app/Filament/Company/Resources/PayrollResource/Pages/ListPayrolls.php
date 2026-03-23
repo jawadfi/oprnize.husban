@@ -1198,7 +1198,7 @@ class ListPayrolls extends ListRecords
                         'food_allowance' => (float) ($foodAllowance ?? 0),
                         'other_allowance' => (float) ($otherAllowance ?? 0),
                         'fees' => (float) ($fees ?? 0),
-                        'work_days' => 30,
+                        'work_days' => Carbon::createFromFormat('Y-m', $this->selectedMonth)->daysInMonth,
                     ];
 
                     // Calculate total_package (salary package only, without monthly fees)

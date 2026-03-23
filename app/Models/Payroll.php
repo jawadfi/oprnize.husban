@@ -398,6 +398,7 @@ class Payroll extends Model
         $parts = explode('-', $payrollMonth);
         $year = (int) $parts[0];
         $month = (int) $parts[1];
+        $daysInMonth = (int) Carbon::create($year, $month)->daysInMonth;
 
         $timesheet = EmployeeTimesheet::where('employee_id', $employeeId)
             ->where('company_id', $companyId)
@@ -452,13 +453,13 @@ class Payroll extends Model
 
             // A (Absent): deduct from salary ONLY — absence does NOT affect fees
             if ($absentDays > 0 && $totalSalary > 0) {
-                $salaryOnlyDeduction = $absentDays * ($totalSalary / 30);
+                $salaryOnlyDeduction = $absentDays * ($totalSalary / $daysInMonth);
             }
 
             // L + O + X: deduct from salary + fees
             $feeDeductDays = $leaveDays + $offDays + $excludedDays;
             if ($feeDeductDays > 0 && ($totalSalary + $fees) > 0) {
-                $salaryAndFeesDeduction = $feeDeductDays * (($totalSalary + $fees) / 30);
+                $salaryAndFeesDeduction = $feeDeductDays * (($totalSalary + $fees) / $daysInMonth);
             }
 
             $payroll->absence_unpaid_leave_deduction = round($salaryOnlyDeduction + $salaryAndFeesDeduction, 2);

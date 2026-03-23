@@ -7,6 +7,7 @@ use App\Enums\DeductionStatus;
 use App\Enums\DeductionType;
 use App\Models\Deduction;
 use App\Models\Employee;
+use Carbon\Carbon;
 use Filament\Actions\Imports\ImportColumn;
 use Filament\Actions\Imports\Importer;
 use Filament\Actions\Imports\Models\Import;
@@ -61,7 +62,8 @@ class DeductionImporter extends Importer
                 ->first();
 
             if ($payroll) {
-                $dailyRate = round($payroll->basic_salary / 30, 2);
+                $payrollMonthForRate = $this->data['payroll_month'] ?? now()->format('Y-m');
+                $dailyRate = round($payroll->basic_salary / Carbon::createFromFormat('Y-m', $payrollMonthForRate)->daysInMonth, 2);
                 $amount = $dailyRate * $days;
             }
         }
