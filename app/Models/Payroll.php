@@ -287,8 +287,8 @@ class Payroll extends Model
      *
      * Overtime formula: (total_salary / 240 * hours) + (basic_salary / 480 * hours)
      * Deduction rules:
-     *   A (Absent): deduct from salary only (no fees) = absent_days * (total_salary / 30)
-     *   L/O/X (Leave/Off/Excluded): deduct from salary + fees = days * ((total_salary + fees) / 30)
+     *   A (Absent): deduct from salary only (no fees) = absent_days * (total_salary / daysInMonth)
+     *   L/O/X (Leave/Off/Excluded): deduct from salary + fees = days * ((total_salary + fees) / daysInMonth)
      */
     public static function syncFromEntries(int $employeeId, int $companyId, string $payrollMonth): void
     {
