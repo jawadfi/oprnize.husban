@@ -406,6 +406,13 @@ class PayrollResource extends Resource
                     ->alignCenter()
                     ->width('150px'),
 
+                Tables\Columns\TextColumn::make('basic_salary')
+                    ->label('Basic')
+                    ->money('SAR')
+                    ->sortable()
+                    ->alignCenter()
+                    ->toggleable()
+                    ->width('100px'),
                 Tables\Columns\TextColumn::make('housing_allowance')
                     ->label('Housing Allowance')
                     ->money('SAR')
