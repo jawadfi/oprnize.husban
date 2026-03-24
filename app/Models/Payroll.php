@@ -217,9 +217,10 @@ class Payroll extends Model
 
     public function getEffectiveTotalPackageAttribute(): float
     {
-        $totalPackage = (float) ($this->total_package ?? 0);
-        if ($totalPackage <= 0 || empty($this->payroll_month)) {
-            return round($totalPackage, 2);
+        // Use computed total_salary (always in sync) instead of stored total_package
+        $totalSalary = (float) $this->total_salary;
+        if ($totalSalary <= 0 || empty($this->payroll_month)) {
+            return round($totalSalary, 0);
         }
 
         $effectiveDays = $this->effective_work_days;
@@ -229,7 +230,8 @@ class Payroll extends Model
 
         $daysInMonth = (int) Carbon::createFromFormat('Y-m-d', $this->payroll_month . '-01')->daysInMonth;
 
-        return round(($totalPackage / $daysInMonth) * $effectiveDays, 2);
+        // Excel: =ROUND(X/AF*AG, 0) where X=total_salary, AF=monthly_days, AG=work_days
+        return round(($totalSalary / $daysInMonth) * $effectiveDays, 0);
     }
 
     public function getTotalEarningAttribute(): float
@@ -267,12 +269,24 @@ class Payroll extends Model
     }
 
     /**
-     * Effective monthly fees are fixed and equal to configured monthly fees.
-     * No proration by hire date, work days, or absence.
+     * Effective monthly fees prorated by hire-date work days.
+     * Excel: =ROUND(T/AF*AG, 0) where T=fees, AF=monthly_days, AG=work_days
      */
     public function getEffectiveFeesAttribute(): float
     {
-        return round((float) ($this->fees ?? 0), 2);
+        $fees = (float) ($this->fees ?? 0);
+        if ($fees <= 0 || empty($this->payroll_month)) {
+            return round($fees, 0);
+        }
+
+        $effectiveDays = $this->effective_work_days;
+        if ($effectiveDays <= 0) {
+            return 0.0;
+        }
+
+        $daysInMonth = (int) Carbon::createFromFormat('Y-m-d', $this->payroll_month . '-01')->daysInMonth;
+
+        return round(($fees / $daysInMonth) * $effectiveDays, 0);
     }
 
     /**
@@ -381,9 +395,10 @@ class Payroll extends Model
         $payroll->overtime_hours = $totalOvertimeHours;
 
         if ($totalOvertimeHours > 0 && ($totalSalary > 0 || $basicSalary > 0)) {
+            // Excel: =ROUND(X/240*AM + M/480*AM, 0)
             $overtimeAmount = ($totalSalary / 240 * $totalOvertimeHours)
                             + ($basicSalary / 480 * $totalOvertimeHours);
-            $payroll->overtime_amount = round($overtimeAmount, 2);
+            $payroll->overtime_amount = round($overtimeAmount, 0);
         } else {
             $payroll->overtime_amount = 0;
         }
@@ -465,7 +480,8 @@ class Payroll extends Model
                 $salaryAndFeesDeduction = $feeDeductDays * (($totalSalary + $fees) / $daysInMonth);
             }
 
-            $payroll->absence_unpaid_leave_deduction = round($salaryOnlyDeduction + $salaryAndFeesDeduction, 2);
+            // Excel: =ROUND(X/AF*AD, 0)
+            $payroll->absence_unpaid_leave_deduction = round($salaryOnlyDeduction + $salaryAndFeesDeduction, 0);
         } else {
             $payroll->absence_unpaid_leave_deduction = 0;
         }
@@ -494,8 +510,11 @@ class Payroll extends Model
             - $foodSubscriptionDeduction;
 
         // Keep absence deduction from timesheet logic, only map food/other from deduction entries.
-        $payroll->food_subscription_deduction = round($foodSubscriptionDeduction, 2);
-        $payroll->other_deduction = round(max(0, $otherDeductions), 2);
+        $payroll->food_subscription_deduction = round($foodSubscriptionDeduction, 0);
+        $payroll->other_deduction = round(max(0, $otherDeductions), 0);
+
+        // Keep total_package in sync with salary components
+        $payroll->total_package = $totalSalary;
 
         $payroll->save();
     }
