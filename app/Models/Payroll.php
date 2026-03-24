@@ -160,7 +160,7 @@ class Payroll extends Model
     }
 
     /**
-     * Ensure overtime amount is always consistent with overtime hours and effective (dues) salary basis.
+     * Ensure overtime amount is always consistent with overtime hours and salary basis.
      *
      * This guards against stale records where overtime_hours was updated but
      * overtime_amount remained zero.
@@ -181,20 +181,7 @@ class Payroll extends Model
         );
         $basicSalary = (float) ($this->attributes['basic_salary'] ?? 0);
 
-        if (($totalSalary > 0 || $basicSalary > 0) && !empty($this->payroll_month)) {
-            $daysInMonth = (int) Carbon::createFromFormat('Y-m-d', $this->payroll_month . '-01')->daysInMonth;
-            $effectiveDays = (int) $this->effective_work_days;
-
-            if ($daysInMonth > 0 && $effectiveDays > 0) {
-                $effectiveTotalSalary = ($totalSalary / $daysInMonth) * $effectiveDays;
-                $effectiveBasicSalary = ($basicSalary / $daysInMonth) * $effectiveDays;
-                $computed = ($effectiveTotalSalary / 240 * $hours) + ($effectiveBasicSalary / 480 * $hours);
-                return round($computed, 0);
-            }
-        }
-
         if ($totalSalary > 0 || $basicSalary > 0) {
-            // Fallback when payroll month is not set.
             $computed = ($totalSalary / 240 * $hours) + ($basicSalary / 480 * $hours);
             return round($computed, 0);
         }
@@ -346,8 +333,7 @@ class Payroll extends Model
      * Sync payroll fields from EmployeeEntries data (overtime, additions, timesheet, deductions).
      * Finds or creates the Payroll record, then aggregates entry data into it.
      *
-    * Overtime formula (effective/dues basis):
-    * ((effective_total_salary) / 240 * hours) + ((effective_basic_salary) / 480 * hours)
+     * Overtime formula: (total_salary / 240 * hours) + (basic_salary / 480 * hours)
      * Deduction rules:
      *   A (Absent): deduct from salary only (no fees) = absent_days * (total_salary / daysInMonth)
      *   L/O/X (Leave/Off/Excluded): deduct from salary + fees = days * ((total_salary + fees) / daysInMonth)
@@ -416,14 +402,8 @@ class Payroll extends Model
         $basicSalary = (float) $payroll->basic_salary;
         $fees = (float) $payroll->fees;
 
-        $parts = explode('-', $payrollMonth);
-        $year = (int) $parts[0];
-        $month = (int) $parts[1];
-        $daysInMonth = (int) Carbon::create($year, $month)->daysInMonth;
-
         // 1. Overtime → overtime_hours & overtime_amount
-        //    Formula (effective/dues basis):
-        //    ((effective_total_salary) / 240 * hours) + ((effective_basic_salary) / 480 * hours)
+        //    Formula: (total_salary / 240 * hours) + (basic_salary / 480 * hours)
         // Collect all company IDs that may have entered OT/additions for this employee:
         // the payroll's own company + any client companies that have this employee assigned.
         $relatedCompanyIds = array_unique(array_merge(
@@ -435,8 +415,7 @@ class Payroll extends Model
         ));
 
         // 1. Overtime → overtime_hours & overtime_amount
-        //    Formula (effective/dues basis):
-        //    ((effective_total_salary) / 240 * hours) + ((effective_basic_salary) / 480 * hours)
+        //    Formula: (total_salary / 240 * hours) + (basic_salary / 480 * hours)
         $overtimes = EmployeeOvertime::where('employee_id', $employeeId)
             ->whereIn('company_id', $relatedCompanyIds)
             ->where('payroll_month', $payrollMonth)
@@ -447,17 +426,10 @@ class Payroll extends Model
         $payroll->overtime_hours = $totalOvertimeHours;
 
         if ($totalOvertimeHours > 0 && ($totalSalary > 0 || $basicSalary > 0)) {
-            $effectiveDays = (int) $payroll->effective_work_days;
-
-            if ($effectiveDays > 0 && $daysInMonth > 0) {
-                $effectiveTotalSalary = ($totalSalary / $daysInMonth) * $effectiveDays;
-                $effectiveBasicSalary = ($basicSalary / $daysInMonth) * $effectiveDays;
-                $overtimeAmount = ($effectiveTotalSalary / 240 * $totalOvertimeHours)
-                                + ($effectiveBasicSalary / 480 * $totalOvertimeHours);
-                $payroll->overtime_amount = round($overtimeAmount, 0);
-            } else {
-                $payroll->overtime_amount = 0;
-            }
+            // Excel: =ROUND(X/240*AM + M/480*AM, 0)
+            $overtimeAmount = ($totalSalary / 240 * $totalOvertimeHours)
+                            + ($basicSalary / 480 * $totalOvertimeHours);
+            $payroll->overtime_amount = round($overtimeAmount, 0);
         } else {
             $payroll->overtime_amount = 0;
         }
@@ -471,7 +443,11 @@ class Payroll extends Model
 
         $payroll->other_additions = $additions->sum('amount');
 
-        // 3. Timesheet → absence_days, deductions (salary-only vs salary+fees)
+        // 3. Timesheet → work_days, absence_days, deductions (salary-only vs salary+fees)
+        $parts = explode('-', $payrollMonth);
+        $year = (int) $parts[0];
+        $month = (int) $parts[1];
+        $daysInMonth = (int) Carbon::create($year, $month)->daysInMonth;
 
         $timesheet = EmployeeTimesheet::where('employee_id', $employeeId)
             ->where('company_id', $companyId)
