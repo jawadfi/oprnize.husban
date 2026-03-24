@@ -160,6 +160,37 @@ class Payroll extends Model
     }
 
     /**
+     * Ensure overtime amount is always consistent with overtime hours and salary basis.
+     *
+     * This guards against stale records where overtime_hours was updated but
+     * overtime_amount remained zero.
+     */
+    public function getOvertimeAmountAttribute($value): float
+    {
+        $hours = (float) ($this->attributes['overtime_hours'] ?? 0);
+        if ($hours <= 0) {
+            return 0.0;
+        }
+
+        $totalSalary = (float) (
+            ($this->attributes['basic_salary'] ?? 0) +
+            ($this->attributes['housing_allowance'] ?? 0) +
+            ($this->attributes['transportation_allowance'] ?? 0) +
+            ($this->attributes['food_allowance'] ?? 0) +
+            ($this->attributes['other_allowance'] ?? 0)
+        );
+        $basicSalary = (float) ($this->attributes['basic_salary'] ?? 0);
+
+        if ($totalSalary > 0 || $basicSalary > 0) {
+            $computed = ($totalSalary / 240 * $hours) + ($basicSalary / 480 * $hours);
+            return round($computed, 0);
+        }
+
+        // Fallback to persisted value if no salary basis is available.
+        return round((float) ($value ?? 0), 0);
+    }
+
+    /**
      * Compute the number of payable work days for this payroll record.
      * Derived from hire date / assignment start date only.
      *
