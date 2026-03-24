@@ -430,8 +430,8 @@ class EmployeeEntries extends Page implements HasForms
     }
 
     /**
-     * Overtime formula:
-     * (total_salary / 240 * hours) + (basic_salary / 480 * hours)
+     * Overtime formula (effective/dues basis):
+     * ((effective_total_salary) / 240 * hours) + ((effective_basic_salary) / 480 * hours)
      */
     protected function calculateOvertimeAmountByFormula(?float $hours = null): array
     {
@@ -505,7 +505,33 @@ class EmployeeEntries extends Page implements HasForms
             + (float) $payroll->other_allowance;
         $basicSalary = (float) $payroll->basic_salary;
 
-        $ratePerHour = ($totalSalary / 240) + ($basicSalary / 480);
+        $daysInMonth = Carbon::createFromFormat('Y-m', $this->selectedMonth)->daysInMonth;
+
+        // Build a transient payroll context so effective_work_days is calculated
+        // for the selected month even when salary basis comes from fallback payroll.
+        $contextPayroll = new Payroll([
+            'employee_id' => $this->selectedEmployeeId,
+            'company_id' => $company->id,
+            'payroll_month' => $this->selectedMonth,
+            'basic_salary' => $basicSalary,
+            'housing_allowance' => (float) $payroll->housing_allowance,
+            'transportation_allowance' => (float) $payroll->transportation_allowance,
+            'food_allowance' => (float) $payroll->food_allowance,
+            'other_allowance' => (float) $payroll->other_allowance,
+        ]);
+
+        $effectiveDays = (int) $contextPayroll->effective_work_days;
+        if ($effectiveDays <= 0 || $daysInMonth <= 0) {
+            return [
+                'rate_per_hour' => 0.0,
+                'amount' => 0.0,
+            ];
+        }
+
+        $effectiveTotalSalary = ($totalSalary / $daysInMonth) * $effectiveDays;
+        $effectiveBasicSalary = ($basicSalary / $daysInMonth) * $effectiveDays;
+
+        $ratePerHour = ($effectiveTotalSalary / 240) + ($effectiveBasicSalary / 480);
         $amount = $ratePerHour * $hours;
 
         return [
