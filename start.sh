@@ -20,4 +20,4 @@ echo "==> Running seeders..."
 php artisan db:seed --force
 
 echo "==> Starting server..."
-exec php -S 0.0.0.0:${PORT:-10000} -t /var/www/html/public /var/www/html/public/index.php
+exec php -S 0.0.0.0:${PORT:-10000} -t /var/www/html/public /var/www/html/public/router.php
