@@ -1,5 +1,5 @@
-# Use PHP 8.3 FPM Alpine
-FROM php:8.3-fpm-alpine
+# Use PHP 8.3 CLI Alpine (built-in server; no FPM needed)
+FROM php:8.3-cli-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
