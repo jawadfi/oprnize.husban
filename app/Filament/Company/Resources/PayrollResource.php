@@ -68,13 +68,22 @@ class PayrollResource extends Resource
                 ->where('company_id', $companyId)
                 ->whereHas('employee', fn($q) => $q->where('company_id', $companyId));
         } else {
-            // Receive Service: Show only payrolls created by this CLIENT (company_id = client)
+            // CLIENT: show own payrolls + provider payrolls for assigned employees
+            // (provider contracted payrolls need to be accessible for ViewRecord to resolve them)
+            $clientId = $companyId;
             return parent::getEloquentQuery()
-                ->where('company_id', $companyId)
-                ->whereHas('employee.assigned', fn($q) => 
-                    $q->where('employee_assigned.company_id', $companyId)
-                      ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
-                );
+                ->where(function ($q) use ($clientId) {
+                    // Own payrolls (company_id = this client)
+                    $q->where('company_id', $clientId)
+                    // Provider's payrolls for employees assigned to this client
+                      ->orWhere(function ($sub) use ($clientId) {
+                          $sub->whereHas('company', fn($cq) => $cq->where('type', CompanyTypes::PROVIDER))
+                              ->whereHas('employee.assigned', fn($aq) =>
+                                  $aq->where('employee_assigned.company_id', $clientId)
+                                     ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+                              );
+                      });
+                });
         }
     }
 
