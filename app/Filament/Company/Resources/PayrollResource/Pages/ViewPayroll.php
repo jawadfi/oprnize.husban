@@ -2,8 +2,13 @@
 
 namespace App\Filament\Company\Resources\PayrollResource\Pages;
 
+use App\Enums\CompanyTypes;
+use App\Enums\PayrollStatus;
 use App\Filament\Company\Resources\PayrollResource;
+use App\Models\Company;
+use App\Models\User;
 use Filament\Actions;
+use Filament\Facades\Filament;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
@@ -15,7 +20,20 @@ class ViewPayroll extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\EditAction::make(),
+            // Edit is only allowed in contracted mode (draft status) and only by the PROVIDER
+            Actions\EditAction::make()
+                ->visible(function () {
+                    $user = Filament::auth()->user();
+                    $companyType = $user instanceof Company
+                        ? $user->type
+                        : ($user instanceof User ? $user->company?->type : null);
+
+                    if ($companyType !== CompanyTypes::PROVIDER) {
+                        return false;
+                    }
+
+                    return $this->record->status === PayrollStatus::DRAFT;
+                }),
             Actions\DeleteAction::make(),
         ];
     }

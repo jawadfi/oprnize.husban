@@ -516,7 +516,7 @@ class PayrollResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
-                    ->visible(fn() => $payrollCategory === 'run'),
+                    ->visible(fn() => $payrollCategory === 'contracted'),
 
                 // CLIENT: Submit to Provider (send movements/deductions)
                 Tables\Actions\Action::make('submit_to_provider')
