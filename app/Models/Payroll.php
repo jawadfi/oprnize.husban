@@ -223,7 +223,12 @@ class Payroll extends Model
             return round($totalSalary, 0);
         }
 
-        $effectiveDays = $this->effective_work_days;
+        // Match Excel AG (Work Days of current month): use saved work_days.
+        // Fallback to effective_work_days only when work_days is missing.
+        $effectiveDays = (int) ($this->work_days ?? 0);
+        if ($effectiveDays <= 0) {
+            $effectiveDays = $this->effective_work_days;
+        }
         if ($effectiveDays <= 0) {
             return 0.0;
         }
@@ -279,7 +284,12 @@ class Payroll extends Model
             return round($fees, 0);
         }
 
-        $effectiveDays = $this->effective_work_days;
+        // Match Excel AG (Work Days of current month): use saved work_days.
+        // Fallback to effective_work_days only when work_days is missing.
+        $effectiveDays = (int) ($this->work_days ?? 0);
+        if ($effectiveDays <= 0) {
+            $effectiveDays = $this->effective_work_days;
+        }
         if ($effectiveDays <= 0) {
             return 0.0;
         }
