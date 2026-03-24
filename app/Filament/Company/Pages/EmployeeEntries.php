@@ -652,8 +652,7 @@ class EmployeeEntries extends Page implements HasForms
         $calc = $this->calculateOvertimeAmountByFormula($this->overtimeHours);
         $ratePerHour = $calc['rate_per_hour'];
         $amount = $calc['amount'];
-        $user = Filament::auth()->user();
-        $status = ($user instanceof \App\Models\User && $user->isBranchManager()) ? 'pending' : 'approved';
+        $status = 'approved';
 
         EmployeeOvertime::create([
             'employee_id' => $this->selectedEmployeeId,
@@ -672,9 +671,7 @@ class EmployeeEntries extends Page implements HasForms
         $this->loadExistingEntries();
         Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $targetMonth);
         Notification::make()
-            ->title($status === 'approved'
-                ? 'تم إضافة واعتماد ساعات العمل الإضافي بنجاح'
-                : 'تم إضافة ساعات العمل الإضافي بانتظار الاعتماد')
+            ->title('تم إضافة واعتماد ساعات العمل الإضافي بنجاح')
             ->success()
             ->send();
     }
@@ -730,7 +727,6 @@ class EmployeeEntries extends Page implements HasForms
         $overtime = EmployeeOvertime::where('id', $id)
             ->where('employee_id', $this->selectedEmployeeId)
             ->where('company_id', $company->id)
-            ->where('status', 'pending')
             ->first();
 
         if (! $overtime) {
@@ -782,7 +778,7 @@ class EmployeeEntries extends Page implements HasForms
             'reason' => $this->additionReason,
             'description' => $this->additionDescription,
             'is_recurring' => $this->additionRecurring,
-            'status' => 'pending',
+            'status' => 'approved',
             'created_by_company_id' => $company->id,
         ]);
 
@@ -794,9 +790,16 @@ class EmployeeEntries extends Page implements HasForms
 
     public function deleteAddition(int $id): void
     {
-        EmployeeAddition::where('id', $id)->where('status', 'pending')->delete();
-        $this->loadExistingEntries();
         $company = $this->getCompanyUser();
+        if (! $company) {
+            return;
+        }
+
+        EmployeeAddition::where('id', $id)
+            ->where('employee_id', $this->selectedEmployeeId)
+            ->where('company_id', $company->id)
+            ->delete();
+        $this->loadExistingEntries();
         Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $this->selectedMonth);
         Notification::make()->title('تم الحذف')->success()->send();
     }
@@ -843,7 +846,7 @@ class EmployeeEntries extends Page implements HasForms
             'days' => $this->deductionDays ?? 0,
             'daily_rate' => $this->deductionDailyRate ?? 0,
             'amount' => $this->deductionAmount,
-            'status' => 'pending',
+            'status' => 'approved',
             'is_recurring' => $this->deductionRecurring,
             'created_by_company_id' => $company->id,
         ]);
@@ -856,9 +859,16 @@ class EmployeeEntries extends Page implements HasForms
 
     public function deleteDeduction(int $id): void
     {
-        Deduction::where('id', $id)->where('status', 'pending')->delete();
-        $this->loadExistingEntries();
         $company = $this->getCompanyUser();
+        if (! $company) {
+            return;
+        }
+
+        Deduction::where('id', $id)
+            ->where('employee_id', $this->selectedEmployeeId)
+            ->where('company_id', $company->id)
+            ->delete();
+        $this->loadExistingEntries();
         Payroll::syncFromEntries($this->selectedEmployeeId, $company->id, $this->selectedMonth);
         Notification::make()->title('تم الحذف')->success()->send();
     }
@@ -1124,7 +1134,7 @@ class EmployeeEntries extends Page implements HasForms
                             'amount' => $amount,
                             'notes' => $normalized['notes'] ?? $normalized['ملاحظات'] ?? null,
                             'is_recurring' => false,
-                            'status' => 'pending',
+                            'status' => 'approved',
                             'created_by_company_id' => $company->id,
                         ]);
                         $created++;
@@ -1140,7 +1150,7 @@ class EmployeeEntries extends Page implements HasForms
                             'reason' => $normalized['reason'] ?? $normalized['السبب'] ?? null,
                             'description' => $normalized['description'] ?? $normalized['الوصف'] ?? null,
                             'is_recurring' => false,
-                            'status' => 'pending',
+                            'status' => 'approved',
                             'created_by_company_id' => $company->id,
                         ]);
                         $created++;
@@ -1158,7 +1168,7 @@ class EmployeeEntries extends Page implements HasForms
                             'days' => intval($normalized['days'] ?? $normalized['الأيام'] ?? 0),
                             'daily_rate' => floatval($normalized['daily_rate'] ?? 0),
                             'amount' => $amount,
-                            'status' => 'pending',
+                            'status' => 'approved',
                             'is_recurring' => false,
                             'created_by_company_id' => $company->id,
                         ]);

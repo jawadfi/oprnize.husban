@@ -80,21 +80,19 @@ class ViewPayroll extends ViewRecord
                 Infolists\Components\Section::make('Earnings')
                     ->schema([
                         Infolists\Components\TextEntry::make('effective_total_package')
-                            ->label('Effective Total Package')
+                            ->label('Dues Total Package')
                             ->money('SAR'),
                         Infolists\Components\TextEntry::make('total_package')
-                            ->label('Configured Total Package')
+                            ->label('Contracted Total Package')
                             ->money('SAR'),
                         Infolists\Components\TextEntry::make('effective_fees')
                             ->label('Effective Monthly Fees')
                             ->money('SAR'),
                         Infolists\Components\TextEntry::make('fees')
-                            ->label('Configured Monthly Fees')
+                            ->label('Contracted Monthly Fees')
                             ->money('SAR'),
                         Infolists\Components\TextEntry::make('effective_work_days')
                             ->label('Work Days (Effective)'),
-                        Infolists\Components\TextEntry::make('work_days')
-                            ->label('Work Days (Saved)'),
                         Infolists\Components\TextEntry::make('added_days')
                             ->label('Added Days'),
                         Infolists\Components\TextEntry::make('overtime_hours')

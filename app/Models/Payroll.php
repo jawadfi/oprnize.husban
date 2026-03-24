@@ -223,12 +223,7 @@ class Payroll extends Model
             return round($totalSalary, 0);
         }
 
-        // Match Excel AG (Work Days of current month): use saved work_days.
-        // Fallback to effective_work_days only when work_days is missing.
-        $effectiveDays = (int) ($this->work_days ?? 0);
-        if ($effectiveDays <= 0) {
-            $effectiveDays = $this->effective_work_days;
-        }
+        $effectiveDays = $this->effective_work_days;
         if ($effectiveDays <= 0) {
             return 0.0;
         }
@@ -284,12 +279,7 @@ class Payroll extends Model
             return round($fees, 0);
         }
 
-        // Match Excel AG (Work Days of current month): use saved work_days.
-        // Fallback to effective_work_days only when work_days is missing.
-        $effectiveDays = (int) ($this->work_days ?? 0);
-        if ($effectiveDays <= 0) {
-            $effectiveDays = $this->effective_work_days;
-        }
+        $effectiveDays = $this->effective_work_days;
         if ($effectiveDays <= 0) {
             return 0.0;
         }
@@ -447,14 +437,13 @@ class Payroll extends Model
                 $leaveDays     = 0;
                 $offDays       = 0;
                 $excludedDays  = 0;
-                $workDays      = 0;
 
                 foreach ($attendanceData as $day => $status) {
                     if ((int) $day > $today->day) {
                         continue; // Skip future days that haven't happened yet
                     }
                     match ($status) {
-                        'P' => $workDays++,
+                        'P' => null,
                         'A' => $absentDays++,
                         'L' => $leaveDays++,
                         'O' => $offDays++,
@@ -463,11 +452,9 @@ class Payroll extends Model
                     };
                 }
 
-                $payroll->work_days    = $workDays;
                 $payroll->absence_days = $absentDays;
             } else {
                 // Month is complete — use pre-computed totals from timesheet.
-                $payroll->work_days    = $timesheet->work_days;
                 $payroll->absence_days = $timesheet->absent_days;
 
                 $absentDays   = (int) $timesheet->absent_days;

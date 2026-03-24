@@ -42,7 +42,6 @@ class EditPayroll extends EditRecord
             'other_allowance',
             'fees',
             'total_package',
-            'work_days',
             'added_days',
             'overtime_hours',
             'overtime_amount',

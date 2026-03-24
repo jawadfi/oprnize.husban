@@ -225,12 +225,6 @@ class PayrollResource extends Resource
                             ->default(0)
                             ->step(0.01)
                             ->live(onBlur: true),
-                        Forms\Components\TextInput::make('work_days')
-                            ->label('Work Days')
-                            ->numeric()
-                            ->default(0)
-                            ->integer()
-                            ->live(onBlur: true),
                         Forms\Components\TextInput::make('added_days')
                             ->label('Added Days')
                             ->numeric()
