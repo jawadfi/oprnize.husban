@@ -516,7 +516,16 @@ class PayrollResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
-                    ->visible(fn() => $payrollCategory === 'contracted'),
+                    ->visible(function () use ($payrollCategory) {
+                        if ($payrollCategory !== 'contracted') {
+                            return false;
+                        }
+                        $user = Filament::auth()->user();
+                        $companyType = $user instanceof Company
+                            ? $user->type
+                            : ($user instanceof User ? $user->company?->type : null);
+                        return $companyType === CompanyTypes::PROVIDER;
+                    }),
 
                 // CLIENT: Submit to Provider (send movements/deductions)
                 Tables\Actions\Action::make('submit_to_provider')
