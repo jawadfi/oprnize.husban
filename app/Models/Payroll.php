@@ -519,8 +519,7 @@ class Payroll extends Model
         // We do NOT add it here to avoid double-deduction.
 
         // 4. Deductions → other_deduction
-        // Use $relatedCompanyIds so deductions entered by client companies are included
-        // (same approach as overtime and additions above).
+        // Use $relatedCompanyIds so client-added deductions are included in provider contracted payroll
         $deductions = Deduction::where('employee_id', $employeeId)
             ->whereIn('company_id', $relatedCompanyIds)
             ->where('payroll_month', $payrollMonth)
