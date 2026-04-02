@@ -206,9 +206,14 @@ class Payroll extends Model
 
         $monthStart = Carbon::createFromFormat('Y-m-d', $this->payroll_month . '-01')->startOfDay();
         $monthEnd = $monthStart->copy()->endOfMonth();
-        $daysInMonth = (int) $monthStart->daysInMonth;
+        $today = Carbon::today();
 
-        $serviceStartDay = 1;
+        // Future payroll month should not accrue any payable days yet.
+        if ($monthStart->greaterThan($today)) {
+            return 0;
+        }
+
+        $serviceStartDate = $monthStart->copy();
 
         // Check approved OR ended assignment (ended assignments still need proration)
         $assignment = EmployeeAssigned::query()
@@ -223,37 +228,43 @@ class Payroll extends Model
             if ($start->greaterThan($monthEnd)) {
                 return 0;
             }
-            if ($start->year === $monthStart->year && $start->month === $monthStart->month) {
-                $serviceStartDay = (int) $start->day;
-            }
+
+            $serviceStartDate = $start->greaterThan($monthStart)
+                ? $start->copy()->startOfDay()
+                : $monthStart->copy();
         } elseif ($this->employee && $this->employee->hire_date) {
             $hireDate = Carbon::parse($this->employee->hire_date);
             if ($hireDate->greaterThan($monthEnd)) {
                 return 0;
             }
-            if ($hireDate->year === $monthStart->year && $hireDate->month === $monthStart->month) {
-                $serviceStartDay = (int) $hireDate->day;
-            }
+
+            $serviceStartDate = $hireDate->greaterThan($monthStart)
+                ? $hireDate->copy()->startOfDay()
+                : $monthStart->copy();
         }
 
-        // Inclusive: hired on day 3 of a 31-day month => 29 payable days.
-        $payableDays = $serviceStartDay <= 1
-            ? $daysInMonth
-            : max(0, ($daysInMonth - $serviceStartDay) + 1);
+        // Current month is in-progress: cap payable days at today.
+        $serviceEndDate = ($monthStart->year === $today->year && $monthStart->month === $today->month)
+            ? $today->copy()->endOfDay()
+            : $monthEnd->copy();
 
-        // Check if assignment ended within this month → limit by end_date day
+        // Ended assignment: cap payable days at assignment end date.
         if ($assignment && $assignment->end_date) {
             $end = Carbon::parse($assignment->end_date);
             if ($end->lessThan($monthStart)) {
                 return 0; // assignment already ended before this month
             }
-            if ($end->year === $monthStart->year && $end->month === $monthStart->month) {
-                $endDay = (int) $end->day;
-                $payableDays = min($payableDays, $endDay);
+
+            if ($end->lessThan($serviceEndDate)) {
+                $serviceEndDate = $end->copy()->endOfDay();
             }
         }
 
-        return $payableDays;
+        if ($serviceEndDate->lessThan($serviceStartDate)) {
+            return 0;
+        }
+
+        return $serviceStartDate->diffInDays($serviceEndDate) + 1;
     }
 
     public function getEffectiveTotalPackageAttribute(): float
