@@ -48,12 +48,17 @@ class AssignedEmployeeResource extends Resource
             return parent::getEloquentQuery()->whereRaw('1 = 0'); // Return empty query
         }
         
-        return parent::getEloquentQuery()->whereHas('assigned',function ($query) use ($companyId) {
+        return parent::getEloquentQuery()->whereHas('assigned', function ($query) use ($companyId) {
             return $query
                 ->where('employee_assigned.company_id', $companyId)
-                ->where('employee_assigned.status',EmployeeAssignedStatus::APPROVED)
-                ->whereDate('employee_assigned.start_date','<=',now());
-        });
+                ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+                ->whereDate('employee_assigned.start_date', '<=', now());
+        })->with(['assigned' => function ($query) use ($companyId) {
+            // Eager-load the specific assignment so getTableColumns() can read start_date without N+1
+            $query->where('employee_assigned.company_id', $companyId)
+                  ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
+                  ->orderByDesc('employee_assigned.start_date');
+        }]);
     }
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
@@ -72,7 +77,11 @@ class AssignedEmployeeResource extends Resource
             ->headerActions([
                 FilamentExportHeaderAction::make('export'),
             ])
-            ->columns(EmployeeSchema::getTableColumns())
+            ->columns((function () {
+                $user = Filament::auth()->user();
+                $clientCompanyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+                return EmployeeSchema::getTableColumns(true, '', $clientCompanyId);
+            })())
             ->filters([
                 //
             ])

@@ -1234,7 +1234,9 @@ class ListPayrolls extends ListRecords
                         $created++;
                     }
 
-                    // Optional: update employee hiring date/location if provided in the import file.
+                    // Optional: update hiring date and location from the import file.
+                    // For CLIENT company: "Hiring Date" sets assignment start_date in employee_assigned.
+                    // For PROVIDER company: "Hiring Date" sets employee hire_date.
                     $hiringDate = $this->getSalaryField($normalized, [
                         'hiring date',
                     ]);
@@ -1246,12 +1248,21 @@ class ListPayrolls extends ListRecords
                     ]);
 
                     $shouldSaveEmployee = false;
+                    $isClientImport = ($this->getCurrentCompanyType() === CompanyTypes::CLIENT);
 
                     if ($hiringDate) {
                         try {
                             $parsed = Carbon::parse((string) $hiringDate);
-                            $employee->hire_date = $parsed->format('Y-m-d');
-                            $shouldSaveEmployee = true;
+                            if ($isClientImport) {
+                                // CLIENT: update the assignment start_date for this company
+                                \App\Models\EmployeeAssigned::where('employee_id', $employee->id)
+                                    ->where('company_id', $companyId)
+                                    ->update(['start_date' => $parsed->format('Y-m-d')]);
+                            } else {
+                                // PROVIDER: update the employee's global hire_date
+                                $employee->hire_date = $parsed->format('Y-m-d');
+                                $shouldSaveEmployee = true;
+                            }
                         } catch (\Throwable $e) {
                             // Ignore invalid date values from import file.
                         }

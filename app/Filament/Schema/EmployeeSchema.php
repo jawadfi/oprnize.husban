@@ -38,8 +38,35 @@ class EmployeeSchema
 
         ];
     }
-    public static function getTableColumns($withCompanyAssigned=true,$path=''): array
+    public static function getTableColumns($withCompanyAssigned=true,$path='',$clientCompanyId=null): array
     {
+        // When $clientCompanyId is given (client-side view), show assignment start_date as "Hiring Date"
+        $hiringDateColumn = $clientCompanyId
+            ? Tables\Columns\TextColumn::make('assignment_start_date')
+                ->label('Hiring Date')
+                ->state(function ($record) use ($clientCompanyId) {
+                    // Use eager-loaded relationship if available, otherwise query
+                    if ($record->relationLoaded('assigned') && $record->assigned->count()) {
+                        $first = $record->assigned->first();
+                        return $first?->pivot?->start_date;
+                    }
+                    return \App\Models\EmployeeAssigned::where('employee_id', $record->id)
+                        ->where('company_id', $clientCompanyId)
+                        ->where('status', \App\Enums\EmployeeAssignedStatus::APPROVED)
+                        ->orderByDesc('start_date')
+                        ->value('start_date');
+                })
+                ->date('Y-m-d')
+                ->toggleable()
+                ->sortable(false)
+                ->searchable(false)
+            : Tables\Columns\TextColumn::make($path.'hire_date')
+                ->label('Hiring Date')
+                ->date('Y-m-d')
+                ->toggleable()
+                ->sortable()
+                ->searchable();
+
         return [
             Tables\Columns\TextColumn::make('row_index')
                 ->label('#')
@@ -84,7 +111,7 @@ class EmployeeSchema
                 ->toggleable()
                 ->sortable()
                 ->searchable(),
-            Tables\Columns\TextColumn::make($path.'hire_date')->label('Hiring Date')->date('Y-m-d')->toggleable()->sortable()->searchable(),
+            $hiringDateColumn,
             Tables\Columns\TextColumn::make($path.'job_title')->label('Title')->sortable()->searchable(),
             Tables\Columns\TextColumn::make($path.'department')->label('Department')->toggleable()->sortable()->searchable(),
             Tables\Columns\TextColumn::make($path.'currentCompanyAssigned.name')
