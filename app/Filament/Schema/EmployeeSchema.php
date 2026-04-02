@@ -112,6 +112,21 @@ class EmployeeSchema
                 ->sortable()
                 ->searchable(),
             $hiringDateColumn,
+            Tables\Columns\TextColumn::make('assignment_start_date_provider')
+                ->label('Client Since')
+                ->state(function ($record) use ($path) {
+                    $employeeId = $path === 'employee.' ? data_get($record, 'employee_id') : data_get($record, 'id');
+                    if (! $employeeId) return null;
+                    return EmployeeAssigned::where('employee_id', $employeeId)
+                        ->where('status', EmployeeAssignedStatus::APPROVED)
+                        ->orderByDesc('start_date')
+                        ->value('start_date');
+                })
+                ->date('Y-m-d')
+                ->toggleable()
+                ->sortable(false)
+                ->searchable(false)
+                ->visible(fn($livewire) => $withCompanyAssigned && $livewire?->activeTab === EmployeeStatusStatus::IN_SERVICE),
             Tables\Columns\TextColumn::make($path.'job_title')->label('Title')->sortable()->searchable(),
             Tables\Columns\TextColumn::make($path.'department')->label('Department')->toggleable()->sortable()->searchable(),
             Tables\Columns\TextColumn::make($path.'currentCompanyAssigned.name')
