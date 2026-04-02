@@ -11,6 +11,7 @@ final class EmployeeAssignedStatus extends Enum
     const PENDING = 'pending';
     const APPROVED = 'approved';
     const DECLINED = 'declined';
+    const ENDED = 'ended';
 
     public static function getTranslatedEnum(): array
     {
@@ -18,6 +19,7 @@ final class EmployeeAssignedStatus extends Enum
           self::PENDING => 'بانتظار الموافقة',
           self::APPROVED => 'موافق عليه',
           self::DECLINED => 'مرفوض',
+          self::ENDED => 'منتهي الخدمة',
         ];
     }
     public static function getColors(): array
@@ -26,6 +28,7 @@ final class EmployeeAssignedStatus extends Enum
             self::PENDING => 'primary',
             self::APPROVED => 'success',
             self::DECLINED => 'danger',
+            self::ENDED => 'gray',
         ];
     }
 }

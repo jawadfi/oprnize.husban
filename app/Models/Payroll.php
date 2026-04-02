@@ -210,16 +210,16 @@ class Payroll extends Model
 
         $serviceStartDay = 1;
 
-        // Check approved assignment first
-        $assignmentStart = EmployeeAssigned::query()
+        // Check approved OR ended assignment (ended assignments still need proration)
+        $assignment = EmployeeAssigned::query()
             ->where('employee_id', $this->employee_id)
             ->where('company_id', $this->company_id)
-            ->where('status', EmployeeAssignedStatus::APPROVED)
+            ->whereIn('status', [EmployeeAssignedStatus::APPROVED, EmployeeAssignedStatus::ENDED])
             ->orderByDesc('start_date')
-            ->value('start_date');
+            ->first();
 
-        if ($assignmentStart) {
-            $start = Carbon::parse($assignmentStart);
+        if ($assignment) {
+            $start = Carbon::parse($assignment->start_date);
             if ($start->greaterThan($monthEnd)) {
                 return 0;
             }
@@ -237,11 +237,21 @@ class Payroll extends Model
         }
 
         // Inclusive: hired on day 3 of a 31-day month => 29 payable days.
-        // Note: absence days do NOT reduce effective_work_days used for fees.
-        // Absence deduction is handled separately via absence_unpaid_leave_deduction.
         $payableDays = $serviceStartDay <= 1
             ? $daysInMonth
             : max(0, ($daysInMonth - $serviceStartDay) + 1);
+
+        // Check if assignment ended within this month → limit by end_date day
+        if ($assignment && $assignment->end_date) {
+            $end = Carbon::parse($assignment->end_date);
+            if ($end->lessThan($monthStart)) {
+                return 0; // assignment already ended before this month
+            }
+            if ($end->year === $monthStart->year && $end->month === $monthStart->month) {
+                $endDay = (int) $end->day;
+                $payableDays = min($payableDays, $endDay);
+            }
+        }
 
         return $payableDays;
     }
@@ -519,9 +529,8 @@ class Payroll extends Model
         // We do NOT add it here to avoid double-deduction.
 
         // 4. Deductions → other_deduction
-        // Use $relatedCompanyIds so client-added deductions are included in provider contracted payroll
         $deductions = Deduction::where('employee_id', $employeeId)
-            ->whereIn('company_id', $relatedCompanyIds)
+            ->where('company_id', $companyId)
             ->where('payroll_month', $payrollMonth)
             ->where('status', 'approved')
             ->get();

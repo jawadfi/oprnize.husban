@@ -16,6 +16,7 @@ class EmployeeAssigned extends Pivot
         'branch_id',
         'start_date',
         'arrival_date',
+        'end_date',
     ];
 
     protected function casts(): array
@@ -23,6 +24,7 @@ class EmployeeAssigned extends Pivot
         return [
             'start_date' => 'date',
             'arrival_date' => 'date',
+            'end_date' => 'date',
         ];
     }
 

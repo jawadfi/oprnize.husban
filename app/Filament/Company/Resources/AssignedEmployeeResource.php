@@ -8,8 +8,11 @@ use App\Enums\EmployeeAssignedStatus;
 use App\Filament\Company\Resources\AssignedEmployeeResource\Pages;
 use App\Filament\Schema\EmployeeSchema;
 use App\Models\Employee;
+use App\Models\EmployeeAssigned;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -54,7 +57,6 @@ class AssignedEmployeeResource extends Resource
                 ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
                 ->whereDate('employee_assigned.start_date', '<=', now());
         })->with(['assigned' => function ($query) use ($companyId) {
-            // Eager-load the specific assignment so getTableColumns() can read start_date without N+1
             $query->where('employee_assigned.company_id', $companyId)
                   ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
                   ->orderByDesc('employee_assigned.start_date');
@@ -86,11 +88,71 @@ class AssignedEmployeeResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\Action::make('end_service')
+                    ->label('إنهاء الخدمة')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('إنهاء تعيين الموظف')
+                    ->modalDescription('سيتم إنهاء الخدمة وإزالة الموظف من حسابك. لن يتم حذفه من النظام.')
+                    ->form([
+                        DatePicker::make('end_date')
+                            ->label('تاريخ نهاية التعيين')
+                            ->default(now()->format('Y-m-d'))
+                            ->maxDate(now())
+                            ->required(),
+                    ])
+                    ->action(function (Employee $record, array $data) {
+                        $user = Filament::auth()->user();
+                        $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+
+                        EmployeeAssigned::where('employee_id', $record->id)
+                            ->where('company_id', $companyId)
+                            ->where('status', EmployeeAssignedStatus::APPROVED)
+                            ->update([
+                                'status'   => EmployeeAssignedStatus::ENDED,
+                                'end_date' => $data['end_date'],
+                            ]);
+
+                        Notification::make()
+                            ->title('تم إنهاء خدمة الموظف / Service ended')
+                            ->body($record->name . ' — ' . $data['end_date'])
+                            ->success()
+                            ->send();
+                    }),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                Tables\Actions\BulkAction::make('bulk_end_service')
+                    ->label('إنهاء الخدمة (مجموعة)')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('إنهاء تعيين الموظفين المحددين')
+                    ->form([
+                        DatePicker::make('end_date')
+                            ->label('تاريخ نهاية التعيين')
+                            ->default(now()->format('Y-m-d'))
+                            ->maxDate(now())
+                            ->required(),
+                    ])
+                    ->action(function ($records, array $data) {
+                        $user = Filament::auth()->user();
+                        $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
+
+                        EmployeeAssigned::whereIn('employee_id', $records->pluck('id'))
+                            ->where('company_id', $companyId)
+                            ->where('status', EmployeeAssignedStatus::APPROVED)
+                            ->update([
+                                'status'   => EmployeeAssignedStatus::ENDED,
+                                'end_date' => $data['end_date'],
+                            ]);
+
+                        Notification::make()
+                            ->title('تم إنهاء الخدمة لـ ' . $records->count() . ' موظفين')
+                            ->success()
+                            ->send();
+                    })
+                    ->deselectRecordsAfterCompletion(),
             ]);
     }
 
