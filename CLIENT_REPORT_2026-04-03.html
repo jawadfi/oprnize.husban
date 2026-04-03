@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>تقرير أعمال اليوم - 2026-04-03</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --primary: #0f6ab4;
+      --success: #0f766e;
+      --warn: #b45309;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, "Noto Kufi Arabic", sans-serif;
+      background: linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      color: var(--text);
+      line-height: 1.8;
+      padding: 28px;
+    }
+
+    .container {
+      max-width: 1060px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .hero {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 22px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      color: #0b3d66;
+    }
+
+    .meta {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px;
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      color: #0b3d66;
+    }
+
+    h3 {
+      margin: 14px 0 8px;
+      font-size: 17px;
+      color: #0f4f86;
+    }
+
+    ul {
+      margin: 8px 0;
+      padding-right: 22px;
+    }
+
+    li { margin: 6px 0; }
+
+    .pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid transparent;
+      margin-left: 6px;
+    }
+
+    .pill.success {
+      color: var(--success);
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+    }
+
+    .pill.primary {
+      color: var(--primary);
+      background: #eff6ff;
+      border-color: #bfdbfe;
+    }
+
+    .pill.warn {
+      color: var(--warn);
+      background: #fffbeb;
+      border-color: #fde68a;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: right;
+      font-size: 14px;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #374151;
+      font-weight: 700;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    .footer {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="hero">
+      <h1>تقرير إنجازات اليوم للعميل</h1>
+      <p class="meta">المشروع: oprnize.husban.net | التاريخ: 2026-04-03</p>
+    </section>
+
+    <section class="card">
+      <h2>الملخص التنفيذي</h2>
+      <ul>
+        <li>تم تنفيذ حزمة تحسينات مهمة على دورة حياة الموظف داخل شركة العميل، وآلية احتساب الرواتب، وسير عمل إدخالات الفروع.</li>
+        <li>تم استبدال الحذف المباشر للموظف من جهة العميل بآلية <strong>إنهاء خدمة</strong> تحفظ السجل وتضمن دقة الرواتب.</li>
+        <li>تم تصحيح منطق أيام العمل الفعلية للشهر الجاري حتى لا يتم احتساب أيام مستقبلية قبل موعدها.</li>
+        <li>تم تفعيل صفحة مركزية لإدخالات مدراء الفروع مع اعتماد تلقائي عند الإرسال وإضافة فلاتر حسب الشركة المزودة والفرع.</li>
+      </ul>
+      <p>
+        <span class="pill success">تم التنفيذ</span>
+        <span class="pill primary">تم الرفع على GitHub</span>
+        <span class="pill warn">جاهز للتجربة من العميل</span>
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>التفاصيل الفنية المنفذة</h2>
+
+      <h3>1) توحيد معنى تاريخ التعيين بين المزود والعميل</h3>
+      <ul>
+        <li>العميل أصبح يعتمد تاريخ بداية التعيين في علاقة التخصيص (assignment start date) بدل تاريخ تعيين الموظف الأساسي لدى المزود.</li>
+        <li>تمت مواءمة عرض العمود في الجداول وكذلك التعامل مع الاستيراد بحيث يتم تحديث الحقل الصحيح حسب نوع الشركة.</li>
+      </ul>
+
+      <h3>2) تحسين شاشة المزود بإضافة Client Since</h3>
+      <ul>
+        <li>تمت إضافة عمود <strong>Client Since</strong> في شاشة الموظفين لدى المزود (تبويب In Service) لإظهار تاريخ بداية الخدمة لدى العميل.</li>
+      </ul>
+
+      <h3>3) ميزة إنهاء الخدمة بدل الحذف</h3>
+      <ul>
+        <li>إضافة حالة جديدة للتعيين: <strong>ENDED</strong>.</li>
+        <li>إضافة حقل <strong>end_date</strong> في جدول التخصيصات.</li>
+        <li>إضافة إجراءات صفية وجماعية في شاشة موظفي العميل: <strong>إنهاء الخدمة</strong> بدل الحذف.</li>
+        <li>عند إنهاء الخدمة: الموظف يختفي من عرض العميل، مع بقاء السجل عند المزود للحفاظ على التاريخ التشغيلي.</li>
+      </ul>
+
+      <h3>4) تصحيح احتساب أيام العمل الفعلية للرواتب</h3>
+      <ul>
+        <li>تم تصحيح احتساب <strong>Effective Work Days</strong> للشهر الجاري ليتم الإيقاف عند تاريخ اليوم، وليس نهاية الشهر.</li>
+        <li>تمت مراعاة حدود فترة الخدمة من تاريخ البداية وحتى تاريخ النهاية (إن وجد) ضمن نفس الشهر.</li>
+        <li>تم إيقاف احتساب أي أيام في الشهور المستقبلية.</li>
+      </ul>
+
+      <h3>5) صفحة مركزية لإدخالات مدراء الفروع مع اعتماد تلقائي عند الإرسال</h3>
+      <ul>
+        <li>تفعيل صفحة إدخالات الفروع لتكون نقطة مركزية تستقبل إدخالات جميع المدراء.</li>
+        <li>تحديث المسار ليصبح: Submit = Approved مباشرة بدون زر اعتماد منفصل.</li>
+        <li>عند الإرسال، يتم ترحيل الإدخال تلقائيًا إلى سجلات الرواتب المؤثرة (إضافات/حسومات/ساعات/تايم شيت) ثم مزامنة الرواتب فورًا.</li>
+        <li>إضافة فلاتر: <strong>حسب الشركة المزودة</strong> و<strong>حسب الفرع</strong>.</li>
+        <li>منع مدير الفرع من تجاوز هذا المسار عبر صفحة الإدخالات المباشرة القديمة.</li>
+      </ul>
+    </section>
+
+
+  </div>
+</body>
+</html>

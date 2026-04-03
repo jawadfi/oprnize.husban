@@ -364,37 +364,9 @@ class BranchEntryResource extends Resource
                     ->icon('heroicon-o-paper-airplane')
                     ->color('success')
                     ->requiresConfirmation()
-                    ->modalHeading('إرسال الإدخال للمراجعة')
-                    ->modalDescription('هل أنت متأكد من إرسال هذا الإدخال للمراجعة؟ لن تستطيع تعديله بعد الإرسال.')
+                    ->modalHeading('إرسال واعتماد الإدخال')
+                    ->modalDescription('عند الإرسال سيتم اعتماد الإدخال مباشرة وتطبيقه على الرواتب.')
                     ->visible(fn (BranchEntry $record) => in_array($record->status, [BranchEntryStatus::DRAFT, BranchEntryStatus::REJECTED]))
-                    ->action(function (BranchEntry $record) {
-                        $user = Filament::auth()->user();
-                        $record->update([
-                            'status' => BranchEntryStatus::SUBMITTED,
-                            'submitted_by' => $user instanceof User ? $user->id : null,
-                            'submitted_at' => now(),
-                            'review_notes' => null,
-                            'reviewed_by' => null,
-                            'reviewed_at' => null,
-                        ]);
-
-                        \Filament\Notifications\Notification::make()
-                            ->title('تم إرسال الإدخال بنجاح')
-                            ->success()
-                            ->send();
-                    }),
-
-                Tables\Actions\Action::make('approve')
-                    ->label('اعتماد / Approve')
-                    ->icon('heroicon-o-check-circle')
-                    ->color('success')
-                    ->requiresConfirmation()
-                    ->visible(function (BranchEntry $record) {
-                        $user = Filament::auth()->user();
-                        // Only company admins can approve, not branch managers
-                        return $record->status === BranchEntryStatus::SUBMITTED
-                            && ($user instanceof Company || ($user instanceof User && !$user->isBranchManager()));
-                    })
                     ->action(function (BranchEntry $record) {
                         $user = Filament::auth()->user();
 
@@ -402,12 +374,15 @@ class BranchEntryResource extends Resource
 
                         $record->update([
                             'status' => BranchEntryStatus::APPROVED,
+                            'submitted_by' => $user instanceof User ? $user->id : null,
+                            'submitted_at' => now(),
+                            'review_notes' => null,
                             'reviewed_by' => $user instanceof User ? $user->id : null,
                             'reviewed_at' => now(),
                         ]);
 
                         \Filament\Notifications\Notification::make()
-                            ->title('تم اعتماد الإدخال')
+                            ->title('تم إرسال واعتماد الإدخال بنجاح')
                             ->success()
                             ->send();
                     }),
@@ -482,50 +457,23 @@ class BranchEntryResource extends Resource
                             $user = Filament::auth()->user();
                             $count = 0;
                             foreach ($records as $record) {
-                                if ($record->status === BranchEntryStatus::DRAFT) {
-                                    $record->update([
-                                        'status' => BranchEntryStatus::SUBMITTED,
-                                        'submitted_by' => $user instanceof User ? $user->id : null,
-                                        'submitted_at' => now(),
-                                    ]);
-                                    $count++;
-                                }
-                            }
-
-                            \Filament\Notifications\Notification::make()
-                                ->title("تم إرسال {$count} إدخال بنجاح")
-                                ->success()
-                                ->send();
-                        }),
-
-                    Tables\Actions\BulkAction::make('approveAll')
-                        ->label('اعتماد الكل / Approve All')
-                        ->icon('heroicon-o-check-circle')
-                        ->color('success')
-                        ->requiresConfirmation()
-                        ->deselectRecordsAfterCompletion()
-                        ->visible(function () {
-                            $user = Filament::auth()->user();
-                            return $user instanceof Company || ($user instanceof User && !$user->isBranchManager());
-                        })
-                        ->action(function ($records) {
-                            $user = Filament::auth()->user();
-                            $count = 0;
-                            foreach ($records as $record) {
-                                if ($record->status === BranchEntryStatus::SUBMITTED) {
+                                if (in_array($record->status, [BranchEntryStatus::DRAFT, BranchEntryStatus::REJECTED])) {
                                     static::applyApprovedEntry($record);
 
                                     $record->update([
                                         'status' => BranchEntryStatus::APPROVED,
+                                        'submitted_by' => $user instanceof User ? $user->id : null,
+                                        'submitted_at' => now(),
                                         'reviewed_by' => $user instanceof User ? $user->id : null,
                                         'reviewed_at' => now(),
+                                        'review_notes' => null,
                                     ]);
                                     $count++;
                                 }
                             }
 
                             \Filament\Notifications\Notification::make()
-                                ->title("تم اعتماد {$count} إدخال")
+                                ->title("تم إرسال واعتماد {$count} إدخال")
                                 ->success()
                                 ->send();
                         }),
@@ -576,7 +524,7 @@ class BranchEntryResource extends Resource
         return [];
     }
 
-    protected static function applyApprovedEntry(BranchEntry $record): void
+    public static function applyApprovedEntry(BranchEntry $record): void
     {
         $month = (string) $record->payroll_month;
 

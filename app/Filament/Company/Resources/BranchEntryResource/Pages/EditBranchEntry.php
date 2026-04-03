@@ -24,14 +24,20 @@ class EditBranchEntry extends EditRecord
                 ->visible(fn () => $this->record->status === BranchEntryStatus::DRAFT)
                 ->action(function () {
                     $user = Filament::auth()->user();
+
+                    BranchEntryResource::applyApprovedEntry($this->record);
+
                     $this->record->update([
-                        'status' => BranchEntryStatus::SUBMITTED,
+                        'status' => BranchEntryStatus::APPROVED,
                         'submitted_by' => $user instanceof User ? $user->id : null,
                         'submitted_at' => now(),
+                        'reviewed_by' => $user instanceof User ? $user->id : null,
+                        'reviewed_at' => now(),
+                        'review_notes' => null,
                     ]);
 
                     \Filament\Notifications\Notification::make()
-                        ->title('تم إرسال الإدخال بنجاح')
+                        ->title('تم إرسال واعتماد الإدخال بنجاح')
                         ->success()
                         ->send();
 
