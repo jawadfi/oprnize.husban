@@ -57,7 +57,7 @@ class BranchEntryResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return true;
+        return false;
     }
 
     /**
