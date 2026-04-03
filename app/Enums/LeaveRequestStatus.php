@@ -10,6 +10,7 @@ final class LeaveRequestStatus extends Enum
     use HasMappingEnum;
     
     const PENDING = 'pending';
+    const PENDING_SUPERVISOR_APPROVAL = 'pending_supervisor_approval';
     const PENDING_CLIENT_APPROVAL = 'pending_client_approval';
     const PENDING_PROVIDER_APPROVAL = 'pending_provider_approval';
     const APPROVED = 'approved';
@@ -19,6 +20,7 @@ final class LeaveRequestStatus extends Enum
     {
         return [
             self::PENDING => 'Pending',
+            self::PENDING_SUPERVISOR_APPROVAL => 'Pending Supervisor Approval',
             self::PENDING_CLIENT_APPROVAL => 'Pending Client Approval',
             self::PENDING_PROVIDER_APPROVAL => 'Pending Provider Approval',
             self::APPROVED => 'Approved',
@@ -30,6 +32,7 @@ final class LeaveRequestStatus extends Enum
     {
         return [
             self::PENDING => 'warning',
+            self::PENDING_SUPERVISOR_APPROVAL => 'warning',
             self::PENDING_CLIENT_APPROVAL => 'warning',
             self::PENDING_PROVIDER_APPROVAL => 'info',
             self::APPROVED => 'success',

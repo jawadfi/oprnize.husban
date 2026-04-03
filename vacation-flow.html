@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>نظام إجازات الموظفين — دليل التدفق الكامل</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #f0f4f8;
+      --card: #ffffff;
+      --text: #1a202c;
+      --muted: #718096;
+      --border: #e2e8f0;
+      --primary: #2b6cb0;
+      --success: #276749;
+      --danger: #c53030;
+      --warn: #b7791f;
+      --info: #2c7a7b;
+      --accent: #553c9a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", Tahoma, "Noto Kufi Arabic", "Cairo", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.9;
+      padding: 32px 20px;
+      direction: rtl;
+    }
+
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      gap: 24px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%);
+      color: white;
+      border-radius: 18px;
+      padding: 36px 40px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .hero-icon { font-size: 64px; line-height: 1; flex-shrink: 0; }
+    .hero h1 { font-size: 30px; font-weight: 800; margin-bottom: 6px; }
+    .hero p  { font-size: 15px; opacity: .85; }
+    .hero-badge {
+      margin-right: auto;
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.3);
+      border-radius: 40px;
+      padding: 6px 18px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    /* ── Section card ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px 32px;
+    }
+    .card-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary);
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-title .icon { font-size: 22px; }
+
+    /* ── Diagram container ── */
+    .diagram-wrap {
+      background: #f7faff;
+      border: 1px solid #bee3f8;
+      border-radius: 12px;
+      padding: 24px;
+      overflow-x: auto;
+      text-align: center;
+    }
+    .diagram-wrap .mermaid {
+      display: inline-block;
+      min-width: 480px;
+    }
+
+    /* ── Levels grid ── */
+    .levels {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 4px;
+    }
+    .level-card {
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid transparent;
+    }
+    .level-card .num {
+      font-size: 28px;
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .level-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .level-card p  { font-size: 13px; opacity: .85; }
+
+    .lv-1 { background: #ebf8ff; border-color: #90cdf4; }
+    .lv-1 .num { color: #2b6cb0; }
+    .lv-2 { background: #f0fff4; border-color: #9ae6b4; }
+    .lv-2 .num { color: #276749; }
+    .lv-3 { background: #faf5ff; border-color: #d6bcfa; }
+    .lv-3 .num { color: #553c9a; }
+    .lv-final { background: #fffbeb; border-color: #f6e05e; }
+    .lv-final .num { color: #b7791f; }
+
+    /* ── Status badges grid ── */
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .status-item {
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .status-dot {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      margin-top: 5px;
+      flex-shrink: 0;
+    }
+    .status-item h4 { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+    .status-item p  { font-size: 12px; opacity: .8; }
+
+    .st-pending-sup   { background: #fffbeb; } .st-pending-sup .status-dot   { background: #f6ad55; }
+    .st-pending-cl    { background: #ebf8ff; } .st-pending-cl .status-dot    { background: #63b3ed; }
+    .st-pending-pr    { background: #faf5ff; } .st-pending-pr .status-dot    { background: #b794f4; }
+    .st-approved      { background: #f0fff4; } .st-approved .status-dot      { background: #48bb78; }
+    .st-rejected      { background: #fff5f5; } .st-rejected .status-dot      { background: #fc8181; }
+
+    /* ── Validation rules ── */
+    .rules-list { list-style: none; padding: 0; display: grid; gap: 10px; }
+    .rules-list li {
+      padding: 14px 16px;
+      border-radius: 10px;
+      border-right: 4px solid transparent;
+      font-size: 14px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .rules-list .icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .rule-block  { background: #fff5f5; border-color: #fc8181; }
+    .rule-warn   { background: #fffbeb; border-color: #f6ad55; }
+    .rule-ok     { background: #f0fff4; border-color: #68d391; }
+
+    /* ── Leave types table ── */
+    .types-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .types-table th {
+      background: #ebf8ff;
+      color: #2b6cb0;
+      padding: 10px 14px;
+      text-align: right;
+      font-weight: 700;
+      border-bottom: 2px solid #bee3f8;
+    }
+    .types-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .types-table tr:last-child td { border-bottom: none; }
+    .types-table tr:nth-child(even) td { background: #f7faff; }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-green  { background: #c6f6d5; color: #276749; }
+    .badge-orange { background: #feebc8; color: #c05621; }
+    .badge-red    { background: #fed7d7; color: #c53030; }
+    .badge-gray   { background: #e2e8f0; color: #4a5568; }
+    .badge-blue   { background: #bee3f8; color: #2c5282; }
+
+    /* ── Smart info panel mockup ── */
+    .mockup {
+      background: #f7faff;
+      border: 1px solid #bee3f8;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .mockup-header {
+      background: #2b6cb0;
+      color: white;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .mockup-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .mockup-row .label { color: var(--muted); }
+    .mockup-row .value { font-weight: 700; }
+    .value-green { color: #276749; }
+    .value-red   { color: #c53030; }
+    .value-blue  { color: #2b6cb0; }
+
+    /* ── Error states mockup ── */
+    .error-box {
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      border-right: 4px solid transparent;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .error-box .icon { font-size: 22px; flex-shrink: 0; }
+    .error-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .error-box p  { font-size: 13px; opacity: .85; }
+    .err-red  { background: #fff5f5; border-color: #fc8181; }
+    .err-warn { background: #fffbeb; border-color: #f6ad55; }
+
+    /* ── Roles table ── */
+    .roles-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .roles-table th {
+      background: #f0fff4;
+      color: #276749;
+      padding: 10px 14px;
+      text-align: right;
+      font-weight: 700;
+      border-bottom: 2px solid #9ae6b4;
+    }
+    .roles-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .roles-table tr:last-child td { border-bottom: none; }
+
+    /* ── Timeline ── */
+    .timeline { position: relative; padding-right: 28px; }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      right: 10px; top: 0; bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    .tl-item {
+      position: relative;
+      margin-bottom: 20px;
+      padding-right: 16px;
+    }
+    .tl-item::before {
+      content: '';
+      position: absolute;
+      right: -22px;
+      top: 6px;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      border: 2px solid white;
+    }
+    .tl-item.blue::before   { background: #63b3ed; box-shadow: 0 0 0 3px #bee3f8; }
+    .tl-item.green::before  { background: #68d391; box-shadow: 0 0 0 3px #c6f6d5; }
+    .tl-item.purple::before { background: #b794f4; box-shadow: 0 0 0 3px #e9d8fd; }
+    .tl-item.gold::before   { background: #f6ad55; box-shadow: 0 0 0 3px #feebc8; }
+    .tl-item.red::before    { background: #fc8181; box-shadow: 0 0 0 3px #fed7d7; }
+    .tl-item h4 { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+    .tl-item p  { font-size: 13px; color: var(--muted); }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      padding-top: 8px;
+    }
+
+    @media (max-width: 640px) {
+      .hero { flex-direction: column; text-align: center; }
+      .hero-badge { margin-right: 0; }
+      .card { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-icon">🏖️</div>
+    <div>
+      <h1>نظام إجازات الموظفين</h1>
+      <p>دليل التدفق الكامل — من تقديم الطلب حتى الاعتماد النهائي وتحديث الراتب</p>
+    </div>
+    <div class="hero-badge">إصدار 1.0 — أبريل 2026</div>
+  </div>
+
+  <!-- Diagram -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📊</span> مخطط تدفق الإجازة — نظرة عامة</div>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+graph TD
+    Start([<b>فتح صفحة طلب إجازة</b>]) --> FetchData
+
+    FetchData["<b>عرض البيانات الذكية</b><br/>• الرصيد المستحق<br/>• تاريخ التأشيرة<br/>• آخر طلب إجازة"]
+
+    FetchData --> CheckPassport{<b>هل توجد<br/>بيانات جواز؟</b>}
+
+    CheckPassport -- لا --> ErrNoPassport["<b>🚫 خطأ</b><br/>لا توجد بيانات جواز سفر<br/>تواصل مع HR الشركة المؤجرة"]
+
+    CheckPassport -- نعم --> CheckExpiry{<b>هل الجواز ساري<br/>أكثر من 6 أشهر<br/>بعد العودة؟</b>}
+
+    CheckExpiry -- لا --> ErrExpiry["<b>⚠️ تحذير</b><br/>صلاحية الجواز أقل من 6 أشهر<br/>عند تاريخ العودة<br/>يرجى التجديد أولاً"]
+
+    CheckExpiry -- نعم --> InputDates["<b>الموظف يختار:</b><br/>• نوع الإجازة<br/>• تاريخ البدء<br/>• تاريخ العودة"]
+
+    InputDates --> Submit["<b>تقديم الطلب</b><br/>الحالة: بانتظار المشرف"]
+
+    Submit --> Supervisor{<b>1️⃣ المشرف<br/>مدير الفرع</b>}
+
+    Supervisor -- رفض --> Rej1["❌ مرفوض<br/>يُبلَّغ الموظف"]
+    Supervisor -- موافقة --> ClientHR{<b>2️⃣ HR الشركة<br/>المستأجرة</b>}
+
+    ClientHR -- رفض --> Rej2["❌ مرفوض<br/>يُبلَّغ الموظف"]
+    ClientHR -- موافقة --> VendorHR{<b>3️⃣ HR الشركة<br/>المؤجرة</b>}
+
+    VendorHR -- رفض --> Rej3["❌ مرفوض<br/>يُبلَّغ الموظف"]
+    VendorHR -- موافقة --> Approved["<b>✅ اعتماد نهائي</b><br/>• تحديث رصيد الإجازة<br/>• تحديث كشف الراتب<br/>• إشعار للموظف"]
+
+    style ErrNoPassport fill:#fff5f5,stroke:#fc8181,stroke-width:2px
+    style ErrExpiry fill:#fffbeb,stroke:#f6ad55,stroke-width:2px
+    style Approved fill:#f0fff4,stroke:#68d391,stroke-width:3px
+    style Rej1 fill:#fff5f5,stroke:#fc8181,stroke-width:2px
+    style Rej2 fill:#fff5f5,stroke:#fc8181,stroke-width:2px
+    style Rej3 fill:#fff5f5,stroke:#fc8181,stroke-width:2px
+    style Submit fill:#ebf8ff,stroke:#90cdf4,stroke-width:2px
+    style FetchData fill:#e9d8fd,stroke:#b794f4,stroke-width:2px
+    style CheckPassport fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+    style CheckExpiry fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+    style InputDates fill:#e8f4fd,stroke:#63b3ed,stroke-width:2px
+    style Supervisor fill:#f0fff4,stroke:#9ae6b4,stroke-width:2px
+    style ClientHR fill:#f0fff4,stroke:#9ae6b4,stroke-width:2px
+    style VendorHR fill:#f0fff4,stroke:#9ae6b4,stroke-width:2px
+      </div>
+    </div>
+  </div>
+
+  <!-- Approval Levels -->
+  <div class="card">
+    <div class="card-title"><span class="icon">✅</span> مراحل الموافقة الثلاث</div>
+    <div class="levels">
+      <div class="level-card lv-1">
+        <div class="num">1</div>
+        <h3>المشرف / مدير الفرع</h3>
+        <p>أول من يراجع الطلب. يوافق أو يرفض بناءً على احتياجات العمل واحتياط الفريق.</p>
+      </div>
+      <div class="level-card lv-2">
+        <div class="num">2</div>
+        <h3>HR الشركة المستأجرة</h3>
+        <p>يتحقق من رصيد الإجازة وتوافق مواعيد العمل، ثم يحيل الطلب للشركة المؤجرة.</p>
+      </div>
+      <div class="level-card lv-3">
+        <div class="num">3</div>
+        <h3>HR الشركة المؤجرة</h3>
+        <p>صاحب العمل الأصلي. يمنح الموافقة النهائية ويحدّث بيانات الرواتب والرصيد.</p>
+      </div>
+      <div class="level-card lv-final">
+        <div class="num">✓</div>
+        <h3>اعتماد نهائي</h3>
+        <p>يُحدَّث رصيد الإجازة تلقائياً، وينعكس على كشف الراتب الشهري.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Smart Info Mockup -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📋</span> ما يراه الموظف عند فتح صفحة طلب الإجازة</div>
+    <div class="mockup">
+      <div class="mockup-header">📊 بياناتك — نظرة سريعة قبل تقديم الطلب</div>
+      <div class="mockup-row">
+        <span class="label">رصيد الإجازة السنوية المتبقي</span>
+        <span class="value value-green">18 يوم من أصل 21</span>
+      </div>
+      <div class="mockup-row">
+        <span class="label">تاريخ انتهاء جواز السفر</span>
+        <span class="value value-blue">15 / 03 / 2028</span>
+      </div>
+      <div class="mockup-row">
+        <span class="label">تاريخ انتهاء التأشيرة / الإقامة</span>
+        <span class="value value-blue">22 / 07 / 2027</span>
+      </div>
+      <div class="mockup-row">
+        <span class="label">آخر إجازة مأخوذة</span>
+        <span class="value">سبتمبر 2025 — <span class="badge badge-green">معتمدة</span></span>
+      </div>
+      <div class="mockup-row">
+        <span class="label">الطلبات الحالية قيد المراجعة</span>
+        <span class="value value-red">لا يوجد</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Validation Rules -->
+  <div class="card">
+    <div class="card-title"><span class="icon">🛡️</span> قواعد التحقق — الشروط قبل تقديم الطلب</div>
+    <ul class="rules-list">
+      <li class="rule-block">
+        <span class="icon">🚫</span>
+        <div>
+          <strong>شرط الجواز — إلزامي</strong><br/>
+          إذا لم تكن بيانات جواز سفر الموظف مُدخلة في النظام، يُمنع تقديم الطلب تماماً. على الموظف مراجعة HR الشركة المؤجرة لإدخال البيانات.
+        </div>
+      </li>
+      <li class="rule-block">
+        <span class="icon">⏰</span>
+        <div>
+          <strong>صلاحية الجواز — 6 أشهر بعد العودة</strong><br/>
+          إذا كان الجواز ينتهي خلال أقل من 6 أشهر من تاريخ العودة المتوقع، يُمنع الطلب. يجب تجديد الجواز أولاً.
+        </div>
+      </li>
+      <li class="rule-warn">
+        <span class="icon">⚠️</span>
+        <div>
+          <strong>رصيد الإجازة — تحذير</strong><br/>
+          إذا كانت أيام الطلب أكثر من الرصيد المتبقي، يظهر تحذير (لكن لا يمنع الطلب — يُترك للمشرف أن يقرر).
+        </div>
+      </li>
+      <li class="rule-ok">
+        <span class="icon">✅</span>
+        <div>
+          <strong>انتهاء التأشيرة — معلوماتي فقط</strong><br/>
+          يُعرض تاريخ انتهاء التأشيرة/الإقامة للموظف كمعلومة، ولا يمنع الطلب.
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Error States -->
+  <div class="card">
+    <div class="card-title"><span class="icon">🔴</span> رسائل الخطأ التي تظهر للموظف</div>
+    <div class="error-box err-red">
+      <span class="icon">🚫</span>
+      <div>
+        <h4>لا توجد بيانات جواز سفر</h4>
+        <p>لم يتم إدخال معلومات جواز سفرك في النظام. يرجى التواصل مع HR الشركة المؤجرة لتحديث بياناتك قبل تقديم طلب الإجازة.</p>
+      </div>
+    </div>
+    <div class="error-box err-warn">
+      <span class="icon">⚠️</span>
+      <div>
+        <h4>صلاحية الجواز غير كافية للسفر</h4>
+        <p>جواز سفرك ينتهي في <strong>[تاريخ الانتهاء]</strong>، وهو أقل من 6 أشهر من تاريخ عودتك المتوقع <strong>[تاريخ العودة]</strong>. يرجى تجديد الجواز أولاً ثم إعادة تقديم الطلب.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leave Types -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📋</span> أنواع الإجازات المتاحة</div>
+    <table class="types-table">
+      <thead>
+        <tr>
+          <th>نوع الإجازة</th>
+          <th>الرصيد السنوي</th>
+          <th>مدفوعة؟</th>
+          <th>تحقق الجواز؟</th>
+          <th>يؤثر على الراتب؟</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-green">إجازة سنوية</span></td>
+          <td>21 يوم</td>
+          <td>نعم ✅</td>
+          <td>نعم ✅</td>
+          <td>لا (مدفوعة)</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-orange">إجازة بدون راتب</span></td>
+          <td>حسب الموافقة</td>
+          <td>لا ❌</td>
+          <td>لا</td>
+          <td>نعم (خصم)</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-red">إجازة مرضية</span></td>
+          <td>30 يوم</td>
+          <td>نعم ✅</td>
+          <td>لا</td>
+          <td>لا (مدفوعة)</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-gray">إجازة وفاة ذوي</span></td>
+          <td>5 أيام</td>
+          <td>نعم ✅</td>
+          <td>لا</td>
+          <td>لا (مدفوعة)</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-blue">إجازة مولود جديد</span></td>
+          <td>3 أيام</td>
+          <td>نعم ✅</td>
+          <td>لا</td>
+          <td>لا (مدفوعة)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Status meanings -->
+  <div class="card">
+    <div class="card-title"><span class="icon">🏷️</span> معنى كل حالة طلب في النظام</div>
+    <div class="status-grid">
+      <div class="status-item st-pending-sup">
+        <div class="status-dot"></div>
+        <div>
+          <h4>بانتظار موافقة المشرف</h4>
+          <p>تم تقديم الطلب ويننتظر مراجعة مدير الفرع.</p>
+        </div>
+      </div>
+      <div class="status-item st-pending-cl">
+        <div class="status-dot"></div>
+        <div>
+          <h4>بانتظار موافقة الشركة المستأجرة</h4>
+          <p>وافق المشرف — الطلب عند HR الشركة التي يعمل فيها الموظف.</p>
+        </div>
+      </div>
+      <div class="status-item st-pending-pr">
+        <div class="status-dot"></div>
+        <div>
+          <h4>بانتظار موافقة الشركة المؤجرة</h4>
+          <p>وافق HR المستأجر — الطلب عند HR الشركة صاحب العمل الأصلي.</p>
+        </div>
+      </div>
+      <div class="status-item st-approved">
+        <div class="status-dot"></div>
+        <div>
+          <h4>معتمد ✅</h4>
+          <p>اكتملت جميع الموافقات. تم تحديث الرصيد والراتب.</p>
+        </div>
+      </div>
+      <div class="status-item st-rejected">
+        <div class="status-dot"></div>
+        <div>
+          <h4>مرفوض ❌</h4>
+          <p>رفض أحد المستويات الطلب. يُبلَّغ الموظف بالسبب.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Roles & Responsibilities -->
+  <div class="card">
+    <div class="card-title"><span class="icon">👥</span> أدوار المستخدمين وصلاحياتهم</div>
+    <table class="roles-table">
+      <thead>
+        <tr>
+          <th>الدور</th>
+          <th>ما يمكنه فعله</th>
+          <th>ما يراه في النظام</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>🧑 الموظف</strong></td>
+          <td>تقديم طلب إجازة، متابعة الطلبات السابقة، رؤية الرصيد</td>
+          <td>صفحة "طلب إجازة" + صفحة "طلباتي"</td>
+        </tr>
+        <tr>
+          <td><strong>🏢 مدير الفرع (المشرف)</strong></td>
+          <td>مراجعة طلبات موظفي فرعه، الموافقة أو الرفض</td>
+          <td>قائمة طلبات الإجازة للمستوى الأول</td>
+        </tr>
+        <tr>
+          <td><strong>🏗️ HR الشركة المستأجرة</strong></td>
+          <td>مراجعة الطلبات بعد موافقة المشرف، الموافقة أو الرفض</td>
+          <td>الطلبات بحالة "بانتظار الشركة المستأجرة"</td>
+        </tr>
+        <tr>
+          <td><strong>🏭 HR الشركة المؤجرة</strong></td>
+          <td>الاعتماد النهائي، تحديث الرواتب والرصيد</td>
+          <td>الطلبات بحالة "بانتظار الشركة المؤجرة"</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Timeline: life of a request -->
+  <div class="card">
+    <div class="card-title"><span class="icon">🕐</span> مسار طلب الإجازة — من البداية للنهاية</div>
+    <div class="timeline">
+      <div class="tl-item blue">
+        <h4>1. الموظف يفتح صفحة طلب الإجازة</h4>
+        <p>يرى رصيده، تاريخ التأشيرة، وآخر إجازة. يختار النوع والتواريخ ثم يضغط "تقديم".</p>
+      </div>
+      <div class="tl-item blue">
+        <h4>2. النظام يتحقق من بيانات الجواز</h4>
+        <p>إذا كانت البيانات ناقصة أو الجواز ينتهي قريباً — يُوقَف الطلب ويظهر خطأ واضح.</p>
+      </div>
+      <div class="tl-item gold">
+        <h4>3. الطلب يصل لمدير الفرع (المشرف)</h4>
+        <p>الحالة: <strong>بانتظار موافقة المشرف</strong>. يتلقى المشرف إشعاراً ويراجع الطلب.</p>
+      </div>
+      <div class="tl-item green">
+        <h4>4. المشرف يوافق ← الطلب يذهب لـ HR المستأجر</h4>
+        <p>الحالة تتغير إلى: <strong>بانتظار الشركة المستأجرة</strong>. يتلقى HR المستأجر إشعاراً.</p>
+      </div>
+      <div class="tl-item purple">
+        <h4>5. HR المستأجر يوافق ← الطلب يذهب لـ HR المؤجر</h4>
+        <p>الحالة تتغير إلى: <strong>بانتظار الشركة المؤجرة</strong>. يتلقى HR المؤجر إشعاراً.</p>
+      </div>
+      <div class="tl-item green">
+        <h4>6. HR المؤجر يعتمد — اعتماد نهائي ✅</h4>
+        <p>الحالة: <strong>معتمد</strong>. رصيد الإجازة ينقص تلقائياً. كشف الراتب يُحدَّث. الموظف يتلقى إشعاراً.</p>
+      </div>
+      <div class="tl-item red">
+        <h4>في أي مرحلة — يمكن الرفض ❌</h4>
+        <p>أي مستوى من المستويات الثلاثة يمكنه رفض الطلب. الحالة تصبح <strong>مرفوض</strong> ويُبلَّغ الموظف فوراً.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Current System Status -->
+  <div class="card">
+    <div class="card-title"><span class="icon">⚙️</span> حالة تطبيق النظام الحالية</div>
+    <table class="roles-table">
+      <thead>
+        <tr>
+          <th>الميزة</th>
+          <th>الحالة في النظام</th>
+          <th>ملاحظة</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>صفحة طلب الإجازة للموظف</td>
+          <td><span class="badge badge-green">✅ موجودة</span></td>
+          <td>3 خطوات: نوع الإجازة ← التواريخ ← ملخص</td>
+        </tr>
+        <tr>
+          <td>صفحة "طلباتي" للموظف</td>
+          <td><span class="badge badge-green">✅ موجودة</span></td>
+          <td>جدول بجميع الطلبات السابقة</td>
+        </tr>
+        <tr>
+          <td>موافقة الشركة المستأجرة</td>
+          <td><span class="badge badge-green">✅ موجودة</span></td>
+          <td>صفحة "LeaveRequests" في لوحة الشركة</td>
+        </tr>
+        <tr>
+          <td>موافقة الشركة المؤجرة</td>
+          <td><span class="badge badge-green">✅ موجودة</span></td>
+          <td>نفس الصفحة — يتحكم بها نوع الشركة</td>
+        </tr>
+        <tr>
+          <td>موافقة المشرف (مدير الفرع)</td>
+          <td><span class="badge badge-orange">🔧 قيد التطوير</span></td>
+          <td>يتطلب إضافة حالة جديدة + عرض في لوحة المشرف</td>
+        </tr>
+        <tr>
+          <td>تحقق جواز السفر والصلاحية</td>
+          <td><span class="badge badge-orange">🔧 قيد التطوير</span></td>
+          <td>يتطلب إضافة حقول passport_expiry على الموظف</td>
+        </tr>
+        <tr>
+          <td>البيانات الذكية (الرصيد، التأشيرة)</td>
+          <td><span class="badge badge-orange">🔧 قيد التطوير</span></td>
+          <td>يتطلب vacation_balance + visa_expiry على الموظف</td>
+        </tr>
+        <tr>
+          <td>خصم الرصيد تلقائياً عند الاعتماد</td>
+          <td><span class="badge badge-orange">🔧 قيد التطوير</span></td>
+          <td>منطق يُضاف في finalizeApproval()</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    نظام إجازات الموظفين — oprnize.husban.net — أبريل 2026
+  </div>
+
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    flowchart: {
+      useMaxWidth: false,
+      htmlLabels: true,
+      curve: 'basis',
+      rankSpacing: 60,
+      nodeSpacing: 40,
+    },
+    fontFamily: '"Segoe UI", Tahoma, "Noto Kufi Arabic", Arial, sans-serif',
+  });
+</script>
+</body>
+</html>

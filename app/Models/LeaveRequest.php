@@ -47,6 +47,11 @@ class LeaveRequest extends Model
         return $this->belongsTo(Company::class, 'current_approver_company_id');
     }
 
+    public function isPendingSupervisorApproval(): bool
+    {
+        return $this->status->value === LeaveRequestStatus::PENDING_SUPERVISOR_APPROVAL;
+    }
+
     public function isPendingClientApproval(): bool
     {
         return $this->status->value === LeaveRequestStatus::PENDING_CLIENT_APPROVAL;
@@ -55,6 +60,16 @@ class LeaveRequest extends Model
     public function isPendingProviderApproval(): bool
     {
         return $this->status->value === LeaveRequestStatus::PENDING_PROVIDER_APPROVAL;
+    }
+
+    public function moveToClientApproval(): void
+    {
+        $clientCompanyId = $this->employee->company_assigned_id ?? $this->company_id;
+        
+        $this->update([
+            'status' => LeaveRequestStatus::PENDING_CLIENT_APPROVAL,
+            'current_approver_company_id' => $clientCompanyId,
+        ]);
     }
 
     public function moveToProviderApproval(): void
@@ -74,6 +89,12 @@ class LeaveRequest extends Model
             'status' => LeaveRequestStatus::APPROVED,
             'current_approver_company_id' => null,
         ]);
+
+        // Deduct vacation balance for annual leave
+        if ($this->leave_type->value === \App\Enums\LeaveType::ANNUAL) {
+            $employee = $this->employee;
+            $employee->decrement('vacation_balance', $this->days_count);
+        }
     }
 }
 

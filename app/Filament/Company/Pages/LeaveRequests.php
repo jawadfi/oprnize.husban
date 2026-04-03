@@ -6,9 +6,11 @@ use App\Enums\CompanyTypes;
 use App\Enums\LeaveRequestStatus;
 use App\Enums\LeaveType;
 use App\Models\LeaveRequest;
+use App\Models\User;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\BulkAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
@@ -44,12 +46,15 @@ class LeaveRequests extends Page implements HasTable
             return true;
         }
         
-        // User model needs permission
-        if ($user instanceof \App\Models\User) {
+        // User model — branch managers can access (supervisor role)
+        if ($user instanceof User) {
+            if ($user->isBranchManager()) {
+                return true;
+            }
             try {
                 return $user->hasPermissionTo('page_LeaveRequests', 'company');
             } catch (\Exception $e) {
-                return true; // permission not seeded yet, allow access
+                return true;
             }
         }
         
@@ -64,9 +69,10 @@ class LeaveRequests extends Page implements HasTable
     public function table(Table $table): Table
     {
         $authUser = Filament::auth()->user();
+        $isBranchManager = ($authUser instanceof User && $authUser->isBranchManager());
         
         // Ensure company relationship is loaded for User model
-        if ($authUser instanceof \App\Models\User) {
+        if ($authUser instanceof User) {
             $authUser->load('company');
             $company = $authUser->company;
         } elseif ($authUser instanceof \App\Models\Company) {
@@ -80,8 +86,8 @@ class LeaveRequests extends Page implements HasTable
         }
         
         return $table
-            ->query(function () use ($company) {
-                return $this->getQuery($company);
+            ->query(function () use ($company, $authUser, $isBranchManager) {
+                return $this->getQuery($company, $authUser, $isBranchManager);
             })
             ->columns([
                 TextColumn::make('employee.name')
@@ -130,6 +136,7 @@ class LeaveRequests extends Page implements HasTable
                     ->options([
                         '' => 'All',
                         LeaveRequestStatus::PENDING => 'Pending',
+                        LeaveRequestStatus::PENDING_SUPERVISOR_APPROVAL => 'Pending Supervisor',
                         LeaveRequestStatus::PENDING_CLIENT_APPROVAL => 'Pending Client Approval',
                         LeaveRequestStatus::PENDING_PROVIDER_APPROVAL => 'Pending Provider Approval',
                         LeaveRequestStatus::APPROVED => 'Approved',
@@ -145,81 +152,82 @@ class LeaveRequests extends Page implements HasTable
             ->searchable()
             ->defaultSort('created_at', 'desc')
             ->paginated([12])
+            ->actions([
+                Action::make('approve')
+                    ->label('موافقة / Approve')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->action(function (LeaveRequest $record) use ($company, $isBranchManager) {
+                        $this->approveRecord($record, $company, $isBranchManager);
+                    })
+                    ->visible(function (LeaveRequest $record) use ($isBranchManager) {
+                        $status = $record->status->value;
+                        if ($isBranchManager && $status === LeaveRequestStatus::PENDING_SUPERVISOR_APPROVAL) {
+                            return true;
+                        }
+                        return in_array($status, [
+                            LeaveRequestStatus::PENDING,
+                            LeaveRequestStatus::PENDING_CLIENT_APPROVAL,
+                            LeaveRequestStatus::PENDING_PROVIDER_APPROVAL,
+                        ]);
+                    }),
+                Action::make('reject')
+                    ->label('رفض / Reject')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->action(function (LeaveRequest $record) {
+                        $record->update([
+                            'status' => LeaveRequestStatus::REJECTED,
+                            'current_approver_company_id' => null,
+                        ]);
+                        Notification::make()->title('تم رفض الطلب / Request rejected')->success()->send();
+                    })
+                    ->visible(function (LeaveRequest $record) {
+                        $status = $record->status->value;
+                        return in_array($status, [
+                            LeaveRequestStatus::PENDING,
+                            LeaveRequestStatus::PENDING_SUPERVISOR_APPROVAL,
+                            LeaveRequestStatus::PENDING_CLIENT_APPROVAL,
+                            LeaveRequestStatus::PENDING_PROVIDER_APPROVAL,
+                        ]);
+                    }),
+            ])
             ->bulkActions([
                 BulkAction::make('accept')
-                    ->label('Accept')
+                    ->label('Accept All')
                     ->icon('heroicon-o-check')
                     ->color('success')
-                    ->action(function ($records) use ($company) {
+                    ->action(function ($records) use ($company, $isBranchManager) {
                         $count = 0;
-                        $movedToProvider = 0;
-                        $finalized = 0;
                         
                         foreach ($records as $record) {
-                            // Handle old PENDING status (backward compatibility)
-                            if ($record->status->value === LeaveRequestStatus::PENDING) {
-                                // Migrate old PENDING to new workflow
-                                $isClientCompany = $record->employee->company_assigned_id === $company->id;
-                                
-                                if ($isClientCompany) {
-                                    // Client company - set as current approver and move to provider
-                                    $record->update([
-                                        'current_approver_company_id' => $company->id,
-                                    ]);
-                                    $record->moveToProviderApproval();
-                                    $movedToProvider++;
-                                    $count++;
-                                } else {
-                                    // Provider company - finalize directly (old workflow)
-                                    $record->update([
-                                        'status' => LeaveRequestStatus::APPROVED,
-                                        'current_approver_company_id' => null,
-                                    ]);
-                                    $finalized++;
-                                    $count++;
-                                }
-                            } elseif ($record->isPendingClientApproval()) {
-                                // Client company approving - move to provider
-                                $record->moveToProviderApproval();
-                                $movedToProvider++;
-                                $count++;
-                            } elseif ($record->isPendingProviderApproval()) {
-                                // Provider company approving - finalize
-                                $record->finalizeApproval();
-                                $finalized++;
+                            if ($this->approveRecord($record, $company, $isBranchManager, false)) {
                                 $count++;
                             }
                         }
                         
-                        $message = '';
-                        if ($movedToProvider > 0 && $finalized > 0) {
-                            $message = "{$movedToProvider} request(s) moved to provider approval, {$finalized} request(s) finalized";
-                        } elseif ($movedToProvider > 0) {
-                            $message = "{$movedToProvider} request(s) moved to provider approval";
-                        } elseif ($finalized > 0) {
-                            $message = "{$finalized} request(s) approved successfully";
-                        } else {
-                            $message = 'No pending requests to approve';
-                        }
-                        
                         Notification::make()
-                            ->title($count > 0 ? $message : 'No pending requests to approve')
+                            ->title($count > 0 ? "{$count} request(s) approved successfully" : 'No pending requests to approve')
                             ->success()
                             ->send();
                     })
                     ->deselectRecordsAfterCompletion(),
                 BulkAction::make('reject')
-                    ->label('Reject')
+                    ->label('Reject All')
                     ->icon('heroicon-o-x-mark')
                     ->color('danger')
                     ->action(function ($records) {
                         $count = 0;
                         foreach ($records as $record) {
-                            // Can reject if pending (old status), pending client, or provider approval
                             $statusValue = $record->status->value;
-                            if ($statusValue === LeaveRequestStatus::PENDING 
-                                || $record->isPendingClientApproval() 
-                                || $record->isPendingProviderApproval()) {
+                            if (in_array($statusValue, [
+                                LeaveRequestStatus::PENDING,
+                                LeaveRequestStatus::PENDING_SUPERVISOR_APPROVAL,
+                                LeaveRequestStatus::PENDING_CLIENT_APPROVAL,
+                                LeaveRequestStatus::PENDING_PROVIDER_APPROVAL,
+                            ])) {
                                 $record->update([
                                     'status' => LeaveRequestStatus::REJECTED,
                                     'current_approver_company_id' => null,
@@ -229,7 +237,7 @@ class LeaveRequests extends Page implements HasTable
                         }
                         
                         Notification::make()
-                            ->title($count > 0 ? "{$count} leave request(s) rejected successfully" : 'No pending requests to reject')
+                            ->title($count > 0 ? "{$count} leave request(s) rejected" : 'No pending requests to reject')
                             ->success()
                             ->send();
                     })
@@ -237,28 +245,104 @@ class LeaveRequests extends Page implements HasTable
             ]);
     }
 
-    protected function getQuery($company): Builder
+    /**
+     * Approve a single record through the 3-level flow.
+     */
+    protected function approveRecord(LeaveRequest $record, $company, bool $isBranchManager, bool $notify = true): bool
+    {
+        $status = $record->status->value;
+
+        // Level 1: Supervisor (branch manager) approves → move to client HR
+        if ($status === LeaveRequestStatus::PENDING_SUPERVISOR_APPROVAL && $isBranchManager) {
+            $record->moveToClientApproval();
+            if ($notify) {
+                Notification::make()->title('تمت الموافقة — أُحيل لـ HR المستأجر / Approved — forwarded to client HR')->success()->send();
+            }
+            return true;
+        }
+
+        // Backward compat: old PENDING status
+        if ($status === LeaveRequestStatus::PENDING) {
+            $isClientCompany = $record->employee->company_assigned_id === $company->id;
+            if ($isClientCompany) {
+                $record->update(['current_approver_company_id' => $company->id]);
+                $record->moveToProviderApproval();
+            } else {
+                $record->finalizeApproval();
+            }
+            if ($notify) {
+                Notification::make()->title('تمت الموافقة / Approved')->success()->send();
+            }
+            return true;
+        }
+
+        // Level 2: Client HR approves → move to provider HR
+        if ($status === LeaveRequestStatus::PENDING_CLIENT_APPROVAL) {
+            $record->moveToProviderApproval();
+            if ($notify) {
+                Notification::make()->title('تمت الموافقة — أُحيل لـ HR المؤجر / Approved — forwarded to provider HR')->success()->send();
+            }
+            return true;
+        }
+
+        // Level 3: Provider HR approves → finalize (deducts balance for annual leave)
+        if ($status === LeaveRequestStatus::PENDING_PROVIDER_APPROVAL) {
+            $record->finalizeApproval();
+            if ($notify) {
+                Notification::make()->title('اعتماد نهائي ✅ — تم تحديث الرصيد / Final approval — balance updated')->success()->send();
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    protected function getQuery($company, $authUser = null, bool $isBranchManager = false): Builder
     {
         return LeaveRequest::query()
             ->with(['employee'])
-            ->where(function (Builder $query) use ($company) {
-                // New workflow: requests where this company is the current approver
-                $query->where('current_approver_company_id', $company->id)
-                    // OR backward compatibility: old PENDING requests
-                    ->orWhere(function (Builder $q) use ($company) {
-                        $q->where('status', LeaveRequestStatus::PENDING)
-                            ->where(function (Builder $subQuery) use ($company) {
-                if ($company->type === CompanyTypes::PROVIDER) {
-                                    // Provider companies see old pending requests for their employees
-                                    $subQuery->where('company_id', $company->id);
-                } else {
-                                    // Client companies see old pending requests for employees assigned to them
-                                    $subQuery->whereHas('employee', function (Builder $empQuery) use ($company) {
-                                        $empQuery->where('company_assigned_id', $company->id);
-                    });
-                }
+            ->where(function (Builder $query) use ($company, $authUser, $isBranchManager) {
+                // Branch managers see PENDING_SUPERVISOR_APPROVAL for employees in their branches
+                if ($isBranchManager && $authUser instanceof User) {
+                    $branchIds = $authUser->managedBranches()->pluck('id')->toArray();
+                    $query->orWhere(function (Builder $q) use ($branchIds) {
+                        $q->where('status', LeaveRequestStatus::PENDING_SUPERVISOR_APPROVAL)
+                            ->whereHas('employee', function (Builder $empQ) use ($branchIds) {
+                                $empQ->whereHas('branches', function (Builder $bQ) use ($branchIds) {
+                                    $bQ->whereIn('branches.id', $branchIds)
+                                        ->where('branch_employee.is_active', true);
+                                });
                             });
                     });
+                }
+
+                // Company sees requests where it is the current approver
+                $query->orWhere('current_approver_company_id', $company->id);
+
+                // Backward compatibility: old PENDING requests
+                $query->orWhere(function (Builder $q) use ($company) {
+                    $q->where('status', LeaveRequestStatus::PENDING)
+                        ->where(function (Builder $subQuery) use ($company) {
+                            if ($company->type === CompanyTypes::PROVIDER) {
+                                $subQuery->where('company_id', $company->id);
+                            } else {
+                                $subQuery->whereHas('employee', function (Builder $empQuery) use ($company) {
+                                    $empQuery->where('company_assigned_id', $company->id);
+                                });
+                            }
+                        });
+                });
+
+                // Also show approved/rejected for history
+                $query->orWhere(function (Builder $q) use ($company) {
+                    $q->whereIn('status', [LeaveRequestStatus::APPROVED, LeaveRequestStatus::REJECTED])
+                        ->where(function (Builder $sub) use ($company) {
+                            $sub->where('company_id', $company->id)
+                                ->orWhereHas('employee', function (Builder $empQ) use ($company) {
+                                    $empQ->where('company_assigned_id', $company->id);
+                                });
+                        });
+                });
             });
     }
 }

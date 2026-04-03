@@ -8,6 +8,7 @@ use App\Models\LeaveRequest as LeaveRequestModel;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Textarea;
@@ -44,8 +45,46 @@ class RequestLeave extends Page implements HasForms
 
     public function form(Form $form): Form
     {
+        $employee = Filament::auth()->user();
+        $lastLeave = $employee->leaveRequests()->latest()->first();
+
         return $form
             ->schema([
+                // Smart info panel
+                Section::make('📊 بياناتك — نظرة سريعة قبل تقديم الطلب')
+                    ->schema([
+                        Grid::make(3)
+                            ->schema([
+                                Placeholder::make('vacation_balance_display')
+                                    ->label('رصيد الإجازة السنوية / Annual Leave Balance')
+                                    ->content(fn () => ($employee->vacation_balance ?? 21) . ' يوم / days'),
+                                Placeholder::make('passport_expiry_display')
+                                    ->label('انتهاء جواز السفر / Passport Expiry')
+                                    ->content(fn () => $employee->passport_expiry
+                                        ? $employee->passport_expiry->format('d/m/Y')
+                                        : '⚠️ غير مُدخل / Not set'),
+                                Placeholder::make('visa_expiry_display')
+                                    ->label('انتهاء التأشيرة / Visa Expiry')
+                                    ->content(fn () => $employee->visa_expiry
+                                        ? $employee->visa_expiry->format('d/m/Y')
+                                        : '— غير مُدخل / Not set'),
+                            ]),
+                        Grid::make(2)
+                            ->schema([
+                                Placeholder::make('last_leave_display')
+                                    ->label('آخر إجازة / Last Leave Request')
+                                    ->content(fn () => $lastLeave
+                                        ? $lastLeave->start_date->format('d/m/Y') . ' — ' . LeaveRequestStatus::getTranslatedKey($lastLeave->status->value)
+                                        : 'لا يوجد / None'),
+                                Placeholder::make('pending_requests_display')
+                                    ->label('طلبات قيد المراجعة / Pending Requests')
+                                    ->content(fn () => $employee->leaveRequests()
+                                        ->whereNotIn('status', [LeaveRequestStatus::APPROVED, LeaveRequestStatus::REJECTED])
+                                        ->count() ?: 'لا يوجد / None'),
+                            ]),
+                    ])
+                    ->collapsible(),
+
                 Wizard::make([
                     Step::make('leave_type')
                         ->label('Step 1/3')
@@ -96,7 +135,7 @@ class RequestLeave extends Page implements HasForms
                                                 $this->calculateDays($get('start_date'), $state, $set);
                                             }
                                         }),
-                                    \Filament\Forms\Components\Placeholder::make('days_count_display')
+                                    Placeholder::make('days_count_display')
                                         ->label('Number of Days')
                                         ->content(function (callable $get) {
                                             $startDate = $get('start_date');
@@ -110,6 +149,53 @@ class RequestLeave extends Page implements HasForms
                                             return '0 days';
                                         })
                                         ->visible(fn (callable $get) => $get('start_date') && $get('end_date')),
+                                    // Passport validation warnings
+                                    Placeholder::make('passport_warning')
+                                        ->label('')
+                                        ->content(function (callable $get) {
+                                            $employee = Filament::auth()->user();
+                                            $leaveType = $get('leave_type');
+                                            $endDate = $get('end_date');
+
+                                            // Only check passport for annual leave
+                                            if ($leaveType !== \App\Enums\LeaveType::ANNUAL) {
+                                                return '';
+                                            }
+
+                                            if (!$employee->passport_expiry) {
+                                                return new HtmlString('<div style="background:#fff5f5;border:1px solid #fc8181;border-radius:8px;padding:12px;color:#c53030;font-weight:600;">🚫 لا توجد بيانات جواز سفر — يرجى مراجعة HR الشركة المؤجرة / No passport data — contact your provider HR</div>');
+                                            }
+
+                                            if ($endDate && $employee->passport_expiry->lt(Carbon::parse($endDate)->addMonths(6))) {
+                                                return new HtmlString('<div style="background:#fffbeb;border:1px solid #f6ad55;border-radius:8px;padding:12px;color:#b7791f;font-weight:600;">⚠️ صلاحية الجواز أقل من 6 أشهر عند العودة — يرجى التجديد أولاً / Passport expires within 6 months of return — renew first</div>');
+                                            }
+
+                                            return '';
+                                        })
+                                        ->visible(fn (callable $get) => $get('leave_type') === \App\Enums\LeaveType::ANNUAL),
+                                    // Balance warning
+                                    Placeholder::make('balance_warning')
+                                        ->label('')
+                                        ->content(function (callable $get) {
+                                            $employee = Filament::auth()->user();
+                                            $startDate = $get('start_date');
+                                            $endDate = $get('end_date');
+                                            $leaveType = $get('leave_type');
+
+                                            if ($leaveType !== \App\Enums\LeaveType::ANNUAL || !$startDate || !$endDate) {
+                                                return '';
+                                            }
+
+                                            $days = $this->calculateDaysCount($startDate, $endDate);
+                                            $balance = $employee->vacation_balance ?? 21;
+
+                                            if ($days > $balance) {
+                                                return new HtmlString('<div style="background:#fffbeb;border:1px solid #f6ad55;border-radius:8px;padding:12px;color:#b7791f;font-weight:600;">⚠️ أيام الإجازة المطلوبة (' . $days . ') أكثر من رصيدك (' . $balance . ') — سيُحال القرار للمشرف / Requested days (' . $days . ') exceed your balance (' . $balance . ')</div>');
+                                            }
+
+                                            return '';
+                                        })
+                                        ->visible(fn (callable $get) => $get('leave_type') === \App\Enums\LeaveType::ANNUAL && $get('start_date') && $get('end_date')),
                                 ]),
                         ]),
                     Step::make('summary')
@@ -117,13 +203,13 @@ class RequestLeave extends Page implements HasForms
                         ->schema([
                             Section::make('Request Summary')
                                 ->schema([
-                                    \Filament\Forms\Components\Placeholder::make('summary_leave_type')
+                                    Placeholder::make('summary_leave_type')
                                         ->label('Leave Type')
                                         ->content(function (callable $get) {
                                             $type = $get('leave_type');
                                             return $type ? LeaveType::getTranslatedKey($type) : '-';
                                         }),
-                                    \Filament\Forms\Components\Placeholder::make('summary_start_date')
+                                    Placeholder::make('summary_start_date')
                                         ->label(function (callable $get) {
                                             $startDate = $get('start_date');
                                             if ($startDate) {
@@ -137,7 +223,7 @@ class RequestLeave extends Page implements HasForms
                                             $startDate = $get('start_date');
                                             return $startDate ? Carbon::parse($startDate)->format('d/m/Y') : '-';
                                         }),
-                                    \Filament\Forms\Components\Placeholder::make('summary_end_date')
+                                    Placeholder::make('summary_end_date')
                                         ->label(function (callable $get) {
                                             $endDate = $get('end_date');
                                             if ($endDate) {
@@ -151,7 +237,7 @@ class RequestLeave extends Page implements HasForms
                                             $endDate = $get('end_date');
                                             return $endDate ? Carbon::parse($endDate)->format('d/m/Y') : '-';
                                         }),
-                                    \Filament\Forms\Components\Placeholder::make('summary_days_count')
+                                    Placeholder::make('summary_days_count')
                                         ->label('Number of Days')
                                         ->content(function (callable $get) {
                                             $startDate = $get('start_date');
@@ -190,6 +276,28 @@ BLADE
 
         $employee = Filament::auth()->user();
 
+        // Block annual leave if passport data missing
+        if ($data['leave_type'] === \App\Enums\LeaveType::ANNUAL) {
+            if (!$employee->passport_expiry) {
+                Notification::make()
+                    ->title('لا توجد بيانات جواز سفر / No passport data')
+                    ->body('يرجى مراجعة HR الشركة المؤجرة لتحديث بياناتك / Contact your provider HR to update your data.')
+                    ->danger()
+                    ->send();
+                return;
+            }
+
+            $endDate = Carbon::parse($data['end_date']);
+            if ($employee->passport_expiry->lt($endDate->copy()->addMonths(6))) {
+                Notification::make()
+                    ->title('صلاحية الجواز غير كافية / Passport expiry insufficient')
+                    ->body('جواز سفرك ينتهي قبل 6 أشهر من تاريخ العودة. يرجى التجديد أولاً / Passport expires within 6 months of return date. Renew first.')
+                    ->danger()
+                    ->send();
+                return;
+            }
+        }
+
         // Get client company (where employee is assigned) or fall back to provider company
         $clientCompanyId = $employee->company_assigned_id ?? $employee->company_id;
         
@@ -204,6 +312,7 @@ BLADE
 
         $daysCount = $this->calculateDaysCount($data['start_date'], $data['end_date']);
 
+        // New flow: start with supervisor approval (branch manager)
         LeaveRequestModel::create([
             'employee_id' => $employee->id,
             'company_id' => $clientCompanyId,
@@ -212,13 +321,13 @@ BLADE
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'],
             'days_count' => $daysCount,
-            'status' => LeaveRequestStatus::PENDING_CLIENT_APPROVAL,
+            'status' => LeaveRequestStatus::PENDING_SUPERVISOR_APPROVAL,
             'notes' => $data['notes'] ?? null,
         ]);
 
         Notification::make()
-            ->title('Leave request submitted successfully')
-            ->body('Your request will be reviewed and responded to soon')
+            ->title('تم تقديم طلب الإجازة بنجاح / Leave request submitted successfully')
+            ->body('سيتم مراجعته من المشرف ثم الشركة المستأجرة ثم المؤجرة / Will be reviewed by supervisor, then client HR, then provider HR.')
             ->success()
             ->send();
 

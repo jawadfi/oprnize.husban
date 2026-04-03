@@ -85,6 +85,7 @@ class MyLeaveRequests extends Page implements HasTable
                     ->options([
                         '' => 'All',
                         LeaveRequestStatus::PENDING => 'Pending',
+                        LeaveRequestStatus::PENDING_SUPERVISOR_APPROVAL => 'Pending Supervisor',
                         LeaveRequestStatus::PENDING_CLIENT_APPROVAL => 'Pending Client Approval',
                         LeaveRequestStatus::PENDING_PROVIDER_APPROVAL => 'Pending Provider Approval',
                         LeaveRequestStatus::APPROVED => 'Approved',

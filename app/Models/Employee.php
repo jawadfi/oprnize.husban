@@ -24,6 +24,9 @@ class Employee extends Authenticatable implements FilamentUser
         'hire_date',
         'identity_number',
         'nationality',
+        'passport_expiry',
+        'visa_expiry',
+        'vacation_balance',
         'company_id',
         'company_assigned_id',
         'email',
@@ -40,7 +43,10 @@ class Employee extends Authenticatable implements FilamentUser
     {
         return [
             'email_verified_at'=>'datetime',
-            'password'=>'hashed'
+            'password'=>'hashed',
+            'passport_expiry'=>'date',
+            'visa_expiry'=>'date',
+            'vacation_balance'=>'integer',
         ];
     }
 

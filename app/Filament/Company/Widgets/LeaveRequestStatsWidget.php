@@ -18,9 +18,14 @@ class LeaveRequestStatsWidget extends BaseWidget
         
         $stats = [];
         
-        // Pending leave requests
+        // Pending leave requests (all pending statuses)
         $pending = LeaveRequest::where('company_id', $user->id)
-            ->where('status', LeaveRequestStatus::PENDING)
+            ->whereIn('status', [
+                LeaveRequestStatus::PENDING,
+                LeaveRequestStatus::PENDING_SUPERVISOR_APPROVAL,
+                LeaveRequestStatus::PENDING_CLIENT_APPROVAL,
+                LeaveRequestStatus::PENDING_PROVIDER_APPROVAL,
+            ])
             ->count();
         
         $leaveUrl = LeaveRequests::getUrl();
