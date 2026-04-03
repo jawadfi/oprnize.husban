@@ -3,10 +3,13 @@
 namespace App\Filament\Company\Pages;
 
 use App\Enums\AttendanceStatus;
+use App\Enums\BranchEntryStatus;
+use App\Enums\BranchEntryType;
 use App\Enums\CompanyTypes;
 use App\Enums\DeductionReason;
 use App\Enums\DeductionStatus;
 use App\Enums\DeductionType;
+use App\Models\BranchEntry;
 use App\Models\Company;
 use App\Models\Deduction;
 use App\Models\Employee;
@@ -229,6 +232,21 @@ class EmployeeEntries extends Page implements HasForms
         }
         if ($user instanceof \App\Models\User && $user->company) {
             return $user->company;
+        }
+        return null;
+    }
+
+    protected function isBranchManagerUser(): bool
+    {
+        $user = Filament::auth()->user();
+        return $user instanceof \App\Models\User && $user->isBranchManager();
+    }
+
+    protected function getBranchManagerBranchId(): ?int
+    {
+        $user = Filament::auth()->user();
+        if ($user instanceof \App\Models\User) {
+            return $user->managedBranches()->value('id');
         }
         return null;
     }
@@ -649,6 +667,27 @@ class EmployeeEntries extends Page implements HasForms
         $company = $this->getCompanyUser();
         $targetMonth = $this->resolveEntryMonth('overtime', $this->selectedMonth);
 
+        if ($this->isBranchManagerUser()) {
+            $user = Filament::auth()->user();
+            $calc = $this->calculateOvertimeAmountByFormula($this->overtimeHours);
+            BranchEntry::create([
+                'branch_id'       => $this->getBranchManagerBranchId(),
+                'employee_id'     => $this->selectedEmployeeId,
+                'payroll_month'   => $targetMonth,
+                'entry_type'      => BranchEntryType::OVERTIME,
+                'overtime_hours'  => $this->overtimeHours,
+                'overtime_amount' => $calc['amount'] ?? 0,
+                'notes'           => $this->overtimeNotes,
+                'status'          => BranchEntryStatus::SUBMITTED,
+                'submitted_by'    => $user->id,
+                'submitted_at'    => now(),
+            ]);
+            $this->resetOvertimeForm();
+            $this->loadExistingEntries();
+            Notification::make()->title('تم إرسال الإدخال للمراجعة')->success()->send();
+            return;
+        }
+
         $calc = $this->calculateOvertimeAmountByFormula($this->overtimeHours);
         $ratePerHour = $calc['rate_per_hour'];
         $amount = $calc['amount'];
@@ -770,6 +809,26 @@ class EmployeeEntries extends Page implements HasForms
         $company = $this->getCompanyUser();
         $targetMonth = $this->resolveEntryMonth('additions', $this->selectedMonth);
 
+        if ($this->isBranchManagerUser()) {
+            $user = Filament::auth()->user();
+            BranchEntry::create([
+                'branch_id'       => $this->getBranchManagerBranchId(),
+                'employee_id'     => $this->selectedEmployeeId,
+                'payroll_month'   => $targetMonth,
+                'entry_type'      => BranchEntryType::ADDITION,
+                'addition_amount' => $this->additionAmount,
+                'addition_reason' => $this->additionReason,
+                'notes'           => $this->additionDescription,
+                'status'          => BranchEntryStatus::SUBMITTED,
+                'submitted_by'    => $user->id,
+                'submitted_at'    => now(),
+            ]);
+            $this->resetAdditionForm();
+            $this->loadExistingEntries();
+            Notification::make()->title('تم إرسال الإدخال للمراجعة')->success()->send();
+            return;
+        }
+
         EmployeeAddition::create([
             'employee_id' => $this->selectedEmployeeId,
             'company_id' => $company->id,
@@ -836,6 +895,28 @@ class EmployeeEntries extends Page implements HasForms
         $company = $this->getCompanyUser();
         $targetMonth = $this->resolveEntryMonth('deductions', $this->selectedMonth);
 
+        if ($this->isBranchManagerUser()) {
+            $user = Filament::auth()->user();
+            BranchEntry::create([
+                'branch_id'            => $this->getBranchManagerBranchId(),
+                'employee_id'          => $this->selectedEmployeeId,
+                'payroll_month'        => $targetMonth,
+                'entry_type'           => BranchEntryType::DEDUCTION,
+                'deduction_reason'     => $this->deductionReason ?? 'other',
+                'deduction_description'=> $this->deductionDescription,
+                'deduction_days'       => $this->deductionDays ?? 0,
+                'deduction_daily_rate' => $this->deductionDailyRate ?? 0,
+                'deduction_amount'     => $this->deductionAmount,
+                'status'               => BranchEntryStatus::SUBMITTED,
+                'submitted_by'         => $user->id,
+                'submitted_at'         => now(),
+            ]);
+            $this->resetDeductionForm();
+            $this->loadExistingEntries();
+            Notification::make()->title('تم إرسال الإدخال للمراجعة')->success()->send();
+            return;
+        }
+
         Deduction::create([
             'employee_id' => $this->selectedEmployeeId,
             'company_id' => $company->id,
@@ -900,6 +981,23 @@ class EmployeeEntries extends Page implements HasForms
         $parts = explode('-', $targetMonth);
         $year = (int) $parts[0];
         $month = (int) $parts[1];
+
+        if ($this->isBranchManagerUser()) {
+            $user = Filament::auth()->user();
+            BranchEntry::create([
+                'branch_id'     => $this->getBranchManagerBranchId(),
+                'employee_id'   => $this->selectedEmployeeId,
+                'payroll_month' => $targetMonth,
+                'entry_type'    => BranchEntryType::ATTENDANCE,
+                'notes'         => json_encode($this->attendanceData),
+                'status'        => BranchEntryStatus::SUBMITTED,
+                'submitted_by'  => $user->id,
+                'submitted_at'  => now(),
+            ]);
+            $this->loadExistingEntries();
+            Notification::make()->title('تم إرسال التايم شيت للمراجعة')->success()->send();
+            return;
+        }
 
         $timesheet = EmployeeTimesheet::updateOrCreate(
             [
