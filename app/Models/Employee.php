@@ -27,6 +27,7 @@ class Employee extends Authenticatable implements FilamentUser
         'passport_expiry',
         'visa_expiry',
         'vacation_balance',
+        'annual_leave_entitlement',
         'company_id',
         'company_assigned_id',
         'email',
@@ -47,6 +48,7 @@ class Employee extends Authenticatable implements FilamentUser
             'passport_expiry'=>'date',
             'visa_expiry'=>'date',
             'vacation_balance'=>'integer',
+            'annual_leave_entitlement'=>'integer',
         ];
     }
 

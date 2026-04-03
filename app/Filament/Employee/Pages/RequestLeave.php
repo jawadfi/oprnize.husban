@@ -53,11 +53,22 @@ class RequestLeave extends Page implements HasForms
                 // Smart info panel
                 Section::make('📊 بياناتك — نظرة سريعة قبل تقديم الطلب')
                     ->schema([
-                        Grid::make(3)
+                        Grid::make(4)
                             ->schema([
+                                Placeholder::make('annual_entitlement_display')
+                                    ->label('رصيد التعاقد السنوي / Contract Entitlement')
+                                    ->content(fn () => new \Illuminate\Support\HtmlString(
+                                        '<span style="font-size:20px;font-weight:800;color:#2b6cb0;">'
+                                        . ($employee->annual_leave_entitlement ?? 21)
+                                        . '</span> <small style="color:#718096;">يوم / day</small>'
+                                    )),
                                 Placeholder::make('vacation_balance_display')
-                                    ->label('رصيد الإجازة السنوية / Annual Leave Balance')
-                                    ->content(fn () => ($employee->vacation_balance ?? 21) . ' يوم / days'),
+                                    ->label('الرصيد المتبقي / Remaining Balance')
+                                    ->content(fn () => new \Illuminate\Support\HtmlString(
+                                        '<span style="font-size:20px;font-weight:800;color:#276749;">'
+                                        . ($employee->vacation_balance ?? $employee->annual_leave_entitlement ?? 21)
+                                        . '</span> <small style="color:#718096;">يوم / day</small>'
+                                    )),
                                 Placeholder::make('passport_expiry_display')
                                     ->label('انتهاء جواز السفر / Passport Expiry')
                                     ->content(fn () => $employee->passport_expiry

@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>دليل الاختبار — نظام الإجازات</title>
+  <style>
+    :root {
+      --bg: #f0f4f8;
+      --card: #ffffff;
+      --text: #1a202c;
+      --muted: #718096;
+      --border: #e2e8f0;
+      --primary: #2b6cb0;
+      --success: #276749;
+      --success-bg: #f0fff4;
+      --success-border: #9ae6b4;
+      --danger: #c53030;
+      --danger-bg: #fff5f5;
+      --danger-border: #feb2b2;
+      --warn: #b7791f;
+      --warn-bg: #fffbeb;
+      --warn-border: #fbd38d;
+      --info: #2c7a7b;
+      --info-bg: #e6fffa;
+      --info-border: #81e6d9;
+      --code-bg: #1a202c;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", Tahoma, "Cairo", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.9;
+      padding: 32px 20px;
+      direction: rtl;
+    }
+
+    .page { max-width: 1100px; margin: 0 auto; display: grid; gap: 24px; }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%);
+      color: white;
+      border-radius: 18px;
+      padding: 36px 40px;
+    }
+    .hero h1 { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+    .hero p  { font-size: 15px; opacity: .85; }
+    .hero-meta { margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .badge {
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.3);
+      border-radius: 40px;
+      padding: 4px 16px;
+      font-size: 13px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px 32px;
+    }
+    .card-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary);
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 12px;
+      margin-bottom: 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Steps */
+    .step-list { display: grid; gap: 16px; }
+    .step {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      background: #f7fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+    .step-num {
+      background: var(--primary);
+      color: white;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .step-body h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .step-body p  { font-size: 14px; color: var(--muted); }
+
+    /* Alert boxes */
+    .alert {
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 14px;
+      margin-top: 12px;
+    }
+    .alert-success { background: var(--success-bg); border: 1px solid var(--success-border); color: var(--success); }
+    .alert-danger  { background: var(--danger-bg);  border: 1px solid var(--danger-border);  color: var(--danger); }
+    .alert-warn    { background: var(--warn-bg);    border: 1px solid var(--warn-border);    color: var(--warn); }
+    .alert-info    { background: var(--info-bg);    border: 1px solid var(--info-border);    color: var(--info); }
+
+    /* Code block */
+    .code-block {
+      background: var(--code-bg);
+      color: #a8ff78;
+      border-radius: 10px;
+      padding: 16px 20px;
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 13px;
+      line-height: 2;
+      overflow-x: auto;
+      direction: ltr;
+      text-align: left;
+      margin-top: 12px;
+    }
+    .code-block .comment { color: #6b7280; }
+    .code-block .cmd     { color: #60d9f9; }
+    .code-block .str     { color: #ffd380; }
+
+    /* Test scenario table */
+    .test-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .test-table th {
+      background: #2b6cb0;
+      color: white;
+      padding: 10px 14px;
+      text-align: right;
+      font-weight: 600;
+    }
+    .test-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .test-table tr:nth-child(even) td { background: #f7fafc; }
+
+    /* Status pills */
+    .pill {
+      display: inline-block;
+      border-radius: 20px;
+      padding: 2px 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .pill-gray    { background: #edf2f7; color: #4a5568; }
+    .pill-yellow  { background: #fefcbf; color: #744210; }
+    .pill-blue    { background: #ebf8ff; color: #2b6cb0; }
+    .pill-purple  { background: #faf5ff; color: #553c9a; }
+    .pill-green   { background: #f0fff4; color: #276749; }
+    .pill-red     { background: #fff5f5; color: #c53030; }
+
+    /* Flow diagram */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+    .flow-box {
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .flow-arrow {
+      font-size: 20px;
+      color: var(--muted);
+      padding: 0 6px;
+    }
+
+    /* Grid 2 cols */
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 680px) { .grid2 { grid-template-columns: 1fr; } }
+
+    /* Checklist */
+    .checklist { list-style: none; display: grid; gap: 8px; }
+    .checklist li {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      font-size: 14px;
+    }
+    .checklist li::before {
+      content: "☐";
+      font-size: 16px;
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    /* File list */
+    .file-list { display: grid; gap: 10px; }
+    .file-item {
+      background: #f7fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .file-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+    .file-name { font-size: 13px; font-family: Consolas, monospace; color: var(--primary); font-weight: 600; margin-bottom: 3px; direction: ltr; text-align: left; }
+    .file-desc { font-size: 13px; color: var(--muted); }
+
+    h2 { font-size: 22px; font-weight: 700; }
+
+    .separator { border: none; border-top: 2px dashed var(--border); }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HERO -->
+  <div class="hero">
+    <h1>🧪 دليل الاختبار الشامل — نظام إجازات الموظفين</h1>
+    <p>كل ما تم بناؤه، وكيفية تشغيله واختباره خطوة بخطوة</p>
+    <div class="hero-meta">
+      <span class="badge">📅 3 أبريل 2026</span>
+      <span class="badge">🔀 Commit: c8336c7</span>
+      <span class="badge">🌿 Branch: master</span>
+      <span class="badge">✅ 9 ملفات معدّلة</span>
+    </div>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- 1. ما الذي تم بناؤه                              -->
+  <!-- ================================================ -->
+  <div class="card">
+    <div class="card-title">🏗️ ماذا تم بناؤه؟</div>
+
+    <p style="margin-bottom:20px; font-size:15px; color:var(--muted);">
+      النظام القديم كان يحتوي على مستويَين فقط للموافقة (Client → Provider).
+      تم تحويله إلى نظام ثلاثي المستويات مع تحقق من جواز السفر وحساب الرصيد التلقائي.
+    </p>
+
+    <!-- Flow -->
+    <div class="flow">
+      <div class="flow-box" style="background:#fefcbf; color:#744210;">👤 موظف<br><small>يقدّم الطلب</small></div>
+      <div class="flow-arrow">←</div>
+      <div class="flow-box" style="background:#e9d8fd; color:#553c9a;">👔 مشرف الفرع<br><small>المستوى 1</small></div>
+      <div class="flow-arrow">←</div>
+      <div class="flow-box" style="background:#bee3f8; color:#2b6cb0;">🏢 HR العميل<br><small>المستوى 2</small></div>
+      <div class="flow-arrow">←</div>
+      <div class="flow-box" style="background:#c6f6d5; color:#276749;">🏭 HR المزود<br><small>المستوى 3</small></div>
+      <div class="flow-arrow">←</div>
+      <div class="flow-box" style="background:#f0fff4; color:#276749; border:2px solid #9ae6b4;">✅ اعتماد نهائي<br><small>خصم الرصيد</small></div>
+    </div>
+
+    <div style="margin-top:24px;" class="grid2">
+      <div class="alert alert-success">
+        ✅ <strong>الجديد — لوحة المعلومات الذكية:</strong> يرى الموظف رصيده وانتهاء الجواز ورصيد الإجازة قبل التقديم.
+      </div>
+      <div class="alert alert-warn">
+        🛂 <strong>الجديد — التحقق من الجواز:</strong> إجازة سنوية تُرفض إذا لم يوجد جواز أو سينتهي خلال 6 أشهر من تاريخ العودة.
+      </div>
+      <div class="alert alert-info">
+        📊 <strong>الجديد — الرصيد التلقائي:</strong> عند الاعتماد النهائي للإجازة السنوية يُخصم عدد الأيام من رصيد الموظف تلقائياً.
+      </div>
+      <div class="alert alert-info">
+        👔 <strong>الجديد — دور المشرف:</strong> مدير الفرع يرى الطلبات المعلّقة للموظفين في فرعه ويوافق عليها كمستوى أول.
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- 2. الملفات المعدّلة                               -->
+  <!-- ================================================ -->
+  <div class="card">
+    <div class="card-title">📁 الملفات التي تم تعديلها</div>
+    <div class="file-list">
+
+      <div class="file-item">
+        <div class="file-icon">🗄️</div>
+        <div>
+          <div class="file-name">database/migrations/2026_04_03_100000_add_passport_visa_balance_to_employees_table.php</div>
+          <div class="file-desc">Migration جديد — يضيف 3 أعمدة جديدة لجدول الموظفين: <code>passport_expiry</code> (تاريخ)، <code>visa_expiry</code> (تاريخ)، <code>vacation_balance</code> (رقم، افتراضي 21 يوم)</div>
+        </div>
+      </div>
+
+      <div class="file-item">
+        <div class="file-icon">🔢</div>
+        <div>
+          <div class="file-name">app/Enums/LeaveRequestStatus.php</div>
+          <div class="file-desc">أُضيف حالة جديدة: <code>PENDING_SUPERVISOR_APPROVAL = 'pending_supervisor_approval'</code> مع تسمية عربية وإنجليزية ولون تحذيري.</div>
+        </div>
+      </div>
+
+      <div class="file-item">
+        <div class="file-icon">👤</div>
+        <div>
+          <div class="file-name">app/Models/Employee.php</div>
+          <div class="file-desc">إضافة الحقول الثلاثة الجديدة لـ <code>$fillable</code> وإضافة casts المناسبة (date, integer).</div>
+        </div>
+      </div>
+
+      <div class="file-item">
+        <div class="file-icon">📋</div>
+        <div>
+          <div class="file-name">app/Models/LeaveRequest.php</div>
+          <div class="file-desc">
+            إضافة دوال: <code>isPendingSupervisorApproval()</code>، <code>moveToClientApproval()</code>.<br>
+            تعديل دالة <code>finalizeApproval()</code> لتخصم الرصيد تلقائياً عند إجازة سنوية.
+          </div>
+        </div>
+      </div>
+
+      <div class="file-item">
+        <div class="file-icon">📝</div>
+        <div>
+          <div class="file-name">app/Filament/Employee/Pages/RequestLeave.php</div>
+          <div class="file-desc">
+            ✦ لوحة المعلومات الذكية (balance, passport, visa, آخر إجازة, عدد الطلبات المعلقة)<br>
+            ✦ تحقق من الجواز مع تحذير مرئي وحجب الإرسال<br>
+            ✦ الحالة الأولى أصبحت <code>PENDING_SUPERVISOR_APPROVAL</code> بدلاً من <code>PENDING_CLIENT_APPROVAL</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="file-item">
+        <div class="file-icon">🏢</div>
+        <div>
+          <div class="file-name">app/Filament/Company/Pages/LeaveRequests.php</div>
+          <div class="file-desc">
+            ✦ دعم دور مدير الفرع (Supervisor) في <code>canAccess()</code><br>
+            ✦ أزرار موافقة/رفض لكل صف مع ظهور ذكي حسب الدور والحالة<br>
+            ✦ دالة <code>approveRecord()</code> تدير التدفق الثلاثي<br>
+            ✦ <code>getQuery()</code> يُظهر الطلبات المناسبة لكل دور
+          </div>
+        </div>
+      </div>
+
+      <div class="file-item">
+        <div class="file-icon">📊</div>
+        <div>
+          <div class="file-name">app/Filament/Employee/Pages/MyLeaveRequests.php</div>
+          <div class="file-desc">إضافة خيار "في انتظار موافقة المشرف" لفلتر الحالة.</div>
+        </div>
+      </div>
+
+      <div class="file-item">
+        <div class="file-icon">📈</div>
+        <div>
+          <div class="file-name">app/Filament/Company/Widgets/LeaveRequestStatsWidget.php</div>
+          <div class="file-desc">عداد الطلبات المعلّقة يشمل الآن الحالات الأربع: PENDING, PENDING_SUPERVISOR, PENDING_CLIENT, PENDING_PROVIDER.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- 3. إعداد البيئة قبل الاختبار                      -->
+  <!-- ================================================ -->
+  <div class="card">
+    <div class="card-title">⚙️ الإعداد قبل الاختبار (مرة واحدة فقط)</div>
+
+    <div class="step-list">
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h3>تشغيل الـ Migration (إضافة الأعمدة الجديدة)</h3>
+          <p>هذا الأمر يضيف أعمدة الجواز والتأشيرة والرصيد لجدول الموظفين.</p>
+          <div class="code-block">
+<span class="comment"># من داخل مجلد المشروع</span>
+<span class="cmd">cd</span> <span class="str">oprnize.husban.net</span>
+<span class="cmd">php artisan migrate</span>
+<span class="comment"># المتوقع: Migrated: 2026_04_03_100000_add_passport_visa_balance_to_employees_table</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h3>تأكيد نجاح Migration</h3>
+          <p>تحقق من أن الأعمدة موجودة في قاعدة البيانات.</p>
+          <div class="code-block">
+<span class="cmd">php artisan tinker</span>
+<span class="comment"># داخل Tinker:</span>
+Schema::hasColumn(<span class="str">'employees'</span>, <span class="str">'passport_expiry'</span>);  <span class="comment">// يجب: true</span>
+Schema::hasColumn(<span class="str">'employees'</span>, <span class="str">'vacation_balance'</span>); <span class="comment">// يجب: true</span>
+exit
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h3>تأكيد وجود مدير فرع (Branch Manager)</h3>
+          <p>يجب أن يكون هناك User مرتبط بفرع واحد على الأقل كـ manager لاختبار المستوى الأول.</p>
+          <div class="code-block">
+<span class="cmd">php artisan tinker</span>
+<span class="comment"># داخل Tinker:</span>
+$u = App\Models\User::first(); <span class="comment">// أو حدد المستخدم المناسب</span>
+$u-&gt;isBranchManager();        <span class="comment">// يجب: true عند وجود فرع مُدار</span>
+$u-&gt;managedBranches-&gt;pluck(<span class="str">'name'</span>);
+exit
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="alert alert-warn" style="margin-top:16px;">
+      ⚠️ <strong>تنبيه:</strong> إذا لم تُشغّل Migration فستظهر أخطاء "Column not found" عند فتح صفحة طلب الإجازة.
+    </div>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- 4. سيناريوهات الاختبار                            -->
+  <!-- ================================================ -->
+  <div class="card">
+    <div class="card-title">🧪 سيناريوهات الاختبار</div>
+
+    <table class="test-table">
+      <thead>
+        <tr>
+          <th style="width:30px">#</th>
+          <th>الاختبار</th>
+          <th>الدور / الصفحة</th>
+          <th>الخطوات</th>
+          <th>النتيجة المتوقعة</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr>
+          <td><strong>1</strong></td>
+          <td>لوحة المعلومات الذكية</td>
+          <td><span class="pill pill-yellow">موظف</span><br><code>/employee/request-leave</code></td>
+          <td>افتح صفحة طلب إجازة</td>
+          <td>تظهر بطاقات: رصيد الإجازة، انتهاء الجواز، انتهاء التأشيرة، آخر إجازة، عدد الطلبات المعلقة</td>
+        </tr>
+
+        <tr>
+          <td><strong>2</strong></td>
+          <td>تقديم طلب إجازة سنوية بجواز سليم</td>
+          <td><span class="pill pill-yellow">موظف</span></td>
+          <td>
+            1. أضف للموظف: passport_expiry = تاريخ بعد 8 أشهر<br>
+            2. اختر نوع: سنوية، تواريخ لأسبوع<br>
+            3. اضغط إرسال
+          </td>
+          <td>
+            الطلب يُحفظ بحالة <span class="pill pill-purple">في انتظار المشرف</span><br>
+            رسالة نجاح تظهر
+          </td>
+        </tr>
+
+        <tr>
+          <td><strong>3</strong></td>
+          <td>حجب الإجازة السنوية لجواز منتهي</td>
+          <td><span class="pill pill-yellow">موظف</span></td>
+          <td>
+            1. اجعل passport_expiry = تاريخ قريب (خلال 3 أشهر)<br>
+            2. حاول تقديم إجازة سنوية
+          </td>
+          <td>
+            <span class="pill pill-red">رسالة خطأ</span> تمنع الإرسال وتشرح أن الجواز سينتهي قبل العودة بأقل من 6 أشهر
+          </td>
+        </tr>
+
+        <tr>
+          <td><strong>4</strong></td>
+          <td>المشرف يوافق (المستوى 1)</td>
+          <td><span class="pill pill-purple">مدير فرع</span><br><code>/company/leave-requests</code></td>
+          <td>
+            1. سجّل دخول كمدير فرع<br>
+            2. افتح صفحة طلبات الإجازات<br>
+            3. ابحث عن الطلب بحالة "في انتظار المشرف"<br>
+            4. اضغط "موافقة"
+          </td>
+          <td>
+            الحالة تتغير من <span class="pill pill-purple">في انتظار المشرف</span> إلى <span class="pill pill-blue">في انتظار عميل HR</span>
+          </td>
+        </tr>
+
+        <tr>
+          <td><strong>5</strong></td>
+          <td>Client HR يوافق (المستوى 2)</td>
+          <td><span class="pill pill-blue">HR العميل</span></td>
+          <td>
+            1. سجّل دخول كـ Client Company<br>
+            2. افتح طلبات الإجازات<br>
+            3. ابحث عن الطلب بحالة "في انتظار HR العميل"<br>
+            4. اضغط "موافقة"
+          </td>
+          <td>
+            الحالة تتغير إلى <span class="pill pill-purple" style="background:#faf5ff">في انتظار HR المزود</span>
+          </td>
+        </tr>
+
+        <tr>
+          <td><strong>6</strong></td>
+          <td>Provider HR يوافق (المستوى 3 — النهائي)</td>
+          <td><span class="pill pill-green">HR المزود</span></td>
+          <td>
+            1. سجّل دخول كـ Provider Company<br>
+            2. افتح طلبات الإجازات<br>
+            3. اضغط "موافقة" على الطلب
+          </td>
+          <td>
+            الحالة تتغير إلى <span class="pill pill-green">مقبول ✅</span><br>
+            رصيد الموظف ينقص بعدد الأيام (للإجازة السنوية فقط)
+          </td>
+        </tr>
+
+        <tr>
+          <td><strong>7</strong></td>
+          <td>التحقق من خصم الرصيد</td>
+          <td><span class="pill pill-gray">Tinker</span></td>
+          <td>
+            بعد اعتماد إجازة سنوية لـ 5 أيام، تحقق:
+            <div class="code-block" style="margin-top:8px; font-size:11px;">
+App\Models\Employee::find($id)-&gt;vacation_balance;
+<span class="comment">// قبل: 21 → بعد: 16</span>
+            </div>
+          </td>
+          <td>الرصيد يتناقص بعدد أيام الإجازة السنوية</td>
+        </tr>
+
+        <tr>
+          <td><strong>8</strong></td>
+          <td>رفض الطلب في أي مستوى</td>
+          <td>أي دور</td>
+          <td>اضغط زر "رفض" على أي طلب معلّق</td>
+          <td>الحالة تتغير إلى <span class="pill pill-red">مرفوض</span> مباشرة، لا خصم رصيد</td>
+        </tr>
+
+        <tr>
+          <td><strong>9</strong></td>
+          <td>الموافقة الجماعية (Bulk Approve)</td>
+          <td>أي دور</td>
+          <td>حدد عدة طلبات واضغط "Accept All"</td>
+          <td>كل طلب ينتقل للمرحلة التالية حسب حالته الحالية ودور المستخدم</td>
+        </tr>
+
+        <tr>
+          <td><strong>10</strong></td>
+          <td>فلتر حالة "في انتظار المشرف"</td>
+          <td><span class="pill pill-yellow">موظف</span><br><code>/employee/my-leave-requests</code></td>
+          <td>افتح "طلباتي" واختر فلتر الحالة</td>
+          <td>يظهر خيار "في انتظار موافقة المشرف" في القائمة</td>
+        </tr>
+
+        <tr>
+          <td><strong>11</strong></td>
+          <td>إجازة مرضية بدون جواز</td>
+          <td><span class="pill pill-yellow">موظف</span></td>
+          <td>قدّم إجازة مرضية لموظف بدون passport_expiry</td>
+          <td>
+            <span class="pill pill-green">يُقبل</span> — التحقق من الجواز فقط للإجازة السنوية
+          </td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- 5. فحص الأخطاء الشائعة                           -->
+  <!-- ================================================ -->
+  <div class="card">
+    <div class="card-title">🔧 الأخطاء الشائعة وحلولها</div>
+    <div class="step-list">
+
+      <div class="step">
+        <div class="step-num">!</div>
+        <div class="step-body">
+          <h3>خطأ: "Column passport_expiry does not exist"</h3>
+          <p><strong>السبب:</strong> لم تُشغَّل Migration بعد.</p>
+          <div class="code-block">php artisan migrate</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">!</div>
+        <div class="step-body">
+          <h3>المشرف لا يرى الطلبات المعلّقة</h3>
+          <p><strong>السبب:</strong> المستخدم ليس مرتبطاً بفرع كـ manager، أو الموظف ليس في فرعه.</p>
+          <div class="code-block">
+<span class="comment"># تحقق من:</span>
+$user-&gt;isBranchManager(); <span class="comment">// يجب true</span>
+$user-&gt;managedBranches()-&gt;pluck(<span class="str">'id'</span>);
+<span class="comment"># تأكد أن الموظف في branch_employee مع is_active = true</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">!</div>
+        <div class="step-body">
+          <h3>زر "موافقة" لا يظهر</h3>
+          <p><strong>السبب:</strong> الحالة لا تتطابق مع الدور. كل دور يرى زر الموافقة فقط على الحالة المخصصة له:</p>
+          <div style="margin-top:10px; display:grid; gap:6px; font-size:13px;">
+            <div>👔 مدير الفرع → يرى <span class="pill pill-purple">PENDING_SUPERVISOR_APPROVAL</span></div>
+            <div>🏢 Client HR → يرى <span class="pill pill-blue">PENDING_CLIENT_APPROVAL</span></div>
+            <div>🏭 Provider HR → يرى <span class="pill pill-green">PENDING_PROVIDER_APPROVAL</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">!</div>
+        <div class="step-body">
+          <h3>الرصيد لم يتغير بعد الاعتماد</h3>
+          <p><strong>السبب:</strong> الخصم يحدث فقط لنوع <code>ANNUAL</code> (إجازة سنوية)، وفقط عند الاعتماد النهائي من Provider HR.</p>
+          <p><strong>تحقق:</strong> <code>$record->leave_type->value === 'annual'</code></p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">!</div>
+        <div class="step-body">
+          <h3>صفحة "طلبات الإجازات" ترجع 403</h3>
+          <p><strong>السبب:</strong> المستخدم ليس Company ولا User مع صلاحية أو branch manager.</p>
+          <div class="code-block">
+<span class="comment"># تأكد من وجود permission أو كن branch manager</span>
+$user-&gt;hasPermissionTo(<span class="str">'page_LeaveRequests'</span>, <span class="str">'company'</span>);
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- 6. التحقق السريع من الكود                         -->
+  <!-- ================================================ -->
+  <div class="card">
+    <div class="card-title">⚡ أوامر Tinker للتحقق السريع</div>
+    <div class="code-block">
+<span class="comment">## 1. عرض حالة طلب معين</span>
+$r = App\Models\LeaveRequest::latest()->first();
+echo $r->status->value;           <span class="comment">// الحالة الحالية</span>
+echo $r->leave_type->value;       <span class="comment">// نوع الإجازة</span>
+echo $r->employee->vacation_balance; <span class="comment">// رصيد الموظف</span>
+
+<span class="comment">## 2. عرض كل الطلبات بحالة "في انتظار المشرف"</span>
+App\Models\LeaveRequest::where(<span class="str">'status'</span>, <span class="str">'pending_supervisor_approval'</span>)->count();
+
+<span class="comment">## 3. تعيين بيانات جواز للموظف يدوياً (للاختبار)</span>
+$emp = App\Models\Employee::find(1);
+$emp->update([
+    'passport_expiry' => now()->addMonths(12),
+    'visa_expiry'     => now()->addMonths(6),
+    'vacation_balance'=> 21,
+]);
+
+<span class="comment">## 4. تحريك طلب يدوياً من مشرف لـ Client HR</span>
+$r = App\Models\LeaveRequest::find(1);
+$r->moveToClientApproval();
+
+<span class="comment">## 5. تحريك طلب يدوياً للاعتماد النهائي</span>
+$r->finalizeApproval();
+    </div>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- 7. قائمة التحقق النهائية                          -->
+  <!-- ================================================ -->
+  <div class="card">
+    <div class="card-title">✅ قائمة التحقق النهائية قبل الإطلاق</div>
+    <ul class="checklist">
+      <li>شغّل <code>php artisan migrate</code> على الخادم</li>
+      <li>تأكد من وجود مستخدم بدور "مدير فرع" مرتبط بفرع فيه موظفون</li>
+      <li>اختبر تقديم إجازة سنوية بجواز منتهي → يجب أن تُرفض</li>
+      <li>اختبر الدورة الكاملة: تقديم → مشرف → Client HR → Provider HR → مقبول</li>
+      <li>تحقق من خصم الرصيد بعد الاعتماد النهائي للإجازة السنوية</li>
+      <li>تأكد أن اللوحة الذكية تظهر للموظف عند فتح نموذج الطلب</li>
+      <li>اختبر الرفض في كل مستوى والتأكد أنه لا يخصم الرصيد</li>
+      <li>اختبر إجازة مرضية بدون جواز → يجب أن تُقبل (لا تحقق)</li>
+      <li>تأكد أن "طلباتي" للموظف تعرض الحالة الجديدة في الفلتر</li>
+      <li>تأكد أن عداد الويدجت يشمل جميع الحالات المعلقة الأربع</li>
+    </ul>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- 8. الحالات وألوانها                              -->
+  <!-- ================================================ -->
+  <div class="card">
+    <div class="card-title">🏷️ الحالات وألوانها ومعانيها</div>
+    <table class="test-table">
+      <thead>
+        <tr>
+          <th>الحالة (بالكود)</th>
+          <th>العرض</th>
+          <th>المعنى</th>
+          <th>من يوافق بعدها</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>pending_supervisor_approval</code></td>
+          <td><span class="pill pill-yellow">في انتظار المشرف</span></td>
+          <td>الطلب بُعث للتو من الموظف</td>
+          <td>مدير الفرع</td>
+        </tr>
+        <tr>
+          <td><code>pending_client_approval</code></td>
+          <td><span class="pill pill-blue">في انتظار HR العميل</span></td>
+          <td>المشرف وافق — ينتظر شركة العميل</td>
+          <td>HR شركة العميل</td>
+        </tr>
+        <tr>
+          <td><code>pending_provider_approval</code></td>
+          <td><span class="pill pill-purple">في انتظار HR المزود</span></td>
+          <td>العميل وافق — ينتظر شركة المزود</td>
+          <td>HR شركة المزود</td>
+        </tr>
+        <tr>
+          <td><code>approved</code></td>
+          <td><span class="pill pill-green">مقبول ✅</span></td>
+          <td>اعتماد نهائي، رصيد السنوي خُصم</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>rejected</code></td>
+          <td><span class="pill pill-red">مرفوض ✗</span></td>
+          <td>رُفض في أي مستوى، لا خصم</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>pending</code></td>
+          <td><span class="pill pill-gray">معلّق (قديم)</span></td>
+          <td>حالة قديمة قبل التحديث — تعامل معها backward compat</td>
+          <td>Client أو Provider (حسب السياق)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="alert alert-success" style="font-size:15px; padding:18px 24px; border-radius:12px;">
+    🎉 <strong>الكود جاهز — Commit: c8336c7</strong><br>
+    كل التعديلات مُودَعة في Git. الخطوة الوحيدة المتبقية هي تشغيل <code>php artisan migrate</code> على الخادم.
+  </div>
+
+</div>
+</body>
+</html>
