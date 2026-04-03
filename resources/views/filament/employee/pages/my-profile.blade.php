@@ -134,6 +134,10 @@
 
         {{-- Passport --}}
         <div class="info-row">
+            <span class="info-label">رقم الجواز / Passport No.</span>
+            <span class="info-value">{{ $employee->passport_number ?? '—' }}</span>
+        </div>
+        <div class="info-row">
             <span class="info-label">انتهاء الجواز / Passport Expiry</span>
             <span class="info-value">
                 {{ $employee->passport_expiry ? $employee->passport_expiry->format('d/m/Y') : '—' }}
@@ -146,6 +150,10 @@
         </div>
 
         <div style="margin-top:16px; border-top:1px solid #e2e8f0; padding-top:16px;">
+            <div class="info-row">
+                <span class="info-label">رقم التأشيرة / Visa No.</span>
+                <span class="info-value">{{ $employee->visa_number ?? '—' }}</span>
+            </div>
             <div class="info-row">
                 <span class="info-label">انتهاء التأشيرة / Visa Expiry</span>
                 <span class="info-value">

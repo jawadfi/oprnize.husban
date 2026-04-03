@@ -33,7 +33,37 @@ class EmployeeSchema
                 Forms\Components\Tabs\Tab::make('Credential')->icon('heroicon-o-key')->schema([
                     Forms\Components\TextInput::make('email')->email()->unique(ignoreRecord:true),
                     Forms\Components\TextInput::make('password')->password(),
-                ])->columns(2)
+                ])->columns(2),
+                Forms\Components\Tabs\Tab::make('Documents & Leave')->icon('heroicon-o-identification')->columns(2)->schema([
+                    Forms\Components\Section::make('Passport & Visa')->columns(2)->schema([
+                        Forms\Components\TextInput::make('passport_number')
+                            ->label('Passport Number')
+                            ->placeholder('e.g. A12345678'),
+                        Forms\Components\DatePicker::make('passport_expiry')
+                            ->label('Passport Expiry Date')
+                            ->native(false)
+                            ->displayFormat('Y-m-d'),
+                        Forms\Components\TextInput::make('visa_number')
+                            ->label('Visa Number')
+                            ->placeholder('e.g. V98765432'),
+                        Forms\Components\DatePicker::make('visa_expiry')
+                            ->label('Visa Expiry Date')
+                            ->native(false)
+                            ->displayFormat('Y-m-d'),
+                    ]),
+                    Forms\Components\Section::make('Leave Balance')->columns(2)->schema([
+                        Forms\Components\TextInput::make('annual_leave_entitlement')
+                            ->label('Annual Leave Entitlement (Contract Days)')
+                            ->numeric()
+                            ->minValue(0)
+                            ->helperText('Number of leave days stated in the contract.'),
+                        Forms\Components\TextInput::make('vacation_balance')
+                            ->label('Remaining Vacation Balance')
+                            ->numeric()
+                            ->minValue(0)
+                            ->helperText('Available days left (auto-decremented on approval).'),
+                    ]),
+                ])->columnSpanFull(),
             ])->columnSpanFull(),
 
         ];

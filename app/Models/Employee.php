@@ -24,6 +24,8 @@ class Employee extends Authenticatable implements FilamentUser
         'hire_date',
         'identity_number',
         'nationality',
+        'passport_number',
+        'visa_number',
         'passport_expiry',
         'visa_expiry',
         'vacation_balance',
