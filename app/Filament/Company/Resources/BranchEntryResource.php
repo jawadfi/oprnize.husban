@@ -360,13 +360,13 @@ class BranchEntryResource extends Resource
                     ->visible(fn (BranchEntry $record) => in_array($record->status, [BranchEntryStatus::DRAFT, BranchEntryStatus::REJECTED])),
 
                 Tables\Actions\Action::make('submit')
-                    ->label('إرسال / Submit')
-                    ->icon('heroicon-o-paper-airplane')
+                    ->label('اعتماد / Approve')
+                    ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->requiresConfirmation()
-                    ->modalHeading('إرسال واعتماد الإدخال')
-                    ->modalDescription('عند الإرسال سيتم اعتماد الإدخال مباشرة وتطبيقه على الرواتب.')
-                    ->visible(fn (BranchEntry $record) => in_array($record->status, [BranchEntryStatus::DRAFT, BranchEntryStatus::REJECTED]))
+                    ->modalHeading('اعتماد الإدخال')
+                    ->modalDescription('سيتم اعتماد الإدخال مباشرة وتطبيقه على الرواتب.')
+                    ->visible(fn (BranchEntry $record) => $record->status === BranchEntryStatus::SUBMITTED)
                     ->action(function (BranchEntry $record) {
                         $user = Filament::auth()->user();
 
@@ -448,8 +448,8 @@ class BranchEntryResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\BulkAction::make('submitAll')
-                        ->label('إرسال الكل / Submit All')
-                        ->icon('heroicon-o-paper-airplane')
+                        ->label('اعتماد الكل / Approve All')
+                        ->icon('heroicon-o-check-circle')
                         ->color('success')
                         ->requiresConfirmation()
                         ->deselectRecordsAfterCompletion()
@@ -457,7 +457,7 @@ class BranchEntryResource extends Resource
                             $user = Filament::auth()->user();
                             $count = 0;
                             foreach ($records as $record) {
-                                if (in_array($record->status, [BranchEntryStatus::DRAFT, BranchEntryStatus::REJECTED])) {
+                                if ($record->status === BranchEntryStatus::SUBMITTED) {
                                     static::applyApprovedEntry($record);
 
                                     $record->update([
