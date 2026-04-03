@@ -101,7 +101,7 @@ class LeaveRequest extends Model
         $this->applyApprovedLeaveToClientTimesheet();
     }
 
-    protected function applyApprovedLeaveToClientTimesheet(): void
+    public function applyApprovedLeaveToClientTimesheet(): void
     {
         $employee = $this->employee;
         if (! $employee || ! $this->start_date || ! $this->end_date) {
