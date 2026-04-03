@@ -9,8 +9,14 @@ use App\Filament\Company\Resources\BranchEntryResource\Pages;
 use App\Models\Branch;
 use App\Models\BranchEntry;
 use App\Models\Company;
+use App\Models\Deduction;
 use App\Models\Employee;
+use App\Models\EmployeeAddition;
+use App\Models\EmployeeOvertime;
+use App\Models\EmployeeTimesheet;
+use App\Models\Payroll;
 use App\Models\User;
+use Carbon\Carbon;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -51,7 +57,7 @@ class BranchEntryResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -278,6 +284,10 @@ class BranchEntryResource extends Resource
                     ->sortable()
                     ->searchable(),
 
+                Tables\Columns\TextColumn::make('employee.company.name')
+                    ->label('الشركة المزودة / Provider Company')
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('payroll_month')
                     ->label('الشهر / Month')
                     ->sortable(),
@@ -309,6 +319,28 @@ class BranchEntryResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
+                Tables\Filters\SelectFilter::make('provider_company_id')
+                    ->label('الشركة المزودة / Provider Company')
+                    ->options(function () {
+                        return Company::query()
+                            ->where('type', CompanyTypes::PROVIDER)
+                            ->whereIn('id', Employee::query()->select('company_id')->distinct())
+                            ->orderBy('name')
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    })
+                    ->query(function (Builder $query, array $data) {
+                        $providerCompanyId = $data['value'] ?? null;
+
+                        if (blank($providerCompanyId)) {
+                            return $query;
+                        }
+
+                        return $query->whereHas('employee', function (Builder $employeeQuery) use ($providerCompanyId) {
+                            $employeeQuery->where('company_id', $providerCompanyId);
+                        });
+                    }),
+
                 Tables\Filters\SelectFilter::make('branch_id')
                     ->label('الفرع / Branch')
                     ->options(function () {
@@ -365,6 +397,9 @@ class BranchEntryResource extends Resource
                     })
                     ->action(function (BranchEntry $record) {
                         $user = Filament::auth()->user();
+
+                        static::applyApprovedEntry($record);
+
                         $record->update([
                             'status' => BranchEntryStatus::APPROVED,
                             'reviewed_by' => $user instanceof User ? $user->id : null,
@@ -478,6 +513,8 @@ class BranchEntryResource extends Resource
                             $count = 0;
                             foreach ($records as $record) {
                                 if ($record->status === BranchEntryStatus::SUBMITTED) {
+                                    static::applyApprovedEntry($record);
+
                                     $record->update([
                                         'status' => BranchEntryStatus::APPROVED,
                                         'reviewed_by' => $user instanceof User ? $user->id : null,
@@ -537,6 +574,130 @@ class BranchEntryResource extends Resource
     public static function getRelations(): array
     {
         return [];
+    }
+
+    protected static function applyApprovedEntry(BranchEntry $record): void
+    {
+        $month = (string) $record->payroll_month;
+
+        switch ($record->entry_type) {
+            case BranchEntryType::OVERTIME:
+                EmployeeOvertime::create([
+                    'employee_id' => $record->employee_id,
+                    'company_id' => $record->branch->company_id,
+                    'payroll_month' => $month,
+                    'hours' => (float) ($record->overtime_hours ?? 0),
+                    'rate_per_hour' => 0,
+                    'amount' => (float) ($record->overtime_amount ?? 0),
+                    'notes' => $record->notes,
+                    'is_recurring' => false,
+                    'status' => 'approved',
+                    'created_by_company_id' => $record->branch->company_id,
+                ]);
+                Payroll::syncFromEntries($record->employee_id, $record->branch->company_id, $month);
+                break;
+
+            case BranchEntryType::ADDITION:
+                EmployeeAddition::create([
+                    'employee_id' => $record->employee_id,
+                    'company_id' => $record->branch->company_id,
+                    'payroll_month' => $month,
+                    'amount' => (float) ($record->addition_amount ?? 0),
+                    'reason' => $record->addition_reason,
+                    'description' => $record->notes,
+                    'is_recurring' => false,
+                    'status' => 'approved',
+                    'created_by_company_id' => $record->branch->company_id,
+                ]);
+                Payroll::syncFromEntries($record->employee_id, $record->branch->company_id, $month);
+                break;
+
+            case BranchEntryType::DEDUCTION:
+                Deduction::create([
+                    'employee_id' => $record->employee_id,
+                    'company_id' => $record->branch->company_id,
+                    'payroll_month' => $month,
+                    'type' => ($record->deduction_days ?? 0) > 0 ? 'days' : 'fixed',
+                    'reason' => $record->deduction_reason ?: 'other',
+                    'description' => $record->deduction_description ?: $record->notes,
+                    'days' => $record->deduction_days,
+                    'daily_rate' => $record->deduction_daily_rate,
+                    'amount' => (float) ($record->deduction_amount ?? 0),
+                    'status' => 'approved',
+                    'is_recurring' => false,
+                    'created_by_company_id' => $record->branch->company_id,
+                ]);
+                Payroll::syncFromEntries($record->employee_id, $record->branch->company_id, $month);
+                break;
+
+            case BranchEntryType::ATTENDANCE:
+                static::applyAttendanceOrAbsenceToTimesheet($record, 'P');
+                Payroll::syncFromEntries($record->employee_id, $record->branch->company_id, $month);
+                break;
+
+            case BranchEntryType::ABSENCE:
+                $statusCode = $record->absence_type === 'paid' ? 'L' : 'X';
+                static::applyAttendanceOrAbsenceToTimesheet($record, $statusCode);
+                Payroll::syncFromEntries($record->employee_id, $record->branch->company_id, $month);
+                break;
+        }
+    }
+
+    protected static function applyAttendanceOrAbsenceToTimesheet(BranchEntry $record, string $statusCode): void
+    {
+        $parts = explode('-', (string) $record->payroll_month);
+        $year = (int) ($parts[0] ?? now()->year);
+        $month = (int) ($parts[1] ?? now()->month);
+        $daysInMonth = Carbon::create($year, $month, 1)->daysInMonth;
+
+        $timesheet = EmployeeTimesheet::firstOrCreate(
+            [
+                'employee_id' => $record->employee_id,
+                'company_id' => $record->branch->company_id,
+                'year' => $year,
+                'month' => $month,
+            ],
+            [
+                'attendance_data' => array_fill_keys(range(1, $daysInMonth), 'P'),
+            ]
+        );
+
+        $attendanceData = $timesheet->attendance_data ?? [];
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            if (!array_key_exists($d, $attendanceData) && !array_key_exists((string) $d, $attendanceData)) {
+                $attendanceData[$d] = 'P';
+            }
+        }
+
+        if ($record->entry_type === BranchEntryType::ATTENDANCE && $record->attendance_date) {
+            $attendanceDate = Carbon::parse($record->attendance_date);
+            if ($attendanceDate->year === $year && $attendanceDate->month === $month) {
+                $attendanceData[(string) $attendanceDate->day] = $statusCode;
+            }
+        }
+
+        if ($record->entry_type === BranchEntryType::ABSENCE) {
+            if ($record->absence_from && $record->absence_to) {
+                $from = Carbon::parse($record->absence_from)->startOfDay();
+                $to = Carbon::parse($record->absence_to)->endOfDay();
+
+                if ($to->lt($from)) {
+                    [$from, $to] = [$to, $from];
+                }
+
+                $cursor = $from->copy();
+                while ($cursor->lte($to)) {
+                    if ($cursor->year === $year && $cursor->month === $month) {
+                        $attendanceData[(string) $cursor->day] = $statusCode;
+                    }
+                    $cursor->addDay();
+                }
+            }
+        }
+
+        $timesheet->attendance_data = $attendanceData;
+        $timesheet->recalculateTotals();
+        $timesheet->save();
     }
 
     public static function getPages(): array
