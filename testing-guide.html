@@ -228,13 +228,251 @@
   <!-- HERO -->
   <div class="hero">
     <h1>🧪 دليل الاختبار الشامل — نظام إجازات الموظفين</h1>
-    <p>كل ما تم بناؤه، وكيفية تشغيله واختباره خطوة بخطوة</p>
+    <p>كل ما تم بناؤه، وكيفية تشغيله واختباره خطوة بخطوة — مع خريطة كل ميزة في أي لوحة</p>
     <div class="hero-meta">
       <span class="badge">📅 3 أبريل 2026</span>
-      <span class="badge">🔀 Commit: c8336c7</span>
+      <span class="badge">🔀 Commit: 3cba028</span>
       <span class="badge">🌿 Branch: master</span>
-      <span class="badge">✅ 9 ملفات معدّلة</span>
+      <span class="badge">✅ 12 ملف معدّل</span>
     </div>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- 0. Render Auto-Migration                         -->
+  <!-- ================================================ -->
+  <div class="alert alert-success" style="padding:18px 24px; border-radius:12px; font-size:15px;">
+    🚀 <strong>Render — الـ Migration يعمل تلقائياً عند كل Deploy!</strong><br>
+    ملف <code>render.yaml</code> و <code>build.sh</code> يحتويان على <code>php artisan migrate --force</code> في الـ buildCommand — لا حاجة لأي إجراء يدوي على الخادم.
+    <div style="margin-top:10px; background:rgba(39,103,73,.1); border-radius:8px; padding:10px 14px; font-family:Consolas,monospace; font-size:13px; direction:ltr; text-align:left;">
+      buildCommand: composer install ... &amp;&amp; php artisan migrate --force
+    </div>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- 1. خريطة الميزات حسب اللوحة                     -->
+  <!-- ================================================ -->
+  <div class="card">
+    <div class="card-title">🗺️ أين تجد كل ميزة؟ — خريطة اللوحات</div>
+
+    <style>
+      .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+      .panel-box { border-radius: 12px; overflow: hidden; }
+      .panel-header { padding: 14px 20px; font-size: 16px; font-weight: 800; }
+      .panel-url { font-size: 12px; font-family: Consolas, monospace; opacity: .75; }
+      .panel-features { padding: 0; list-style: none; }
+      .panel-feature { display: flex; gap: 12px; align-items: flex-start; padding: 12px 20px; border-top: 1px solid rgba(255,255,255,.08); font-size: 14px; }
+      .panel-feature-icon { font-size: 18px; flex-shrink: 0; }
+      .panel-feature-body strong { display: block; font-size: 14px; margin-bottom: 2px; }
+      .panel-feature-body span { font-size: 12px; opacity: .8; }
+    </style>
+
+    <div class="panel-grid">
+
+      <!-- Employee Panel -->
+      <div class="panel-box" style="border:2px solid #f6ad55;">
+        <div class="panel-header" style="background:#744210; color:white;">
+          👤 لوحة الموظف
+          <div class="panel-url">/employee/*</div>
+        </div>
+        <ul class="panel-features" style="background:#fffbeb;">
+          <li class="panel-feature" style="border-color:#f6ad55;">
+            <div class="panel-feature-icon">👤</div>
+            <div class="panel-feature-body">
+              <strong>ملفي الشخصي / My Profile</strong>
+              <span>الصفحة: <code>/employee/my-profile</code><br>البيانات الشخصية، رصيد التعاقد السنوي، الرصيد المتبقي، حالة الجواز، التأشيرة، آخر الطلبات</span>
+            </div>
+          </li>
+          <li class="panel-feature" style="border-color:#f6ad55;">
+            <div class="panel-feature-icon">📝</div>
+            <div class="panel-feature-body">
+              <strong>تقديم إجازة / Request Leave</strong>
+              <span>الصفحة: <code>/employee/request-leave</code><br>نموذج 3 خطوات مع لوحة معلومات ذكية (رصيد التعاقد + المتبقي + الجواز + التأشيرة) + تحقق من الجواز + تحذير الرصيد</span>
+            </div>
+          </li>
+          <li class="panel-feature" style="border-color:#f6ad55;">
+            <div class="panel-feature-icon">📋</div>
+            <div class="panel-feature-body">
+              <strong>طلباتي / My Leave Requests</strong>
+              <span>الصفحة: <code>/employee/my-leave-requests</code><br>جدول كل طلباته مع فلتر يشمل حالة "في انتظار المشرف"</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Supervisor / Branch Manager -->
+      <div class="panel-box" style="border:2px solid #d6bcfa;">
+        <div class="panel-header" style="background:#553c9a; color:white;">
+          👔 مدير الفرع (المشرف)
+          <div class="panel-url">/company/* — نفس لوحة الشركة</div>
+        </div>
+        <ul class="panel-features" style="background:#faf5ff;">
+          <li class="panel-feature" style="border-color:#d6bcfa;">
+            <div class="panel-feature-icon">📥</div>
+            <div class="panel-feature-body">
+              <strong>طلبات الإجازات / Leave Requests</strong>
+              <span>الصفحة: <code>/company/leave-requests</code><br>يرى فقط الطلبات بحالة <strong>PENDING_SUPERVISOR_APPROVAL</strong> للموظفين في فروعه<br>
+              زر ✅ موافقة → ينقل الطلب لـ Client HR<br>
+              زر ❌ رفض → يرفض مباشرة</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Client Company -->
+      <div class="panel-box" style="border:2px solid #90cdf4;">
+        <div class="panel-header" style="background:#2b6cb0; color:white;">
+          🏢 شركة العميل (Client HR)
+          <div class="panel-url">/company/* — تسجيل دخول شركة من نوع CLIENT</div>
+        </div>
+        <ul class="panel-features" style="background:#ebf8ff;">
+          <li class="panel-feature" style="border-color:#90cdf4;">
+            <div class="panel-feature-icon">📥</div>
+            <div class="panel-feature-body">
+              <strong>طلبات الإجازات / Leave Requests</strong>
+              <span>الصفحة: <code>/company/leave-requests</code><br>يرى الطلبات بحالة <strong>PENDING_CLIENT_APPROVAL</strong> حيث <code>current_approver_company_id</code> = معرّف شركتها<br>
+              زر ✅ موافقة → ينقل الطلب لـ Provider HR<br>
+              زر ❌ رفض → يرفض مباشرة<br>
+              يرى أيضاً سجل الطلبات المقبولة/المرفوضة لموظفيه</span>
+            </div>
+          </li>
+          <li class="panel-feature" style="border-color:#90cdf4;">
+            <div class="panel-feature-icon">📊</div>
+            <div class="panel-feature-body">
+              <strong>ويدجت العداد / Stats Widget</strong>
+              <span>يعرض عدد الطلبات المعلّقة الكلي (جميع الحالات الأربع)</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Provider Company -->
+      <div class="panel-box" style="border:2px solid #9ae6b4;">
+        <div class="panel-header" style="background:#276749; color:white;">
+          🏭 شركة المزود (Provider HR)
+          <div class="panel-url">/company/* — تسجيل دخول شركة من نوع PROVIDER</div>
+        </div>
+        <ul class="panel-features" style="background:#f0fff4;">
+          <li class="panel-feature" style="border-color:#9ae6b4;">
+            <div class="panel-feature-icon">📥</div>
+            <div class="panel-feature-body">
+              <strong>طلبات الإجازات / Leave Requests</strong>
+              <span>الصفحة: <code>/company/leave-requests</code><br>يرى الطلبات بحالة <strong>PENDING_PROVIDER_APPROVAL</strong> لموظفيه<br>
+              زر ✅ موافقة → <strong>اعتماد نهائي</strong> + خصم رصيد الإجازة السنوية تلقائياً<br>
+              زر ❌ رفض → يرفض مباشرة<br>
+              يرى أيضاً كل السجل التاريخي لإجازات موظفيه</span>
+            </div>
+          </li>
+          <li class="panel-feature" style="border-color:#9ae6b4;">
+            <div class="panel-feature-icon">📊</div>
+            <div class="panel-feature-body">
+              <strong>ويدجت العداد / Stats Widget</strong>
+              <span>يعرض عدد الطلبات المعلّقة الكلي (جميع الحالات الأربع)</span>
+            </div>
+          </li>
+          <li class="panel-feature" style="border-color:#9ae6b4;">
+            <div class="panel-feature-icon">✏️</div>
+            <div class="panel-feature-body">
+              <strong>تحديث بيانات الجواز والرصيد</strong>
+              <span>صفحة <code>EmployeeEntries</code> أو Filament Resource — يحدّث HR المزود الحقول:<br>
+              <code>passport_expiry</code>, <code>visa_expiry</code>, <code>vacation_balance</code>, <code>annual_leave_entitlement</code></span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Summary table -->
+    <table class="test-table" style="margin-top:24px;">
+      <thead>
+        <tr>
+          <th>الميزة / Feature</th>
+          <th style="text-align:center;">👤 موظف</th>
+          <th style="text-align:center;">👔 مشرف فرع</th>
+          <th style="text-align:center;">🏢 Client HR</th>
+          <th style="text-align:center;">🏭 Provider HR</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>ملفي الشخصي / My Profile</td>
+          <td style="text-align:center;">✅ يرى</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">—</td>
+        </tr>
+        <tr>
+          <td>رصيد التعاقد السنوي</td>
+          <td style="text-align:center;">✅ يرى</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">✏️ يحدّث</td>
+        </tr>
+        <tr>
+          <td>تقديم طلب إجازة</td>
+          <td style="text-align:center;">✅ يقدّم</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">—</td>
+        </tr>
+        <tr>
+          <td>لوحة المعلومات الذكية (جواز + رصيد)</td>
+          <td style="text-align:center;">✅ يرى</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">—</td>
+        </tr>
+        <tr>
+          <td>موافقة المستوى 1 (Supervisor)</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">✅ يوافق</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">—</td>
+        </tr>
+        <tr>
+          <td>موافقة المستوى 2 (Client HR)</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">✅ يوافق</td>
+          <td style="text-align:center;">—</td>
+        </tr>
+        <tr>
+          <td>موافقة المستوى 3 + خصم الرصيد</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">✅ يوافق</td>
+        </tr>
+        <tr>
+          <td>رفض الطلب</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">✅</td>
+          <td style="text-align:center;">✅</td>
+          <td style="text-align:center;">✅</td>
+        </tr>
+        <tr>
+          <td>الموافقة الجماعية (Bulk)</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">✅</td>
+          <td style="text-align:center;">✅</td>
+          <td style="text-align:center;">✅</td>
+        </tr>
+        <tr>
+          <td>عداد الطلبات المعلّقة (Widget)</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">✅ يرى</td>
+          <td style="text-align:center;">✅ يرى</td>
+        </tr>
+        <tr>
+          <td>سجل طلباتي</td>
+          <td style="text-align:center;">✅ يرى</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">—</td>
+          <td style="text-align:center;">—</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
   <!-- ================================================ -->
