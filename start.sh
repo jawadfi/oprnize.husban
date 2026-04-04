@@ -18,6 +18,9 @@ php artisan migrate --force || true
 echo "==> Running seeders..."
 php artisan db:seed --force || true
 
+echo "==> Ensuring provider support account..."
+php artisan app:ensure-provider-support --email=support@init.com --password='Support@123' --no-interaction || true
+
 echo "==> Publishing Filament assets..."
 php artisan filament:assets || true
 
