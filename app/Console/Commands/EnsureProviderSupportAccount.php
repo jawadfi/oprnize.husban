@@ -6,7 +6,6 @@ use App\Enums\CompanyTypes;
 use App\Models\Company;
 use App\Models\User;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 
 class EnsureProviderSupportAccount extends Command
@@ -59,8 +58,10 @@ class EnsureProviderSupportAccount extends Command
 
         // Keep existing password unless this is a new user, or an explicit password was passed,
         // or password env value is set.
+        // NOTE: Do NOT call Hash::make() here — the User model has 'password' => 'hashed'
+        // cast which hashes automatically on assignment. Double-hashing breaks authentication.
         if ($isNew || $this->option('password') || env('SUPPORT_ACCOUNT_PASSWORD')) {
-            $user->password = Hash::make($supportPassword);
+            $user->password = $supportPassword;
         }
 
         $user->save();
