@@ -66,14 +66,18 @@ class CompanyUserProvider implements UserProvider
             return null;
         }
 
-        // Try Company first
-        $company = Company::where('email', $credentials['email'])->first();
-        if ($company) {
-            return $company;
+        // Try User first to allow company staff/support accounts to authenticate
+        // even if a Company record happens to share the same email.
+        $user = User::where('email', $credentials['email'])
+            ->whereNotNull('company_id')
+            ->first();
+
+        if ($user) {
+            return $user;
         }
-        
-        // Try User
-        return User::where('email', $credentials['email'])->whereNotNull('company_id')->first();
+
+        // Fallback to Company account authentication.
+        return Company::where('email', $credentials['email'])->first();
     }
 
     public function validateCredentials(Authenticatable $user, array $credentials): bool
