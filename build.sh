@@ -14,5 +14,8 @@ php artisan cache:clear
 # Run migrations
 php artisan migrate --force --no-interaction
 
+# Ensure provider support account exists (idempotent)
+php artisan app:ensure-provider-support --no-interaction
+
 # Optimize
 php artisan optimize
