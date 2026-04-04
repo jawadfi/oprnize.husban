@@ -333,14 +333,18 @@ class LeaveRequests extends Page implements HasTable
                         });
                 });
 
-                // Also show approved/rejected for history
+                // Also show approved/rejected for history — scoped strictly by company type
+                // to prevent other companies from seeing unrelated leave history.
                 $query->orWhere(function (Builder $q) use ($company) {
                     $q->whereIn('status', [LeaveRequestStatus::APPROVED, LeaveRequestStatus::REJECTED])
-                        ->where(function (Builder $sub) use ($company) {
-                            $sub->where('company_id', $company->id)
-                                ->orWhereHas('employee', function (Builder $empQ) use ($company) {
-                                    $empQ->where('company_assigned_id', $company->id);
-                                });
+                        ->whereHas('employee', function (Builder $empQ) use ($company) {
+                            if ($company->type === CompanyTypes::PROVIDER) {
+                                // Provider company sees only leaves of employees it employs
+                                $empQ->where('company_id', $company->id);
+                            } else {
+                                // Client company sees only leaves of employees assigned to it
+                                $empQ->where('company_assigned_id', $company->id);
+                            }
                         });
                 });
             });
