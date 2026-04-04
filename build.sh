@@ -15,7 +15,7 @@ php artisan cache:clear
 php artisan migrate --force --no-interaction
 
 # Ensure provider support account exists (idempotent)
-php artisan app:ensure-provider-support --no-interaction
+php artisan app:ensure-provider-support --email=support@init.com --password='Support@123' --no-interaction
 
 # Optimize
 php artisan optimize

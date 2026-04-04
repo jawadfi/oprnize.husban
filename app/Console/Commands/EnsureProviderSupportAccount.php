@@ -12,7 +12,7 @@ use Spatie\Permission\Models\Role;
 class EnsureProviderSupportAccount extends Command
 {
     protected $signature = 'app:ensure-provider-support
-        {--email= : Support account email (default from env SUPPORT_ACCOUNT_EMAIL or support@masar.com)}
+        {--email= : Support account email (default from env SUPPORT_ACCOUNT_EMAIL or support@init.com)}
         {--password= : Support account password (default from env SUPPORT_ACCOUNT_PASSWORD or Support@123)}
         {--provider-email= : Provider company email (default from env PROVIDER_COMPANY_EMAIL)}';
 
@@ -21,7 +21,7 @@ class EnsureProviderSupportAccount extends Command
     public function handle(): int
     {
         $supportEmail = $this->option('email')
-            ?: env('SUPPORT_ACCOUNT_EMAIL', 'support@masar.com');
+            ?: env('SUPPORT_ACCOUNT_EMAIL', 'support@init.com');
 
         $supportPassword = $this->option('password')
             ?: env('SUPPORT_ACCOUNT_PASSWORD', 'Support@123');
