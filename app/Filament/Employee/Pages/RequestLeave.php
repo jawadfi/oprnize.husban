@@ -327,6 +327,8 @@ BLADE
         LeaveRequestModel::create([
             'employee_id' => $employee->id,
             'company_id' => $clientCompanyId,
+            'provider_company_id' => $employee->company_id,
+            'client_company_id' => $clientCompanyId,
             'current_approver_company_id' => $clientCompanyId,
             'leave_type' => $data['leave_type'],
             'start_date' => $data['start_date'],

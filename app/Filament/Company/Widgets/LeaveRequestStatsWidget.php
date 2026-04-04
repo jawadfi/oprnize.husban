@@ -15,16 +15,22 @@ class LeaveRequestStatsWidget extends BaseWidget
     protected function getStats(): array
     {
         $user = Filament::auth()->user();
+        $isProvider = $user->type === CompanyTypes::PROVIDER;
+        $companyColumn = $isProvider ? 'provider_company_id' : 'client_company_id';
         
         $stats = [];
         
         // Pending leave requests (all pending statuses)
-        $pending = LeaveRequest::where('company_id', $user->id)
-            ->whereIn('status', [
-                LeaveRequestStatus::PENDING,
-                LeaveRequestStatus::PENDING_SUPERVISOR_APPROVAL,
-                LeaveRequestStatus::PENDING_CLIENT_APPROVAL,
-                LeaveRequestStatus::PENDING_PROVIDER_APPROVAL,
+        $pending = LeaveRequest::where(function ($query) use ($user, $companyColumn) {
+                $query->where('current_approver_company_id', $user->id)
+                    ->orWhere(function ($pendingQuery) use ($user, $companyColumn) {
+                        $pendingQuery->where('status', LeaveRequestStatus::PENDING)
+                            ->where($companyColumn, $user->id);
+                    });
+            })
+            ->whereNotIn('status', [
+                LeaveRequestStatus::APPROVED,
+                LeaveRequestStatus::REJECTED,
             ])
             ->count();
         
@@ -35,10 +41,10 @@ class LeaveRequestStatsWidget extends BaseWidget
             ->color($pending > 0 ? 'warning' : 'success')
             ->url($leaveUrl);
         
-        if ($user->type === CompanyTypes::PROVIDER) {
+        if ($isProvider) {
             // Show monthly leave requests statistics
             $currentMonth = now()->startOfMonth();
-            $approved = LeaveRequest::where('company_id', $user->id)
+            $approved = LeaveRequest::where('provider_company_id', $user->id)
                 ->where('status', LeaveRequestStatus::APPROVED)
                 ->whereMonth('created_at', $currentMonth->month)
                 ->whereYear('created_at', $currentMonth->year)

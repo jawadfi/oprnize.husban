@@ -324,11 +324,9 @@ class LeaveRequests extends Page implements HasTable
                     $q->where('status', LeaveRequestStatus::PENDING)
                         ->where(function (Builder $subQuery) use ($company) {
                             if ($company->type === CompanyTypes::PROVIDER) {
-                                $subQuery->where('company_id', $company->id);
+                                $subQuery->where('provider_company_id', $company->id);
                             } else {
-                                $subQuery->whereHas('employee', function (Builder $empQuery) use ($company) {
-                                    $empQuery->where('company_assigned_id', $company->id);
-                                });
+                                $subQuery->where('client_company_id', $company->id);
                             }
                         });
                 });
@@ -337,15 +335,10 @@ class LeaveRequests extends Page implements HasTable
                 // to prevent other companies from seeing unrelated leave history.
                 $query->orWhere(function (Builder $q) use ($company) {
                     $q->whereIn('status', [LeaveRequestStatus::APPROVED, LeaveRequestStatus::REJECTED])
-                        ->whereHas('employee', function (Builder $empQ) use ($company) {
-                            if ($company->type === CompanyTypes::PROVIDER) {
-                                // Provider company sees only leaves of employees it employs
-                                $empQ->where('company_id', $company->id);
-                            } else {
-                                // Client company sees only leaves of employees assigned to it
-                                $empQ->where('company_assigned_id', $company->id);
-                            }
-                        });
+                        ->where(
+                            $company->type === CompanyTypes::PROVIDER ? 'provider_company_id' : 'client_company_id',
+                            $company->id
+                        );
                 });
             });
     }

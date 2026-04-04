@@ -13,6 +13,8 @@ class LeaveRequest extends Model
     protected $fillable = [
         'employee_id',
         'company_id',
+        'provider_company_id',
+        'client_company_id',
         'current_approver_company_id',
         'leave_type',
         'start_date',
@@ -65,9 +67,12 @@ class LeaveRequest extends Model
 
     public function moveToClientApproval(): void
     {
-        $clientCompanyId = $this->employee->company_assigned_id ?? $this->company_id;
+        $clientCompanyId = $this->client_company_id
+            ?? $this->employee->company_assigned_id
+            ?? $this->company_id;
         
         $this->update([
+            'client_company_id' => $clientCompanyId,
             'status' => LeaveRequestStatus::PENDING_CLIENT_APPROVAL,
             'current_approver_company_id' => $clientCompanyId,
         ]);
@@ -75,9 +80,10 @@ class LeaveRequest extends Model
 
     public function moveToProviderApproval(): void
     {
-        $providerCompanyId = $this->employee->company_id;
+        $providerCompanyId = $this->provider_company_id ?? $this->employee->company_id;
         
         $this->update([
+            'provider_company_id' => $providerCompanyId,
             'status' => LeaveRequestStatus::PENDING_PROVIDER_APPROVAL,
             'company_id' => $providerCompanyId,
             'current_approver_company_id' => $providerCompanyId,
@@ -108,7 +114,7 @@ class LeaveRequest extends Model
             return;
         }
 
-        $clientCompanyId = $employee->company_assigned_id;
+        $clientCompanyId = $this->client_company_id ?? $employee->company_assigned_id;
         if (! $clientCompanyId) {
             return;
         }
