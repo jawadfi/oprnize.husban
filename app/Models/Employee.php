@@ -108,6 +108,11 @@ class Employee extends Authenticatable implements FilamentUser
         return $this->hasMany(LeaveRequest::class);
     }
 
+    public function endOfServiceRequests()
+    {
+        return $this->hasMany(EndOfServiceRequest::class);
+    }
+
     public function deductions()
     {
         return $this->hasMany(Deduction::class);

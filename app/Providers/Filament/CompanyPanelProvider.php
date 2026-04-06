@@ -61,6 +61,7 @@ class CompanyPanelProvider extends PanelProvider
                 ProviderCompaniesListing::class,
                 ProviderCompanyEmployees::class,
                 LeaveRequests::class,
+                \App\Filament\Company\Pages\EndOfServiceRequests::class,
             ])->plugins([
                 AuthUIEnhancerPlugin::make()
                     ->formPanelBackgroundColor(Color::hex('#ffffff'))

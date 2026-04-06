@@ -37,6 +37,8 @@ class EmployeePanelProvider extends PanelProvider
                 \App\Filament\Employee\Pages\Salary::class,
                 \App\Filament\Employee\Pages\MyLeaveRequests::class,
                 \App\Filament\Employee\Pages\RequestLeave::class,
+                \App\Filament\Employee\Pages\MyEndOfServiceRequests::class,
+                \App\Filament\Employee\Pages\RequestEndOfService::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Employee/Widgets'), for: 'App\\Filament\\Employee\\Widgets')
             ->widgets([
