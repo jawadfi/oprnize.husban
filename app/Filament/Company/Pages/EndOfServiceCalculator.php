@@ -73,7 +73,7 @@ class EndOfServiceCalculator extends Page implements HasForms
                                 }
 
                                 if ($employee->hire_date) {
-                                    $set('hire_date', $employee->hire_date->format('Y-m-d'));
+                                    $set('hire_date', Carbon::parse($employee->hire_date)->format('Y-m-d'));
                                 }
 
                                 $payroll = $employee->currentPayroll;
