@@ -2,20 +2,22 @@
 
 namespace App\Filament\Company\Pages;
 
+use App\Enums\CompanyTypes;
+use App\Enums\EmployeeAssignedStatus;
 use App\Enums\TerminationReason;
+use App\Models\Company;
+use App\Models\EmployeeAssigned;
 use App\Models\Employee;
 use App\Services\EndOfServiceService;
 use Carbon\Carbon;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
-use Filament\Forms\Get;
 use Filament\Pages\Page;
 
 class EndOfServiceCalculator extends Page implements HasForms
@@ -40,8 +42,9 @@ class EndOfServiceCalculator extends Page implements HasForms
 
     public function form(Form $form): Form
     {
-        $user = Filament::auth()->user();
-        $companyId = $user instanceof \App\Models\Company ? $user->id : ($user->company_id ?? null);
+        $company = $this->getCurrentCompany();
+        $companyId = $company?->id;
+        $companyType = $company?->type;
 
         return $form
             ->schema([
@@ -50,33 +53,71 @@ class EndOfServiceCalculator extends Page implements HasForms
                     ->schema([
                         Select::make('employee_id')
                             ->label('الموظف')
-                            ->options(function () use ($companyId) {
+                            ->options(function () use ($companyId, $companyType) {
                                 if (! $companyId) {
                                     return [];
                                 }
 
-                                return Employee::where('company_id', $companyId)
-                                    ->orWhereHas('assigned', fn ($q) => $q->where('employee_assigned.company_id', $companyId))
-                                    ->pluck('name', 'id');
+                                $query = Employee::query();
+
+                                if ($this->isClientCompany($companyType)) {
+                                    // Client company: show own employees + approved assigned employees to this client.
+                                    $query->where('company_id', $companyId)
+                                        ->orWhereHas('assigned', fn ($q) => $q
+                                            ->where('employee_assigned.company_id', $companyId)
+                                            ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED));
+                                } else {
+                                    // Provider company: show only its original employees.
+                                    $query->where('company_id', $companyId);
+                                }
+
+                                return $query->pluck('name', 'id');
                             })
                             ->searchable()
                             ->preload()
                             ->live()
-                            ->afterStateUpdated(function ($state, callable $set) {
+                            ->afterStateUpdated(function ($state, callable $set) use ($companyId, $companyType) {
                                 if (! $state) {
                                     return;
                                 }
 
-                                $employee = Employee::with('currentPayroll')->find($state);
+                                $employee = Employee::find($state);
                                 if (! $employee) {
                                     return;
                                 }
 
-                                if ($employee->hire_date) {
+                                if ($this->isClientCompany($companyType) && $companyId) {
+                                    // Client side hiring date should be assignment start date in this client.
+                                    $assignmentStartDate = EmployeeAssigned::query()
+                                        ->where('employee_id', $employee->id)
+                                        ->where('company_id', $companyId)
+                                        ->where('status', EmployeeAssignedStatus::APPROVED)
+                                        ->orderByDesc('start_date')
+                                        ->value('start_date');
+
+                                    if ($assignmentStartDate) {
+                                        $set('hire_date', Carbon::parse($assignmentStartDate)->format('Y-m-d'));
+                                    } elseif ($employee->hire_date) {
+                                        $set('hire_date', Carbon::parse($employee->hire_date)->format('Y-m-d'));
+                                    }
+                                } elseif ($employee->hire_date) {
+                                    // Provider side keeps original employee hire date.
                                     $set('hire_date', Carbon::parse($employee->hire_date)->format('Y-m-d'));
                                 }
 
-                                $payroll = $employee->currentPayroll;
+                                $payroll = null;
+                                if ($companyId) {
+                                    $payroll = $employee->payrolls()
+                                        ->where('company_id', $companyId)
+                                        ->latest('id')
+                                        ->first();
+                                }
+
+                                // Fallback to latest payroll when company-specific payroll is missing.
+                                if (! $payroll) {
+                                    $payroll = $employee->currentPayroll;
+                                }
+
                                 if ($payroll) {
                                     $totalSalary = (float) $payroll->basic_salary
                                         + (float) $payroll->housing_allowance
@@ -145,5 +186,25 @@ class EndOfServiceCalculator extends Page implements HasForms
         }
 
         return false;
+    }
+
+    private function getCurrentCompany(): ?Company
+    {
+        $user = Filament::auth()->user();
+
+        if ($user instanceof Company) {
+            return $user;
+        }
+
+        if ($user instanceof \App\Models\User && $user->company_id) {
+            return Company::find($user->company_id);
+        }
+
+        return null;
+    }
+
+    private function isClientCompany(?string $companyType): bool
+    {
+        return $companyType === CompanyTypes::CLIENT;
     }
 }
