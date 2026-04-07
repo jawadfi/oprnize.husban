@@ -3,6 +3,7 @@
 namespace App\Filament\Employee\Pages;
 
 use App\Enums\EndOfServiceRequestStatus;
+use App\Enums\EmployeeAssignedStatus;
 use App\Enums\TerminationReason;
 use App\Models\Company;
 use App\Models\Employee;
@@ -152,17 +153,23 @@ class RequestEndOfService extends Page implements HasForms
 
     protected function resolveContextData(Employee $employee): array
     {
-        $contextCompanyId = $employee->company_assigned_id ?: $employee->company_id;
+        $activeAssignment = EmployeeAssigned::query()
+            ->where('employee_id', $employee->id)
+            ->where('status', EmployeeAssignedStatus::APPROVED)
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                    ->orWhereDate('end_date', '>=', now()->toDateString());
+            })
+            ->orderByDesc('start_date')
+            ->first(['company_id', 'start_date']);
+
+        $contextCompanyId = $activeAssignment?->company_id
+            ?: $employee->company_assigned_id
+            ?: $employee->company_id;
+
         $contextCompanyName = Company::query()->where('id', $contextCompanyId)->value('name') ?? '-';
 
-        $serviceStartDate = $employee->hire_date;
-        if ($employee->company_assigned_id) {
-            $serviceStartDate = EmployeeAssigned::query()
-                ->where('employee_id', $employee->id)
-                ->where('company_id', $employee->company_assigned_id)
-                ->orderByDesc('start_date')
-                ->value('start_date') ?: $employee->hire_date;
-        }
+        $serviceStartDate = $activeAssignment?->start_date ?: $employee->hire_date;
 
         $payroll = $employee->payrolls()
             ->where('company_id', $contextCompanyId)

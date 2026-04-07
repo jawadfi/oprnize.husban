@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\EndOfServiceRequestStatus;
+use App\Enums\EmployeeAssignedStatus;
 use App\Enums\TerminationReason;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -59,7 +60,19 @@ class EndOfServiceRequest extends Model
 
     public function moveToClientApproval(): void
     {
+        $assignmentCompanyId = EmployeeAssigned::query()
+            ->where('employee_id', $this->employee_id)
+            ->where('status', EmployeeAssignedStatus::APPROVED)
+            ->whereDate('start_date', '<=', $this->last_working_date)
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                    ->orWhereDate('end_date', '>=', $this->last_working_date);
+            })
+            ->orderByDesc('start_date')
+            ->value('company_id');
+
         $clientCompanyId = $this->client_company_id
+            ?? $assignmentCompanyId
             ?? $this->employee->company_assigned_id
             ?? $this->company_id;
 
