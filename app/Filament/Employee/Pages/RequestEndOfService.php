@@ -21,9 +21,7 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Illuminate\Support\Facades\Blade;
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Support\HtmlString;
 
 class RequestEndOfService extends Page implements HasForms
 {
@@ -99,15 +97,6 @@ class RequestEndOfService extends Page implements HasForms
                     ])
                     ->columns(2),
             ])
-            ->submitAction(new HtmlString(Blade::render(<<<BLADE
-    <x-filament::button
-        type="submit"
-        size="lg"
-    >
-        Send Request
-    </x-filament::button>
-BLADE
-            )))
             ->statePath('data');
     }
 
