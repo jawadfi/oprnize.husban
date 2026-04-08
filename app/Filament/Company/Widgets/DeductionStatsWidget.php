@@ -5,7 +5,9 @@ namespace App\Filament\Company\Widgets;
 use App\Enums\CompanyTypes;
 use App\Enums\DeductionStatus;
 use App\Filament\Company\Resources\DeductionResource;
+use App\Models\Company;
 use App\Models\Deduction;
+use App\Models\User;
 use Filament\Facades\Filament;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -15,10 +17,16 @@ class DeductionStatsWidget extends BaseWidget
     protected function getStats(): array
     {
         $user = Filament::auth()->user();
+        $companyId = $user instanceof Company ? $user->id : ($user instanceof User ? $user->company_id : null);
+
+        if (!$companyId) {
+            return [];
+        }
+
         $currentMonth = now()->format('Y-m');
         
         // Get deductions for current month
-        $query = Deduction::where('company_id', $user->id)
+        $query = Deduction::where('company_id', $companyId)
             ->where('payroll_month', $currentMonth);
         
         $totalAmount = (clone $query)->where('status', DeductionStatus::APPROVED)->sum('amount');

@@ -5,7 +5,9 @@ namespace App\Filament\Company\Widgets;
 use App\Enums\CompanyTypes;
 use App\Enums\EmployeeAssignedStatus;
 use App\Filament\Company\Resources\EmployeeResource;
+use App\Models\Company;
 use App\Models\Employee;
+use App\Models\User;
 use Filament\Facades\Filament;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -15,11 +17,17 @@ class EmployeeStatsWidget extends BaseWidget
     protected function getStats(): array
     {
         $user = Filament::auth()->user();
+        $companyId = $user instanceof Company ? $user->id : ($user instanceof User ? $user->company_id : null);
+        $companyType = $user instanceof Company ? $user->type : ($user instanceof User ? $user->company?->type : null);
+
+        if (!$companyId) {
+            return [];
+        }
         
-        if ($user->type === CompanyTypes::PROVIDER) {
+        if ($companyType === CompanyTypes::PROVIDER) {
             // Provider: count their own employees
-            $totalEmployees = Employee::where('company_id', $user->id)->count();
-            $assignedEmployees = Employee::where('company_id', $user->id)
+            $totalEmployees = Employee::where('company_id', $companyId)->count();
+            $assignedEmployees = Employee::where('company_id', $companyId)
                 ->whereHas('assigned', fn($q) => $q->where('status', EmployeeAssignedStatus::APPROVED))
                 ->count();
             
@@ -46,7 +54,7 @@ class EmployeeStatsWidget extends BaseWidget
         } else {
             // Client: count assigned employees only
             $assignedEmployees = Employee::whereHas('assigned', fn($q) => 
-                $q->where('employee_assigned.company_id', $user->id)
+                $q->where('employee_assigned.company_id', $companyId)
                   ->where('employee_assigned.status', EmployeeAssignedStatus::APPROVED)
             )->count();
             

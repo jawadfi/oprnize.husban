@@ -141,7 +141,7 @@ class UserResource extends Resource
             return parent::getEloquentQuery()->where('company_id', $company->company_id);
         }
         
-        return parent::getEloquentQuery();
+        return parent::getEloquentQuery()->whereRaw('1 = 0');
     }
 
     public static function form(Form $form): Form
