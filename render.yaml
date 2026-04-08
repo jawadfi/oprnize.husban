@@ -42,7 +42,45 @@ services:
           name: oprnize-db
           property: password
 
+  # Cron job: runs on the 1st of every month at 08:00 UTC
+  - type: cron
+    name: loan-monthly-deductions
+    env: php
+    schedule: "0 8 1 * *"
+    buildCommand: composer install --no-dev --optimize-autoloader
+    startCommand: php artisan loans:process-monthly
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_KEY
+        generateValue: true
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: oprnize-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: oprnize-db
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: oprnize-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: oprnize-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: oprnize-db
+          property: password
+
 databases:
   - name: oprnize-db
     databaseName: oprnize_db_6rxb
     user: oprnize_db_6rxb_user
+        fromDatabase:
+          name: oprnize-db
+          property: password

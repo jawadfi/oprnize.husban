@@ -27,6 +27,9 @@ final class DeductionReason extends Enum
     /** سلفة */
     const ADVANCE = 'advance';
 
+    /** قرض */
+    const LOAN = 'loan';
+
     /** أخرى */
     const OTHER = 'other';
 
@@ -38,19 +41,21 @@ final class DeductionReason extends Enum
             self::PENALTY => 'جزاء / عقوبة',
             self::FOOD_SUBSCRIPTION => 'اشتراك طعام',
             self::ADVANCE => 'سلفة',
-            self::OTHER => 'أخرى',
+            self::LOAN   => 'قرض',
+            self::OTHER  => 'أخرى',
         ];
     }
 
     public static function getColors(): array
     {
         return [
-            self::ABSENCE => 'danger',
-            self::LATE => 'warning',
-            self::PENALTY => 'danger',
+            self::ABSENCE          => 'danger',
+            self::LATE             => 'warning',
+            self::PENALTY          => 'danger',
             self::FOOD_SUBSCRIPTION => 'info',
-            self::ADVANCE => 'primary',
-            self::OTHER => 'gray',
+            self::ADVANCE          => 'primary',
+            self::LOAN             => 'indigo',
+            self::OTHER            => 'gray',
         ];
     }
 }

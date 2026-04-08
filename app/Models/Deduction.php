@@ -36,6 +36,7 @@ class Deduction extends Model
         'status',
         'is_recurring',
         'created_by_company_id',
+        'loan_id',
     ];
 
     protected function casts(): array
@@ -66,6 +67,11 @@ class Deduction extends Model
     public function createdByCompany(): BelongsTo
     {
         return $this->belongsTo(Company::class, 'created_by_company_id');
+    }
+
+    public function loan(): BelongsTo
+    {
+        return $this->belongsTo(Loan::class);
     }
 
     /**
