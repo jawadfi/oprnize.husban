@@ -38,9 +38,11 @@ class ManageAssignedEmployees extends ManageRecords
         $company_ids = $used_employee->distinct()->pluck('company_id')->toArray();
         $companies = Company::find($company_ids);
         foreach ($companies as $company) {
-            $tabs[$company->name] = Tab::make()
+            // Use the company's numeric ID as the tab key to avoid collisions
+            // when two providers share the same display name.
+            $tabs['provider_' . $company->id] = Tab::make($company->name)
                 ->badge(fn() => $used_employee_collection->where('company_id', $company->id)->count())
-                ->modifyQueryUsing(fn(Builder $query) => $query->where('company_id', $company->id))
+                ->modifyQueryUsing(fn(Builder $query) => $query->where('employees.company_id', $company->id))
             ;
         }
         return $tabs;
