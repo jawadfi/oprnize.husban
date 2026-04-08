@@ -11,34 +11,22 @@ class CompanyUserProvider implements UserProvider
 {
     public function retrieveById($identifier): ?Authenticatable
     {
-        // Use session to determine which model type to retrieve
+        // Use session to determine which model type to retrieve.
+        // Do NOT fall back to guessing: Company and User share the same integer ID
+        // namespace, so User::find(company_id) could return the wrong record and
+        // expose another company's employees.
         $modelType = session('auth_model_type');
-        
+
         if ($modelType === Company::class) {
-            $company = Company::find($identifier);
-            if ($company) {
-                return $company;
-            }
-        } elseif ($modelType === User::class) {
-            $user = User::find($identifier);
-            if ($user) {
-                return $user;
-            }
-        } else {
-            // Fallback: try both if session type not set (for backward compatibility)
-            // Check User first (since Users have company_id and are more specific)
-            $user = User::find($identifier);
-            if ($user) {
-                return $user;
-            }
-            
-            // Try Company if User not found
-            $company = Company::find($identifier);
-            if ($company) {
-                return $company;
-            }
+            return Company::find($identifier);
         }
-        
+
+        if ($modelType === User::class) {
+            return User::find($identifier);
+        }
+
+        // Session type is unknown – force the user to re-authenticate rather than
+        // risk returning the wrong model and leaking data.
         return null;
     }
 

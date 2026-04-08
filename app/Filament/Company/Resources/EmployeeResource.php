@@ -51,9 +51,24 @@ class EmployeeResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $user = Filament::auth()->user();
-        $companyId = $user instanceof Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
-        
-        return parent::getEloquentQuery()->where('company_id', $companyId)->with(['currentCompanyAssigned']);
+
+        $companyId = match (true) {
+            $user instanceof Company            => $user->id,
+            $user instanceof \App\Models\User   => $user->company_id,
+            default                             => null,
+        };
+
+        $query = parent::getEloquentQuery()->with(['currentCompanyAssigned']);
+
+        // Guard: if the company cannot be determined, return an empty result set
+        // rather than leaking rows (e.g. WHERE company_id IS NULL matching all
+        // employees whose company_id was never set).
+        if (! $companyId) {
+            return $query->whereRaw('0 = 1');
+        }
+
+        // Qualify the column to avoid ambiguity when joins are present.
+        return $query->where('employees.company_id', $companyId);
     }
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
