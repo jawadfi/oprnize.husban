@@ -21,6 +21,10 @@ services:
         value: sync
       - key: DB_CONNECTION
         value: pgsql
+      - key: DB_URL
+        fromDatabase:
+          name: oprnize-db
+          property: connectionString
       - key: DB_HOST
         fromDatabase:
           name: oprnize-db
@@ -56,6 +60,10 @@ services:
         generateValue: true
       - key: DB_CONNECTION
         value: pgsql
+      - key: DB_URL
+        fromDatabase:
+          name: oprnize-db
+          property: connectionString
       - key: DB_HOST
         fromDatabase:
           name: oprnize-db
@@ -81,6 +89,3 @@ databases:
   - name: oprnize-db
     databaseName: oprnize_db_6rxb
     user: oprnize_db_6rxb_user
-        fromDatabase:
-          name: oprnize-db
-          property: password
