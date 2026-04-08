@@ -8,12 +8,13 @@ use App\Models\LeaveRequest;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class Employee extends Authenticatable implements FilamentUser
 {
-    use Notifiable;
+    use Notifiable, SoftDeletes;
     protected $fillable = [
         'name',
         'job_title',

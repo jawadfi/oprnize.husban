@@ -20,8 +20,12 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\DeleteBulkAction;
+use Filament\Tables\Actions\RestoreAction;
+use Filament\Tables\Actions\RestoreBulkAction;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class EmployeeResource extends Resource
 {
@@ -58,7 +62,9 @@ class EmployeeResource extends Resource
             default                             => null,
         };
 
-        $query = parent::getEloquentQuery()->with(['currentCompanyAssigned']);
+        $query = parent::getEloquentQuery()
+            ->withoutGlobalScope(SoftDeletingScope::class)
+            ->with(['currentCompanyAssigned']);
 
         // Guard: if the company cannot be determined, return an empty result set
         // rather than leaking rows (e.g. WHERE company_id IS NULL matching all
@@ -101,10 +107,11 @@ class EmployeeResource extends Resource
                     ->width('100px'),
             ])
             ->filters([
-                //
+                TrashedFilter::make(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                RestoreAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkAction::make('assigned_to')
@@ -141,6 +148,7 @@ class EmployeeResource extends Resource
                     }),
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
+                    RestoreBulkAction::make(),
                 ]),
             ]);
     }
