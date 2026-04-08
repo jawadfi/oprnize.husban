@@ -13,6 +13,40 @@ class EmployeePolicy
     use HandlesAuthorization;
 
     /**
+     * Resolve the company_id that the authenticated user belongs to.
+     */
+    private function resolveCompanyId(Admin|User|Company $user): ?int
+    {
+        if ($user instanceof Admin) {
+            return null; // Admin sees all — handled by returning true early
+        }
+
+        if ($user instanceof Company) {
+            return $user->id;
+        }
+
+        if ($user instanceof User) {
+            return $user->company_id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Check whether the employee belongs to the authenticated company/user.
+     */
+    private function ownsEmployee(Admin|User|Company $user, Employee $employee): bool
+    {
+        if ($user instanceof Admin) {
+            return true;
+        }
+
+        $companyId = $this->resolveCompanyId($user);
+
+        return $companyId !== null && (int) $employee->company_id === $companyId;
+    }
+
+    /**
      * Determine whether the user can view any models.
      */
     public function viewAny(Admin|User|Company $user): bool
@@ -41,7 +75,7 @@ class EmployeePolicy
      */
     public function update(Admin|User|Company $user, Employee $employee): bool
     {
-        return true;
+        return $this->ownsEmployee($user, $employee);
     }
 
     /**
@@ -49,7 +83,7 @@ class EmployeePolicy
      */
     public function delete(Admin|User|Company $user, Employee $employee): bool
     {
-        return true;
+        return $this->ownsEmployee($user, $employee);
     }
 
     /**
@@ -65,7 +99,7 @@ class EmployeePolicy
      */
     public function forceDelete(Admin|User|Company $user, Employee $employee): bool
     {
-        return true;
+        return $this->ownsEmployee($user, $employee);
     }
 
     /**
@@ -81,7 +115,7 @@ class EmployeePolicy
      */
     public function restore(Admin|User|Company $user, Employee $employee): bool
     {
-        return true;
+        return $this->ownsEmployee($user, $employee);
     }
 
     /**
@@ -97,7 +131,7 @@ class EmployeePolicy
      */
     public function replicate(Admin|User|Company $user, Employee $employee): bool
     {
-        return true;
+        return $this->ownsEmployee($user, $employee);
     }
 
     /**
