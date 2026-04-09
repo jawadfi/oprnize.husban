@@ -475,15 +475,19 @@ class PendingHiring extends Page implements HasTable
                     ->label('موافقة / Approve')
                     ->icon('heroicon-o-check')
                     ->color('success')
-                        ->form(function () {
+                        ->form(function (?EmployeeAssigned $record) {
                         if ($this->isClientSide()) {
                             return [
+                                Forms\Components\DatePicker::make('start_date')
+                                    ->label('تاريخ التعيين / Assignment Start Date')
+                                    ->required()
+                                    ->default($record?->start_date ?? now()),
                                 Forms\Components\Select::make('branch_id')
                                     ->label('اختر الفرع / Choose Branch (Location)')
                                     ->options(fn () => $this->getClientBranches())
-                                    ->nullable()
+                                    ->required()
                                     ->searchable()
-                                    ->helperText('سيتم تعيين الموظف في الفرع المحدد / Employee will be placed in the selected branch (optional)'),
+                                    ->helperText('يجب تحديد الفرع قبل الموافقة / Branch is required before approval'),
                             ];
                         }
 
@@ -498,23 +502,22 @@ class PendingHiring extends Page implements HasTable
                     })
                     ->requiresConfirmation()
                     ->action(function (EmployeeAssigned $record, array $data) {
-                        $record->updateStatus(EmployeeAssignedStatus::APPROVED);
+                        $record->update([
+                            'status' => EmployeeAssignedStatus::APPROVED,
+                            'start_date' => $data['start_date'],
+                            'branch_id' => $data['branch_id'],
+                        ]);
 
                         // Update employee's company_assigned_id
                         $record->employee->update(['company_assigned_id' => $record->company_id]);
 
-                        // If client selected a branch, assign employee to that branch
-                        if (!empty($data['branch_id'])) {
-                            $record->update(['branch_id' => $data['branch_id']]);
-
-                            // Also add to branch_employee pivot table
-                            $record->employee->branches()->syncWithoutDetaching([
-                                $data['branch_id'] => [
-                                    'start_date' => $record->start_date ?? now(),
-                                    'is_active' => true,
-                                ],
-                            ]);
-                        }
+                        // Also add to branch_employee pivot table
+                        $record->employee->branches()->syncWithoutDetaching([
+                            $data['branch_id'] => [
+                                'start_date' => $data['start_date'],
+                                'is_active' => true,
+                            ],
+                        ]);
 
                         Notification::make()
                             ->title("تمت الموافقة بنجاح / Employee approved successfully")
@@ -639,10 +642,14 @@ class PendingHiring extends Page implements HasTable
                         ->form(function () {
                             if ($this->isClientSide()) {
                                 return [
+                                    Forms\Components\DatePicker::make('start_date')
+                                        ->label('تاريخ التعيين / Assignment Start Date')
+                                        ->required()
+                                        ->default(now()),
                                     Forms\Components\Select::make('branch_id')
                                         ->label('اختر الفرع / Choose Branch')
                                         ->options(fn () => $this->getClientBranches())
-                                        ->nullable()
+                                        ->required()
                                         ->searchable(),
                                 ];
                             }
@@ -658,18 +665,19 @@ class PendingHiring extends Page implements HasTable
                             foreach ($records as $record) {
                                 if ((int) $record->company_id === $companyId
                                     && $record->status === EmployeeAssignedStatus::PENDING) {
-                                    $record->updateStatus(EmployeeAssignedStatus::APPROVED);
+                                    $record->update([
+                                        'status' => EmployeeAssignedStatus::APPROVED,
+                                        'start_date' => $data['start_date'],
+                                        'branch_id' => $data['branch_id'],
+                                    ]);
                                     $record->employee->update(['company_assigned_id' => $record->company_id]);
 
-                                    if (!empty($data['branch_id'])) {
-                                        $record->update(['branch_id' => $data['branch_id']]);
-                                        $record->employee->branches()->syncWithoutDetaching([
-                                            $data['branch_id'] => [
-                                                'start_date' => $record->start_date ?? now(),
-                                                'is_active' => true,
-                                            ],
-                                        ]);
-                                    }
+                                    $record->employee->branches()->syncWithoutDetaching([
+                                        $data['branch_id'] => [
+                                            'start_date' => $data['start_date'],
+                                            'is_active' => true,
+                                        ],
+                                    ]);
 
                                     $count++;
                                 }

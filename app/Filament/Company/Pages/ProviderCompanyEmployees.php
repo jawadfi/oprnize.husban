@@ -50,17 +50,7 @@ class ProviderCompanyEmployees extends Page implements HasTable
 
     public function mount(): void
     {
-        abort_unless($this->canAccess(), 403);
-        
-        $companyId = request()->query('companyId');
-        
-        if ($companyId) {
-            $this->companyId = (int) $companyId;
-            $this->company = Company::where('type', CompanyTypes::PROVIDER)
-                ->findOrFail($this->companyId);
-        } else {
-            abort(404);
-        }
+        $this->redirect(PendingHiring::getUrl(panel: 'company'), navigate: true);
     }
 
     public function table(Table $table): Table

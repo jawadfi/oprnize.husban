@@ -27,7 +27,7 @@ class ProviderCompaniesListing extends Page
 
     public function mount(): void
     {
-        abort_unless($this->canAccess(), 403);
+        $this->redirect(PendingHiring::getUrl(panel: 'company'), navigate: true);
     }
 
     public static function canAccess(): bool

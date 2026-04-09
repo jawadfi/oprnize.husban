@@ -34,6 +34,35 @@ class EmployeeResource extends Resource
 
     protected static ?string $label = 'Employees';
 
+    protected static function getCurrentCompanyId(): ?int
+    {
+        $user = Filament::auth()->user();
+
+        return match (true) {
+            $user instanceof Company => $user->id,
+            $user instanceof User => $user->company_id,
+            default => null,
+        };
+    }
+
+    protected static function getEmployeeFilterOptions(string $column): array
+    {
+        $companyId = static::getCurrentCompanyId();
+
+        if (! $companyId) {
+            return [];
+        }
+
+        return Employee::query()
+            ->where('company_id', $companyId)
+            ->whereNotNull($column)
+            ->where($column, '!=', '')
+            ->orderBy($column)
+            ->distinct()
+            ->pluck($column, $column)
+            ->toArray();
+    }
+
     public static function canAccess(): bool
     {
         $user = Filament::auth()->user();
@@ -107,6 +136,28 @@ class EmployeeResource extends Resource
                     ->width('100px'),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('department')
+                    ->label('Department')
+                    ->options(fn () => static::getEmployeeFilterOptions('department')),
+                Tables\Filters\SelectFilter::make('location')
+                    ->label('Location')
+                    ->options(fn () => static::getEmployeeFilterOptions('location')),
+                Tables\Filters\SelectFilter::make('nationality')
+                    ->label('Nationality')
+                    ->options(fn () => static::getEmployeeFilterOptions('nationality')),
+                Tables\Filters\SelectFilter::make('job_title')
+                    ->label('Job Title')
+                    ->options(fn () => static::getEmployeeFilterOptions('job_title')),
+                Tables\Filters\TernaryFilter::make('has_payroll')
+                    ->label('Payroll Data')
+                    ->queries(
+                        true: fn (Builder $query) => $query->whereHas('payrolls', fn (Builder $subQuery) => $subQuery->where('basic_salary', '>', 0)),
+                        false: fn (Builder $query) => $query->where(function (Builder $subQuery) {
+                            $subQuery->whereDoesntHave('payrolls')
+                                ->orWhereDoesntHave('payrolls', fn (Builder $nestedQuery) => $nestedQuery->where('basic_salary', '>', 0));
+                        }),
+                        blank: fn (Builder $query) => $query,
+                    ),
                 TrashedFilter::make(),
             ])
             ->actions([
