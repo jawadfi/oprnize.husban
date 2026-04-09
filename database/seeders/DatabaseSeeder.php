@@ -83,6 +83,9 @@ class DatabaseSeeder extends Seeder
             $company->update(['email_verified_at' => now()]);
         }
 
+        // PROVIDER company — support@init.com (Support Provider)
+        $this->call(SupportProviderSeeder::class);
+
         // Seed the 13 sample employees under مسار العقود (masar@masar.com)
         $this->call(SampleEmployeesSeeder::class);
     }
