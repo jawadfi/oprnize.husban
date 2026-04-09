@@ -1,12 +1,23 @@
 <x-filament-panels::page>
     <div class="space-y-6">
         {{-- Header Section --}}
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between flex-wrap gap-3">
             <div>
                 <p class="text-sm text-gray-600 mt-1">اختر شركة العميل لعرض وإدارة الموظفين المعينين / Select a client company to manage assigned employees</p>
             </div>
-            <div class="text-sm text-gray-600">
-                الإجمالي: {{ $this->companies->total() }} شركة
+            <div class="flex items-center gap-3">
+                <span class="text-sm text-gray-600">الإجمالي: {{ $this->companies->total() }} شركة</span>
+                {{-- Download Excel template --}}
+                <a
+                    href="{{ url('/company/bulk-assign-template') }}"
+                    class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
+                    download
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    تحميل نموذج Excel / Download Template
+                </a>
             </div>
         </div>
 
@@ -29,48 +40,56 @@
         @if($this->companies->count() > 0)
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 @foreach($this->companies as $company)
-                    <a
-                        href="{{ \App\Filament\Company\Pages\ClientCompanyEmployees::getUrl(['companyId' => $company->id]) }}"
-                        class="bg-white rounded-xl p-5 hover:shadow-lg transition-all duration-200 cursor-pointer border border-gray-200 hover:border-primary-300 group"
-                    >
-                        <div class="flex items-start justify-between mb-4">
-                            {{-- Company Logo --}}
-                            <div class="w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-sm">
-                                {{ mb_substr($company->name, 0, 1) }}
-                            </div>
-                            <svg class="w-5 h-5 text-gray-300 group-hover:text-primary-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="bg-white rounded-xl p-5 border border-gray-200 hover:border-primary-300 hover:shadow-md transition-all duration-200 flex flex-col gap-3">
+                        {{-- Card top row --}}
+                        <div class="flex items-start justify-between">
+                            <a
+                                href="{{ \App\Filament\Company\Pages\ClientCompanyEmployees::getUrl(['companyId' => $company->id]) }}"
+                                class="flex items-center gap-3 group flex-1"
+                            >
+                                <div class="w-12 h-12 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-sm shrink-0">
+                                    {{ mb_substr($company->name, 0, 1) }}
+                                </div>
+                                <div class="min-w-0">
+                                    <h3 class="font-semibold text-gray-900 line-clamp-2 group-hover:text-primary-600 transition-colors">{{ $company->name }}</h3>
+                                </div>
+                            </a>
+                            <svg class="w-5 h-5 text-gray-300 shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                             </svg>
                         </div>
 
-                        <h3 class="font-semibold text-gray-900 mb-3 line-clamp-2">{{ $company->name }}</h3>
-
-                        <div class="space-y-2">
-                            {{-- Assigned employees count --}}
-                            <div class="flex items-center text-sm">
-                                <div class="flex items-center text-emerald-600">
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                    <span class="font-medium">{{ $company->assigned_employees_count ?? 0 }}</span>
-                                </div>
-                                <span class="text-gray-400 mx-1">موظف معين</span>
+                        {{-- Stats --}}
+                        <div class="space-y-1.5">
+                            <div class="flex items-center text-sm text-emerald-600">
+                                <svg class="w-4 h-4 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                <span class="font-medium">{{ $company->assigned_employees_count ?? 0 }}</span>
+                                <span class="text-gray-400 ml-1">موظف معين</span>
                             </div>
-
-                            {{-- Pending count --}}
                             @if(($company->pending_employees_count ?? 0) > 0)
-                                <div class="flex items-center text-sm">
-                                    <div class="flex items-center text-amber-500">
-                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        <span class="font-medium">{{ $company->pending_employees_count }}</span>
-                                    </div>
-                                    <span class="text-gray-400 mx-1">بانتظار الموافقة</span>
+                                <div class="flex items-center text-sm text-amber-500">
+                                    <svg class="w-4 h-4 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span class="font-medium">{{ $company->pending_employees_count }}</span>
+                                    <span class="text-gray-400 ml-1">بانتظار الموافقة</span>
                                 </div>
                             @endif
                         </div>
-                    </a>
+
+                        {{-- Upload Excel button --}}
+                        <button
+                            wire:click="mountAction('uploadEmployees', @js(['companyId' => $company->id]))"
+                            class="w-full mt-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg border border-blue-200 transition-colors"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            </svg>
+                            استيراد موظفين / Import Employees
+                        </button>
+                    </div>
                 @endforeach
             </div>
 
@@ -95,4 +114,7 @@
             </div>
         @endif
     </div>
+
+    {{-- Filament Action modals (uploadEmployees) --}}
+    <x-filament-actions::modals />
 </x-filament-panels::page>

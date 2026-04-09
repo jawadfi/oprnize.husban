@@ -13,6 +13,18 @@ Route::get('/company/logout', function () {
     request()->session()->regenerateToken();
     return redirect('/company/login');
 });
+
+// Download bulk-assign Excel template (provider side)
+Route::get('/company/bulk-assign-template', function () {
+    $spreadsheet = \App\Filament\Company\Pages\ClientCompaniesListing::buildTemplateSpreadsheet();
+    $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+    return response()->streamDownload(function () use ($writer) {
+        $writer->save('php://output');
+    }, 'bulk-assign-template.xlsx', [
+        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ]);
+})->middleware('auth:company');
+
 Route::get('/roleCompany', function () {
     /** @var \App\Models\Company $company */
     foreach (\App\Models\Company::all() as $company)
