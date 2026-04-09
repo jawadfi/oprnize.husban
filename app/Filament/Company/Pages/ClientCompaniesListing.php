@@ -24,6 +24,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ClientCompaniesListing extends Page implements HasActions
@@ -318,6 +319,26 @@ class ClientCompaniesListing extends Page implements HasActions
         foreach (['A', 'B', 'C'] as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
+
+        $instructionsSheet = new Worksheet($spreadsheet, 'Instructions');
+        $spreadsheet->addSheet($instructionsSheet);
+
+        $instructionsSheet->setCellValue('A1', 'Bulk Assignment Upload Guide');
+        $instructionsSheet->setCellValue('A3', 'Required columns in the first sheet:');
+        $instructionsSheet->setCellValue('A4', 'emp_id: Employee ID exactly as saved in the system');
+        $instructionsSheet->setCellValue('A5', 'start_date: Assignment start date (YYYY-MM-DD)');
+        $instructionsSheet->setCellValue('A6', 'branch_name: Branch name in the selected client company');
+        $instructionsSheet->setCellValue('A8', 'Important notes:');
+        $instructionsSheet->setCellValue('A9', '1) Do not rename the headers in row 1.');
+        $instructionsSheet->setCellValue('A10', '2) One employee per row.');
+        $instructionsSheet->setCellValue('A11', '3) If emp_id or branch_name is not found, that row will be skipped.');
+
+        $instructionsSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $instructionsSheet->getStyle('A3:A8')->getFont()->setBold(true);
+        $instructionsSheet->getColumnDimension('A')->setWidth(110);
+        $instructionsSheet->getStyle('A1:A11')->getAlignment()->setWrapText(true);
+
+        $spreadsheet->setActiveSheetIndex(0);
 
         return $spreadsheet;
     }
