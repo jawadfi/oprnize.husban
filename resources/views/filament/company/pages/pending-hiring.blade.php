@@ -30,75 +30,83 @@
                 </div>
             </div>
 
-            <div class="mb-4">
-                <div class="mb-2 text-sm font-semibold text-gray-700">الفروع / Branches</div>
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    @foreach ($this->getBranchCards() as $branch)
-                        @php
-                            $isDropTarget = !$branch['is_unassigned'] && $branch['id'] !== null;
-                        @endphp
-                        <div
-                            @class([
-                                'rounded-xl border p-3 transition-all',
-                                'border-sky-500 bg-sky-50' => $branch['is_active'],
-                                'border-gray-200 bg-white' => !$branch['is_active'],
-                            ])
-                            x-on:click="
-                                if (justDropped) {
-                                    justDropped = false;
-                                    return;
-                                }
-                                $wire.selectBranchFilter({{ $branch['id'] === null ? 'null' : $branch['id'] }});
-                            "
-                            x-on:dragover.prevent="if (draggingAssignmentId && {{ $isDropTarget ? 'true' : 'false' }}) $el.classList.add('ring-2','ring-sky-400')"
-                            x-on:dragenter.prevent="if (draggingAssignmentId && {{ $isDropTarget ? 'true' : 'false' }}) dragOverBranchId = {{ (int) ($branch['id'] ?? 0) }}"
-                            x-on:dragleave.prevent="$el.classList.remove('ring-2','ring-sky-400'); if (dragOverBranchId === {{ (int) ($branch['id'] ?? 0) }}) dragOverBranchId = null"
-                            x-on:drop.prevent="
-                                $el.classList.remove('ring-2','ring-sky-400');
-                                const droppedId = window.pendingHiringGetDraggedAssignment($event) || draggingAssignmentId;
-                                console.log('[PendingHiring][DROP] droppedId=', droppedId, 'branchId=', Number({{ (int) ($branch['id'] ?? 0) }}), 'isDropTarget=', {{ $isDropTarget ? 'true' : 'false' }});
-                                if (!droppedId || {{ $isDropTarget ? 'false' : 'true' }}) return;
-                                dropMessage = 'جاري تعيين الموظف...';
-                                $wire.call('assignToBranch', Number(droppedId), Number({{ (int) ($branch['id'] ?? 0) }}))
-                                    .then(() => console.log('[PendingHiring][DROP] assignToBranch call completed'))
-                                    .catch((e) => console.error('[PendingHiring][DROP] assignToBranch call failed', e));
-                                draggingAssignmentId = null;
-                                dragOverBranchId = null;
-                                window.pendingHiringDraggingAssignmentId = null;
-                                dropMessage = 'تم التعيين بنجاح';
-                                setTimeout(() => dropMessage = '', 1800);
-                                justDropped = true;
-                                setTimeout(() => justDropped = false, 250);
-                            "
-                        >
-                            <div class="flex items-center justify-between gap-2">
-                                <div class="text-sm font-semibold text-gray-800">{{ $branch['name'] }}</div>
-                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">
-                                    {{ $branch['count'] }}
-                                </span>
-                            </div>
+            @if ($this->hasSelectedProvider())
+                <div class="mb-4">
+                    <div class="mb-2 text-sm font-semibold text-gray-700">الفروع / Branches</div>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        @foreach ($this->getBranchCards() as $branch)
+                            @php
+                                $isDropTarget = !$branch['is_unassigned'] && $branch['id'] !== null;
+                            @endphp
                             <div
-                                class="mt-1 text-xs"
-                                :class="dragOverBranchId === {{ (int) ($branch['id'] ?? 0) }} ? 'text-emerald-600 font-semibold' : 'text-gray-500'"
+                                @class([
+                                    'rounded-xl border p-3 transition-all',
+                                    'border-sky-500 bg-sky-50' => $branch['is_active'],
+                                    'border-gray-200 bg-white' => !$branch['is_active'],
+                                ])
+                                x-on:click="
+                                    if (justDropped) {
+                                        justDropped = false;
+                                        return;
+                                    }
+                                    $wire.selectBranchFilter({{ $branch['id'] === null ? 'null' : $branch['id'] }});
+                                "
+                                x-on:dragover.prevent="if (draggingAssignmentId && {{ $isDropTarget ? 'true' : 'false' }}) $el.classList.add('ring-2','ring-sky-400')"
+                                x-on:dragenter.prevent="if (draggingAssignmentId && {{ $isDropTarget ? 'true' : 'false' }}) dragOverBranchId = {{ (int) ($branch['id'] ?? 0) }}"
+                                x-on:dragleave.prevent="$el.classList.remove('ring-2','ring-sky-400'); if (dragOverBranchId === {{ (int) ($branch['id'] ?? 0) }}) dragOverBranchId = null"
+                                x-on:drop.prevent="
+                                    $el.classList.remove('ring-2','ring-sky-400');
+                                    const droppedId = window.pendingHiringGetDraggedAssignment($event) || draggingAssignmentId;
+                                    console.log('[PendingHiring][DROP] droppedId=', droppedId, 'branchId=', Number({{ (int) ($branch['id'] ?? 0) }}), 'isDropTarget=', {{ $isDropTarget ? 'true' : 'false' }});
+                                    if (!droppedId || {{ $isDropTarget ? 'false' : 'true' }}) return;
+                                    dropMessage = 'جاري تعيين الموظف...';
+                                    $wire.call('assignToBranch', Number(droppedId), Number({{ (int) ($branch['id'] ?? 0) }}))
+                                        .then(() => console.log('[PendingHiring][DROP] assignToBranch call completed'))
+                                        .catch((e) => console.error('[PendingHiring][DROP] assignToBranch call failed', e));
+                                    draggingAssignmentId = null;
+                                    dragOverBranchId = null;
+                                    window.pendingHiringDraggingAssignmentId = null;
+                                    dropMessage = 'تم التعيين بنجاح';
+                                    setTimeout(() => dropMessage = '', 1800);
+                                    justDropped = true;
+                                    setTimeout(() => justDropped = false, 250);
+                                "
                             >
-                                <span x-show="dragOverBranchId === {{ (int) ($branch['id'] ?? 0) }}">افلت الآن للتعيين في هذا الفرع</span>
-                                <span x-show="dragOverBranchId !== {{ (int) ($branch['id'] ?? 0) }}">اضغط للفلترة أو اسحب موظفًا هنا للتعيين</span>
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="text-sm font-semibold text-gray-800">{{ $branch['name'] }}</div>
+                                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">
+                                        {{ $branch['count'] }}
+                                    </span>
+                                </div>
+                                <div
+                                    class="mt-1 text-xs"
+                                    :class="dragOverBranchId === {{ (int) ($branch['id'] ?? 0) }} ? 'text-emerald-600 font-semibold' : 'text-gray-500'"
+                                >
+                                    <span x-show="dragOverBranchId === {{ (int) ($branch['id'] ?? 0) }}">افلت الآن للتعيين في هذا الفرع</span>
+                                    <span x-show="dragOverBranchId !== {{ (int) ($branch['id'] ?? 0) }}">اضغط للفلترة أو اسحب موظفًا هنا للتعيين</span>
+                                </div>
                             </div>
-                        </div>
-                    @endforeach
+                        @endforeach
+                    </div>
                 </div>
-            </div>
+            @else
+                <div class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                    اختر شركة أولًا لعرض الفروع وطلبات الموظفين / Choose a provider company first.
+                </div>
+            @endif
         @endif
 
         <div x-show="dropMessage" class="mb-2 inline-flex items-center rounded-lg bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700" x-text="dropMessage"></div>
 
-        <div class="mb-3 text-xs text-gray-500">
-            Tip: تقدر تسحب الموظف من الاسم أو من عمود Drag ثم تفلته فوق بطاقة الفرع.
-        </div>
+        @if (!$this->isClientSide() || $this->hasSelectedProvider())
+            <div class="mb-3 text-xs text-gray-500">
+                Tip: تقدر تسحب الموظف من الاسم أو من عمود Drag ثم تفلته فوق بطاقة الفرع.
+            </div>
 
-        <div>
-        {{ $this->table }}
-        </div>
+            <div>
+            {{ $this->table }}
+            </div>
+        @endif
     </div>
 
     <script>

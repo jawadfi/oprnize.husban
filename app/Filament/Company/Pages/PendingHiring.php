@@ -33,6 +33,11 @@ class PendingHiring extends Page implements HasTable
 
     public ?int $selectedProviderCompanyId = null;
 
+    public function hasSelectedProvider(): bool
+    {
+        return $this->selectedProviderCompanyId !== null;
+    }
+
     public function mount(): void
     {
         abort_unless($this->canAccess(), 403);
@@ -111,6 +116,11 @@ class PendingHiring extends Page implements HasTable
             return [];
         }
 
+        // Branch filtering is only meaningful after choosing a provider company.
+        if (!$this->hasSelectedProvider()) {
+            return [];
+        }
+
         $companyId = $this->getCurrentCompanyId();
         if (!$companyId) {
             return [];
@@ -128,6 +138,10 @@ class PendingHiring extends Page implements HasTable
                 $query->where('status', EmployeeAssignedStatus::PENDING)
                     ->orWhere('start_date', '>=', now()->toDateString());
             });
+
+        $baseQuery->whereHas('employee', function ($query) {
+            $query->where('employees.company_id', $this->selectedProviderCompanyId);
+        });
 
         $allCount = (clone $baseQuery)->count();
         $unassignedCount = (clone $baseQuery)->whereNull('branch_id')->count();
@@ -178,38 +192,15 @@ class PendingHiring extends Page implements HasTable
             ->where(function ($query) {
                 $query->where('employee_assigned.status', EmployeeAssignedStatus::PENDING)
                     ->orWhere('employee_assigned.start_date', '>=', now()->toDateString());
-            })
-            ->whereHas('employee.company', function ($query) {
-                $query->where('type', CompanyTypes::PROVIDER);
             });
 
-        $allCount = (clone $baseQuery)->count();
-
-        $providerIds = (clone $baseQuery)
-            ->whereHas('employee', function ($query) {
-                $query->whereNotNull('company_id');
-            })
-            ->with('employee:id,company_id')
-            ->get()
-            ->pluck('employee.company_id')
-            ->filter()
-            ->unique()
-            ->values();
-
         $providers = Company::query()
-            ->whereIn('id', $providerIds)
             ->where('type', CompanyTypes::PROVIDER)
+            ->whereKeyNot($companyId)
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $cards = [
-            [
-                'id' => null,
-                'name' => 'All Companies / كل الشركات',
-                'count' => $allCount,
-                'is_active' => $this->selectedProviderCompanyId === null,
-            ],
-        ];
+        $cards = [];
 
         foreach ($providers as $provider) {
             $count = (clone $baseQuery)
@@ -238,6 +229,8 @@ class PendingHiring extends Page implements HasTable
     public function selectProviderFilter(?int $providerCompanyId = null): void
     {
         $this->selectedProviderCompanyId = $providerCompanyId;
+        // Reset branch filter whenever provider changes.
+        $this->selectedBranchId = null;
         $this->resetTable();
     }
 
@@ -344,6 +337,10 @@ class PendingHiring extends Page implements HasTable
                 $companyId = $this->getCurrentCompanyId();
                 
                 if (!$companyId) {
+                    return EmployeeAssigned::query()->whereRaw('1 = 0');
+                }
+
+                if ($this->isClientSide() && $this->selectedProviderCompanyId === null) {
                     return EmployeeAssigned::query()->whereRaw('1 = 0');
                 }
                 
