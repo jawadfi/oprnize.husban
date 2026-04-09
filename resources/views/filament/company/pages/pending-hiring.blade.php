@@ -7,6 +7,30 @@
     >
         @if ($this->isClientSide())
             <div class="mb-4">
+                <div class="mb-2 text-sm font-semibold text-gray-700">الشركات / Provider Companies</div>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    @foreach ($this->getProviderCards() as $provider)
+                        <div
+                            @class([
+                                'rounded-xl border p-3 transition-all cursor-pointer',
+                                'border-sky-500 bg-sky-50' => $provider['is_active'],
+                                'border-gray-200 bg-white hover:border-sky-300' => !$provider['is_active'],
+                            ])
+                            x-on:click="$wire.selectProviderFilter({{ $provider['id'] === null ? 'null' : $provider['id'] }})"
+                        >
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="text-sm font-semibold text-gray-800">{{ $provider['name'] }}</div>
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">
+                                    {{ $provider['count'] }}
+                                </span>
+                            </div>
+                            <div class="mt-1 text-xs text-gray-500">اختر شركة لعرض موظفيها فقط</div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="mb-4">
                 <div class="mb-2 text-sm font-semibold text-gray-700">الفروع / Branches</div>
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     @foreach ($this->getBranchCards() as $branch)
