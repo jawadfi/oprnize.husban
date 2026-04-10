@@ -2,10 +2,12 @@
 
 namespace App\Filament\Company\Pages;
 
+use App\Enums\CompanyConnectionStatus;
 use App\Enums\CompanyTypes;
 use App\Enums\EmployeeAssignedStatus;
 use App\Models\Branch;
 use App\Models\Company;
+use App\Models\CompanyConnection;
 use App\Models\Employee;
 use App\Models\EmployeeAssigned;
 use App\Models\User;
@@ -72,7 +74,7 @@ class ClientCompaniesListing extends Page implements HasActions
 
     public function getCompaniesProperty(): LengthAwarePaginator
     {
-        $user = Filament::auth()->user();
+        $user       = Filament::auth()->user();
         $providerId = $user instanceof Company ? $user->id : ($user instanceof User ? $user->company_id : null);
 
         $query = Company::query()
@@ -87,10 +89,20 @@ class ClientCompaniesListing extends Page implements HasActions
                       ->where('employee_assigned.status', EmployeeAssignedStatus::PENDING);
                 },
             ])
+            ->with(['receivedConnections' => function ($q) use ($providerId) {
+                $q->where('provider_company_id', $providerId);
+            }])
             ->orderBy('name');
 
         if ($this->search) {
-            $query->where('name', 'like', '%' . $this->search . '%');
+            // Search mode: find client company by رقم السجل التجاري (CR number)
+            $query->where('commercial_registration_number', 'like', '%' . $this->search . '%');
+        } else {
+            // Default: display only approved-connected companies
+            $query->whereHas('receivedConnections', function ($q) use ($providerId) {
+                $q->where('provider_company_id', $providerId)
+                  ->where('status', CompanyConnectionStatus::APPROVED->value);
+            });
         }
 
         return $query->paginate(12, pageName: 'page');
@@ -101,10 +113,68 @@ class ClientCompaniesListing extends Page implements HasActions
         $this->resetPage('page');
     }
 
+    // ─── Connection Request ───────────────────────────────────────────────────
+
+    /**
+     * Filament Action – send a connection request to a client company.
+     * Triggered from the search-result card.
+     */
+    public function sendConnectionRequestAction(): Action
+    {
+        return Action::make('sendConnectionRequest')
+            ->label('إرسال طلب ربط / Send Connection Request')
+            ->icon('heroicon-o-paper-airplane')
+            ->color('primary')
+            ->requiresConfirmation()
+            ->modalHeading(function (array $arguments): string {
+                $name = Company::find($arguments['companyId'] ?? 0)?->name ?? '';
+                return "إرسال طلب ربط لشركة: {$name}";
+            })
+            ->modalDescription('سيتم إرسال طلب ربط إلى شركة العميل. يمكنك تعيين الموظفين فقط بعد موافقة العميل على الطلب.')
+            ->modalSubmitActionLabel('إرسال / Send')
+            ->action(function (array $arguments): void {
+                $user       = Filament::auth()->user();
+                $providerId = $user instanceof Company ? $user->id : ($user instanceof User ? $user->company_id : null);
+                $clientId   = (int) ($arguments['companyId'] ?? 0);
+
+                if (! $providerId || ! $clientId) {
+                    Notification::make()->title('خطأ: بيانات غير مكتملة')->danger()->send();
+                    return;
+                }
+
+                $existing = CompanyConnection::where('provider_company_id', $providerId)
+                    ->where('client_company_id', $clientId)
+                    ->first();
+
+                if ($existing) {
+                    $label = match ($existing->status) {
+                        CompanyConnectionStatus::PENDING  => 'قيد الانتظار / Pending approval',
+                        CompanyConnectionStatus::APPROVED => 'مرتبط بالفعل / Already connected',
+                        CompanyConnectionStatus::DECLINED => 'مرفوض / Declined — تواصل مع العميل',
+                    };
+                    Notification::make()->title("الطلب موجود بالفعل: {$label}")->warning()->send();
+                    return;
+                }
+
+                CompanyConnection::create([
+                    'provider_company_id' => $providerId,
+                    'client_company_id'   => $clientId,
+                    'status'              => CompanyConnectionStatus::PENDING->value,
+                ]);
+
+                Notification::make()
+                    ->title('تم إرسال طلب الربط / Connection request sent')
+                    ->body('سيتم إعلامك عند موافقة شركة العميل على الطلب')
+                    ->success()
+                    ->send();
+            });
+    }
+
     // ─── Bulk Excel Import ────────────────────────────────────────────────────
 
     /**
      * Filament Action – opened per company card with the card's ID as argument.
+     * Only available for approved-connected companies.
      */
     public function uploadEmployeesAction(): Action
     {

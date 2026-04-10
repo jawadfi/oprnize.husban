@@ -11,6 +11,7 @@ use App\Filament\Company\Resources\EmployeeResource\RelationManagers;
 use App\Filament\Schema\EmployeeSchema;
 use App\Helpers\Helpers;
 use App\Models\Company;
+use App\Models\CompanyConnection;
 use App\Models\Employee;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -169,21 +170,33 @@ class EmployeeResource extends Resource
                     ->visible(fn($livewire) => $livewire->activeTab===EmployeeStatusStatus::AVAILABLE)
                     ->deselectRecordsAfterCompletion()
                     ->icon('heroicon-o-user-plus')
+                    ->label('تعيين لشركة / Assign To')
                     ->form([
                         Forms\Components\Select::make('company_id')
                             ->label('Assign to Company')
-                            ->placeholder('Search by (Name, CR number)')
+                            ->placeholder('Select an approved connected company')
                             ->options(function () {
                                 $user = Filament::auth()->user();
                                 $companyId = $user instanceof \App\Models\Company ? $user->id : ($user instanceof \App\Models\User ? $user->company_id : null);
-                                return Company::query()
-                                    ->whereKeyNot($companyId)
+
+                                if (! $companyId) {
+                                    return [];
+                                }
+
+                                // Only show client companies with an APPROVED connection
+                                $approvedClientIds = CompanyConnection::where('provider_company_id', $companyId)
+                                    ->where('status', \App\Enums\CompanyConnectionStatus::APPROVED->value)
+                                    ->pluck('client_company_id');
+
+                                return Company::whereIn('id', $approvedClientIds)
                                     ->ofType(CompanyTypes::CLIENT)
+                                    ->orderBy('name')
                                     ->pluck('name', 'id');
                             })
-                            ->searchable(['name','commercial_registration_number'])
+                            ->searchable()
                             ->preload()
-                            ->required(),
+                            ->required()
+                            ->helperText('يظهر هنا فقط شركات العملاء المرتبطة والمعتمدة'),
                         Forms\Components\DatePicker::make('start_date')->label('Start Date')->required(),
                     ])->action(function ($records, array $data){
                         /** @var Company $company */

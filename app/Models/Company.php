@@ -100,6 +100,24 @@ class Company extends Authenticatable implements MustVerifyEmail, FilamentUser
         return $this->hasMany(Branch::class);
     }
 
+    // ─── Company Connection relationships ────────────────────────────────────
+
+    /**
+     * Connection requests sent by this provider to clients.
+     */
+    public function connectionRequests(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(CompanyConnection::class, 'provider_company_id');
+    }
+
+    /**
+     * Connection requests received by this client from providers.
+     */
+    public function receivedConnections(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(CompanyConnection::class, 'client_company_id');
+    }
+
     /**
      * Get the default guard name for roles/permissions
      */
